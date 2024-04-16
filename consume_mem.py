@@ -1,5 +1,8 @@
+#!/usr/bin/env python3
+
 import os
 import sys
+import time
 
 
 def consume_memory(size_in_mb):
@@ -15,10 +18,15 @@ def consume_memory(size_in_mb):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python consume_memory.py <size_in_mb>")
+    if len(sys.argv) != 3:
+        print("Usage: python consume_memory.py <size_in_mb> <time_in_sec>")
         sys.exit(1)
 
-    size_in_mb = int(sys.argv[1])
-    consume_memory(size_in_mb)
     print(f"PID of this process: {os.getpid()}")
+    size_in_mb = int(sys.argv[1])
+    time_to_spend = int(sys.argv[2])
+
+    consume_memory(size_in_mb)
+    t0 = time.time()
+    while time.time() - t0 < time_to_spend:
+        pass

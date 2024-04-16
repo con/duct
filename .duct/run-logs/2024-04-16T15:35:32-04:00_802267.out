@@ -1,0 +1,32 @@
+Started 5 for 802273
+abandoning_pare(802273)-+-pstree(802280)
+                        |-python3(802275)
+                        |-python3(802276)
+                        |-python3(802277)
+                        |-python3(802278)
+                        `-python3(802279)
+Starting one more in subprocess
+[1]   Running                 "$@" &
+[2]   Running                 "$@" &
+[3]   Running                 "$@" &
+[4]-  Running                 "$@" &
+[5]+  Running                 "$@" &
+abandoning_pare(802273)-+-pstree(802283)
+                        |-python3(802275)
+                        |-python3(802276)
+                        |-python3(802277)
+                        |-python3(802278)
+                        `-python3(802279)
+waiting
+PID of this process: 802275
+<class 'bytearray'>
+PID of this process: 802277
+<class 'bytearray'>
+PID of this process: 802279
+<class 'bytearray'>
+PID of this process: 802276
+<class 'bytearray'>
+PID of this process: 802278
+<class 'bytearray'>
+PID of this process: 802282
+<class 'bytearray'>

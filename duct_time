@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+: ${DUCT_OUTPUT_PREFIX:=.duct/run-logs/`date --iso-8601=sec`_$$}
+
+mkdir -p "$(dirname ${DUCT_OUTPUT_PREFIX})"
+
+STDOUT_FILE="${DUCT_OUTPUT_PREFIX}.out"
+STDERR_FILE="${DUCT_OUTPUT_PREFIX}.err"
+STATS_FILE="${DUCT_OUTPUT_PREFIX}.stats.json"
+
+# Be capable to support options to pass through stdout stderr
+
+/usr/bin/time \
+	-o "$STATS_FILE" \
+	--format='{"cpu-user-time": %U, "cpu-system-time": "%S", "cpu-perc": "%P", "memory-max-kb": %M, "memory-avg-kb": %K, "elapsed-time": %e, "cpu-time": %S }' \
+	"$@" 2>"$STDERR_FILE" | tee "$STDOUT_FILE"
+
+echo "Logs are saved under $DUCT_OUTPUT_PREFIX*"

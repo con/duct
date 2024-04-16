@@ -1,11 +1,16 @@
 #!/bin/bash
 
-"$@" &
+nchildren=$1
+shift
 
-echo "Started one $$"
+for i in `seq 1 $nchildren`; do
+	"$@" &
+done
+
+echo "Started $nchildren for $$"
 pstree -c -p "$$"
 
-echo "Starting 2nd one in subprocess"
+echo "Starting one more in subprocess"
 
 ( "$@" & )
 
