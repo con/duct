@@ -15,4 +15,14 @@ STATS_FILE="${DUCT_OUTPUT_PREFIX}.stats.json"
 	--format='{"cpu-user-time": %U, "cpu-system-time": "%S", "cpu-perc": "%P", "memory-max-kb": %M, "memory-avg-kb": %K, "elapsed-time": %e, "cpu-time": %S }' \
 	"$@" 2>"$STDERR_FILE" | tee "$STDOUT_FILE"
 
-echo "Logs are saved under $DUCT_OUTPUT_PREFIX*"
+# Option to add: remove empty files
+for f in "$DUCT_OUTPUT_PREFIX"*; do
+	if [ -e "$f" ] && [ ! -s "$f" ]; then
+		echo "D: removing empty $f" >&2
+		rm "$f"
+	fi
+done
+
+echo "Logs are saved under $DUCT_OUTPUT_PREFIX*" >&2
+echo "stats: $(cat "$STATS_FILE")"
+

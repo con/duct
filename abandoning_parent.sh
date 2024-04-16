@@ -10,9 +10,11 @@ done
 echo "Started $nchildren for $$"
 pstree -c -p "$$"
 
-echo "Starting one more in subprocess"
+echo "Starting the same number in subprocesses"
 
-( "$@" & )
+for i in `seq 1 $nchildren`; do
+	( "$@" & )
+done
 
 jobs
 
