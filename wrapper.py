@@ -1,17 +1,10 @@
 #!/usr/bin/env python3
 import os
 import subprocess
-import sys
 import time
 import argparse
 
-from collections import defaultdict
-
 import duct
-
-
-# Global so monitor_process can increment
-report_number = 1
 
 
 def get_processes_in_session(session_id):
