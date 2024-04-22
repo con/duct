@@ -34,6 +34,4 @@ def pid_dummy_monitor(pid, elapsed_time, subreport):
         os.kill(pid, 0)
         subreport.pids_dummy[pid].append(f"Process {pid} checked at {elapsed_time} seconds")
     except OSError:
-        report["pids"][pid].append(f"Process {pid} has terminated.")
-
-
+        subreport.pids_dummy[pid].append(f"Process {pid} has terminated.")
