@@ -10,6 +10,7 @@ Duct creates a new session to run a command and all its child processes, and the
 
 ## Options:
    - `--sample-interval`: SECONDS, how frequently to poll the processes
+   - `--report-interval`: SECONDS, how frequently data is recorded. All samples within this interval will be aggregated when reported.
 
 
 ## TODO:
