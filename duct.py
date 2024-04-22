@@ -1,22 +1,32 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
+import json
 import os
 
 
-@dataclass
 class Report:
-    system: dict = field(default_factory=dict)
-    subreports: list = field(default_factory=list)
-
-    def __post_init__(self):
-        self.generate_system_report()
-
-    def generate_system_report(self):
-        self.memory_total()
-
-    def memory_total(self):
+    def __init__(self, command):
+        self.command = command
+        self.system = {}
+        self.subreports = []
+        self.stdout = ""
+        self.stderr = ""
         self.system["memory_total"] = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES'),
 
+    def __repr__(self):
+        return json.dumps({
+            "Command": self.command,
+            "System": self.system,
+            "Subreports": [str(subreport) for subreport in self.subreports],
+            "STDOUT": self.stdout,
+            "STDERR": self.stderr,
+        })
+
+    # (f"""Report(system={self.system},
+    #         subreports={self.subreports},
+    #         f"stdout={self.stdout},
+    #         stderr={self.stderr}))"""
+    #
 
 @dataclass
 class SubReport:

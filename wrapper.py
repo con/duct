@@ -5,6 +5,7 @@ import time
 import argparse
 
 import duct
+import pprint
 
 
 def get_processes_in_session(session_id):
@@ -25,7 +26,6 @@ def get_processes_in_session(session_id):
 def generate_subreport(session_id, elapsed_time, report_interval, report, subreport):
     """Monitor and log details about all processes in the given session."""
     if elapsed_time >= (subreport.number+1) * report_interval:
-        print(subreport)
         report.subreports.append(subreport)
         subreport = duct.SubReport(subreport.number+1)
 
@@ -40,11 +40,10 @@ def main(command, args, sample_interval, report_interval):
     """ A wrapper to execute a command, monitor and log the process details. """
     try:
         start_time = time.time()
-        print(f"Starting at {start_time}...")
         process = subprocess.Popen([command] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
 
         session_id = os.getsid(process.pid)  # Get session ID of the new process
-        report = duct.Report()
+        report = duct.Report(command)
         subreport = duct.SubReport()
         elapsed_time = 0
 
@@ -58,9 +57,13 @@ def main(command, args, sample_interval, report_interval):
 
         stdout, stderr = process.communicate()
         end_time = time.time()
-        print(f"Command executed in {end_time - start_time:.2f} seconds.")
-        print("STDOUT:", stdout.decode())
-        print("STDERR:", stderr.decode())
+
+        report.system["end_time"] = end_time
+        report.system["run_time_seconds"] = f"{end_time - start_time}"
+        report.stdout = stdout.decode()
+        report.stderr = stderr.decode()
+
+        pprint.pprint(report, width=120)
 
     except Exception as e:
         print(f"Failed to execute command: {str(e)}")
