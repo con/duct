@@ -5,6 +5,11 @@ import sys
 import time
 import argparse
 
+
+# Global so monitor_process can increment
+report_number = 1
+
+
 def get_processes_in_session(session_id):
     """Retrieve all PIDs belonging to the given session ID."""
     pids = []
@@ -19,8 +24,10 @@ def get_processes_in_session(session_id):
                 continue
     return pids
 
+
 def monitor_processes(session_id, elapsed_time, report_interval, process_data):
     """Monitor and log details about all processes in the given session."""
+    global report_number
     pids = get_processes_in_session(session_id)
     for pid in pids:
         try:
@@ -29,11 +36,14 @@ def monitor_processes(session_id, elapsed_time, report_interval, process_data):
         except OSError:
             process_data.append(f"Process {pid} has terminated.")
 
-    if elapsed_time >= report_interval:
+    if elapsed_time >= report_number * report_interval:
         print("\n".join(process_data))
         process_data.clear()
+        report_number += 1
 
 def main(command, args, sample_interval, report_interval):
+     """ A wrapper to execute a command, monitor and log the process details. """
+
     try:
         print("Starting the command...")
         start_time = time.time()
