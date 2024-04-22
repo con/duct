@@ -42,8 +42,7 @@ def monitor_processes(session_id, elapsed_time, report_interval, process_data):
         report_number += 1
 
 def main(command, args, sample_interval, report_interval):
-     """ A wrapper to execute a command, monitor and log the process details. """
-
+    """ A wrapper to execute a command, monitor and log the process details. """
     try:
         print("Starting the command...")
         start_time = time.time()
