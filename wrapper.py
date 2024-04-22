@@ -29,39 +29,36 @@ def get_processes_in_session(session_id):
     return pids
 
 
-def monitor_processes(session_id, elapsed_time, report_interval, report):
+def generate_subreport(session_id, elapsed_time, report_interval, report, subreport):
     """Monitor and log details about all processes in the given session."""
-    global report_number
+    if elapsed_time >= (subreport.number+1) * report_interval:
+        print(subreport)
+        report.subreports.append(subreport)
+        subreport = duct.SubReport(subreport.number+1)
+
     pids = get_processes_in_session(session_id)
-
     for pid in pids:
-        duct.pid_dummy_monitor(pid, elapsed_time, report)
+        duct.pid_dummy_monitor(pid, elapsed_time, subreport)
 
-    if elapsed_time >= report_number * report_interval:
-        print(report)
-        report = {
-            "pids": defaultdict(list)
-        }
-        # report.clear()
-        report_number += 1
+    return subreport
+
 
 def main(command, args, sample_interval, report_interval):
     """ A wrapper to execute a command, monitor and log the process details. """
     try:
-        print("Starting the command...")
         start_time = time.time()
+        print(f"Starting at {start_time}...")
         process = subprocess.Popen([command] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
 
         session_id = os.getsid(process.pid)  # Get session ID of the new process
-        report = {
-            "pids": defaultdict(list)
-        }
+        report = duct.Report()
+        subreport = duct.SubReport()
         elapsed_time = 0
 
         while True:
             current_time = time.time()
             elapsed_time = current_time - start_time
-            monitor_processes(session_id, elapsed_time, report_interval, report)
+            subreport = generate_subreport(session_id, elapsed_time, report_interval, report, subreport)
             if process.poll() is not None:
                 break
             time.sleep(sample_interval)
@@ -74,6 +71,7 @@ def main(command, args, sample_interval, report_interval):
 
     except Exception as e:
         print(f"Failed to execute command: {str(e)}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="A process wrapper script that monitors the execution of a command.")
