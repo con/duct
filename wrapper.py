@@ -59,7 +59,7 @@ def main(command, args, sample_interval, report_interval):
             current_time = time.time()
             elapsed_time = current_time - start_time
             subreport = generate_subreport(session_id, elapsed_time, report_interval, report, subreport)
-            if process.poll() is not None:
+            if process.poll() is not None:  # the process has stopped
                 break
             time.sleep(sample_interval)
 
