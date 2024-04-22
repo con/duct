@@ -9,6 +9,8 @@ import sys
 import subprocess
 import time
 
+import profilers
+
 
 __version__ = "0.0.1"
 
@@ -38,14 +40,6 @@ class SubReport:
     pids_dummy: list = field(default_factory=lambda: defaultdict(list))
 
 
-def pid_dummy_monitor(pid, elapsed_time, subreport):
-    try:
-        os.kill(pid, 0)
-        subreport.pids_dummy[pid].append(f"Process {pid} checked at {elapsed_time} seconds")
-    except OSError:
-        subreport.pids_dummy[pid].append(f"Process {pid} has terminated.")
-
-
 def get_processes_in_session(session_id):
     """Retrieve all PIDs belonging to the given session ID."""
     pids = []
@@ -69,7 +63,7 @@ def generate_subreport(session_id, elapsed_time, report_interval, report, subrep
 
     pids = get_processes_in_session(session_id)
     for pid in pids:
-        pid_dummy_monitor(pid, elapsed_time, subreport)
+        profilers.pid_dummy_monitor(pid, elapsed_time, subreport)
 
     return subreport
 
