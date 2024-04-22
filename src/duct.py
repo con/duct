@@ -16,13 +16,19 @@ __version__ = "0.0.1"
 
 
 class Report:
-    def __init__(self, command):
+    def __init__(self, command, session_id):
         self.command = command
         self.system = {}
         self.subreports = []
         self.stdout = ""
         self.stderr = ""
-        self.system["memory_total"] = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES'),
+        self.system["max_memory_total"] = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+        # TODO(asmacdo) in smon these are also identical... is this correct?
+        self.system["cpu_total"] = os.sysconf('SC_NPROCESSORS_CONF')
+        self.system["max_ppn"] = os.sysconf('SC_NPROCESSORS_CONF')  # default to all available cores
+        self.system["sid"] = session_id
+        self.system["uid"] = os.environ['USER']
+
 
     def __repr__(self):
         return json.dumps({
@@ -82,7 +88,7 @@ def main():
         process = subprocess.Popen([str(args.command)] + args.arguments.copy(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
 
         session_id = os.getsid(process.pid)  # Get session ID of the new process
-        report = Report(args.command)
+        report = Report(args.command, session_id)
         subreport = SubReport()
         elapsed_time = 0
 
