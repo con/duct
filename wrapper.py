@@ -7,6 +7,8 @@ import argparse
 
 from collections import defaultdict
 
+import duct
+
 
 # Global so monitor_process can increment
 report_number = 1
@@ -31,12 +33,9 @@ def monitor_processes(session_id, elapsed_time, report_interval, report):
     """Monitor and log details about all processes in the given session."""
     global report_number
     pids = get_processes_in_session(session_id)
+
     for pid in pids:
-        try:
-            os.kill(pid, 0)
-            report["pids"][pid].append(f"Process {pid} checked at {elapsed_time} seconds")
-        except OSError:
-            report["pids"][pid].append(f"Process {pid} has terminated.")
+        duct.pid_dummy_monitor(pid, elapsed_time, report)
 
     if elapsed_time >= report_number * report_interval:
         print(report)
