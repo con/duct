@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 import os
-
+import argparse
 
 def monitor_process(pid):
     """ Monitor and log basic details about the process. """
@@ -15,14 +15,13 @@ def monitor_process(pid):
     except OSError:
         print(f"Process {pid} has terminated.")
 
-
-def main(command, *args):
+def main(command, args, sample_interval):
     """ A wrapper to execute a command, monitor and log the process details. """
     try:
         # Start the process
         print("Starting the command...")
         start_time = time.time()
-        process = subprocess.Popen([command] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen([command] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         # Monitor during execution
         try:
@@ -30,7 +29,7 @@ def main(command, *args):
                 monitor_process(process.pid)
                 if process.poll() is not None:
                     break
-                time.sleep(1)  # Delay for a bit to avoid too much logging
+                time.sleep(sample_interval)  # Parameterized delay
         except KeyboardInterrupt:
             print("Monitoring interrupted.")
 
@@ -46,9 +45,14 @@ def main(command, *args):
     except Exception as e:
         print(f"Failed to execute command: {str(e)}")
 
-
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        main(sys.argv[1], *sys.argv[2:])
-    else:
-        print("Usage: wrapper <command> [arguments...]")
+    # Setup argparse to handle command line arguments
+    parser = argparse.ArgumentParser(description="A process wrapper script that monitors the execution of a command.")
+    parser.add_argument('command', help="The command to execute.")
+    parser.add_argument('arguments', nargs='*', help="Arguments for the command.")
+    parser.add_argument('--sample-interval', type=float, default=1.0, help="Interval in seconds between status checks of the running process.")
+
+    args = parser.parse_args()
+
+    main(args.command, args.arguments, args.sample_interval)
+
