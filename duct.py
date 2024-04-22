@@ -22,11 +22,6 @@ class Report:
             "STDERR": self.stderr,
         })
 
-    # (f"""Report(system={self.system},
-    #         subreports={self.subreports},
-    #         f"stdout={self.stdout},
-    #         stderr={self.stderr}))"""
-    #
 
 @dataclass
 class SubReport:
