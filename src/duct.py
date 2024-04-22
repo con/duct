@@ -5,8 +5,12 @@ import argparse
 import json
 import os
 import pprint
+import sys
 import subprocess
 import time
+
+
+__version__ = "0.0.1"
 
 
 class Report:
@@ -70,24 +74,31 @@ def generate_subreport(session_id, elapsed_time, report_interval, report, subrep
     return subreport
 
 
-def main(command, args, sample_interval, report_interval):
+def main():
     """ A wrapper to execute a command, monitor and log the process details. """
+    parser = argparse.ArgumentParser(description="A process wrapper script that monitors the execution of a command.")
+    parser.add_argument('command', help="The command to execute.")
+    parser.add_argument('arguments', nargs='*', help="Arguments for the command.")
+    parser.add_argument('--sample-interval', type=float, default=1.0, help="Interval in seconds between status checks of the running process.")
+    parser.add_argument('--report-interval', type=float, default=60.0, help="Interval in seconds at which to report aggregated data.")
+    args = parser.parse_args()
+
     try:
         start_time = time.time()
-        process = subprocess.Popen([command] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
+        process = subprocess.Popen([str(args.command)] + args.arguments.copy(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
 
         session_id = os.getsid(process.pid)  # Get session ID of the new process
-        report = Report(command)
+        report = Report(args.command)
         subreport = SubReport()
         elapsed_time = 0
 
         while True:
             current_time = time.time()
             elapsed_time = current_time - start_time
-            subreport = generate_subreport(session_id, elapsed_time, report_interval, report, subreport)
+            subreport = generate_subreport(session_id, elapsed_time, args.report_interval, report, subreport)
             if process.poll() is not None:  # the process has stopped
                 break
-            time.sleep(sample_interval)
+            time.sleep(args.sample_interval)
 
         stdout, stderr = process.communicate()
         end_time = time.time()
@@ -101,14 +112,3 @@ def main(command, args, sample_interval, report_interval):
 
     except Exception as e:
         print(f"Failed to execute command: {str(e)}")
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="A process wrapper script that monitors the execution of a command.")
-    parser.add_argument('command', help="The command to execute.")
-    parser.add_argument('arguments', nargs='*', help="Arguments for the command.")
-    parser.add_argument('--sample-interval', type=float, default=1.0, help="Interval in seconds between status checks of the running process.")
-    parser.add_argument('--report-interval', type=float, default=60.0, help="Interval in seconds at which to report aggregated data.")
-
-    args = parser.parse_args()
-    main(args.command, args.arguments, args.sample_interval, args.report_interval)

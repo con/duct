@@ -22,4 +22,4 @@ Duct creates a new session to run a command and all its child processes, and the
 
 ## Testing:
 
-`./wrapper.py --report-interval 4 ./test_script.py -- --duration 12 --cpu-load 50000 --memory-size 50 | jq`
+`duct --report-interval 4 ./test_script.py -- --duration 12 --cpu-load 50000 --memory-size 50 | jq`
