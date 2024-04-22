@@ -8,6 +8,16 @@ class Report:
     system: dict = field(default_factory=dict)
     subreports: list = field(default_factory=list)
 
+    def __post_init__(self):
+        self.generate_system_report()
+
+    def generate_system_report(self):
+        self.memory_total()
+
+    def memory_total(self):
+        self.system["memory_total"] = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES'),
+
+
 @dataclass
 class SubReport:
     number: int = 0
@@ -22,5 +32,3 @@ def pid_dummy_monitor(pid, elapsed_time, subreport):
         report["pids"][pid].append(f"Process {pid} has terminated.")
 
 
-def memory_total(elapsed_time, report):
-    report["system"]["memory_total"] = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES'),
