@@ -5,6 +5,8 @@ import sys
 import time
 import argparse
 
+from collections import defaultdict
+
 
 # Global so monitor_process can increment
 report_number = 1
@@ -25,20 +27,23 @@ def get_processes_in_session(session_id):
     return pids
 
 
-def monitor_processes(session_id, elapsed_time, report_interval, process_data):
+def monitor_processes(session_id, elapsed_time, report_interval, report):
     """Monitor and log details about all processes in the given session."""
     global report_number
     pids = get_processes_in_session(session_id)
     for pid in pids:
         try:
             os.kill(pid, 0)
-            process_data.append(f"Process {pid} checked at {elapsed_time} seconds")
+            report["pids"][pid].append(f"Process {pid} checked at {elapsed_time} seconds")
         except OSError:
-            process_data.append(f"Process {pid} has terminated.")
+            report["pids"][pid].append(f"Process {pid} has terminated.")
 
     if elapsed_time >= report_number * report_interval:
-        print("\n".join(process_data))
-        process_data.clear()
+        print(report)
+        report = {
+            "pids": defaultdict(list)
+        }
+        # report.clear()
         report_number += 1
 
 def main(command, args, sample_interval, report_interval):
@@ -49,13 +54,15 @@ def main(command, args, sample_interval, report_interval):
         process = subprocess.Popen([command] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
 
         session_id = os.getsid(process.pid)  # Get session ID of the new process
-        process_data = []
+        report = {
+            "pids": defaultdict(list)
+        }
         elapsed_time = 0
 
         while True:
             current_time = time.time()
             elapsed_time = current_time - start_time
-            monitor_processes(session_id, elapsed_time, report_interval, process_data)
+            monitor_processes(session_id, elapsed_time, report_interval, report)
             if process.poll() is not None:
                 break
             time.sleep(sample_interval)
