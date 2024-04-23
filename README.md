@@ -1,78 +1,39 @@
-# con/duct-or - helper to execute and monitor a process
+# duct
 
-The origin: in ReproMan (reproman run) we do already collect stdout/stderr but otherwise do not collect any statistics about execution of a command.
-In DataLad (datalad run) we do not collect anything, and just passthrough the stdout/stderr.
-But capturing/storing such logs are most often desired.
-Moreover knowing maximum memory utilization could be critical for adequate resource requests for batch jobs.
+## Summary:
 
-## ChatGPT prototype
+A process wrapper script that monitors the execution of a command.
 
-For the request/question:
+```shell
+> duct --help
+duct [-h] [--sample-interval SAMPLE_INTERVAL] [--report-interval REPORT_INTERVAL] [--] command [arguments ...]
 
-is there a helper for linux to run a command while that helper would also capture and store somewhere std output and stderr, while also monitoring underlying process(es) for their memory consumption, start/stop endtimes, etc and then provide  a json-formatted record with that upon completion (also with the exit code of the command).
+Duct creates a new session to run a command and all its child processes, and the collects metrics for all processes in the session.
 
-it gave:
+positional arguments:
+  command               The command to execute.
+  arguments             Arguments for the command.
 
-```bash
-#!/bin/bash
-
-# Command to execute
-COMMAND="$*"
-
-# Redirect stdout and stderr to files
-STDOUT_FILE=$(mktemp)
-STDERR_FILE=$(mktemp)
-
-# Record start time
-START_TIME=$(date +%s)
-
-# Execute command
-eval "$COMMAND" 1>$STDOUT_FILE 2>$STDERR_FILE &
-PID=$!
-
-# Wait for the command to finish
-wait $PID
-EXIT_CODE=$?
-
-# Record end time
-END_TIME=$(date +%s)
-
-# Get memory usage (max resident set size)
-MEMORY_USAGE=$(cat /proc/$PID/status | grep VmHWM | awk '{print $2}')
-
-# Generate JSON output
-jq -n \
-    --arg cmd "$COMMAND" \
-    --arg stdout "$(cat $STDOUT_FILE)" \
-    --arg stderr "$(cat $STDERR_FILE)" \
-    --argjson exit_code "$EXIT_CODE" \
-    --argjson start_time "$START_TIME" \
-    --argjson end_time "$END_TIME" \
-    --argjson memory_usage "$MEMORY_USAGE" \
-    '{command: $cmd, stdout: $stdout, stderr: $stderr, exit_code: $exit_code, start_time: $start_time, end_time: $end_time, memory_usage_kb: $memory_usage}'
-
-# Clean up
-rm $STDOUT_FILE $STDERR_FILE
+options:
+  -h, --help            show this help message and exit
+  --sample-interval SAMPLE_INTERVAL
+                        Interval in seconds between status checks of the running process.
+  --report-interval REPORT_INTERVAL
+                        Interval in seconds at which to report aggregated data.
 ```
 
-## Desired features/usecases
+## Testing:
 
-- be configurable. Most likely 
-- output filenames 
+```shell
+❯ ./test_script.py --help
+test_script.py is a test script to consume CPU and memory.
 
-## Initial implementation details
+options:
+  -h, --help            show this help message and exit
+  --duration DURATION   Duration to run the test in seconds.
+  --cpu-load CPU_LOAD   Load factor to simulate CPU usage.
+  --memory-size MEMORY_SIZE
+                        Amount of memory to allocate in MB.
 
-- Since destined ATM for tools which are in datalad space can just use DataLad's Runner construct, smth like
-
-    out = Runner().run([cmd[0], '-c', 'datalad.dummy=this'] + cmd[1:], protocol=StdOutErrCapture)
-
-but we might want custom/derived protocol so we can capture and also at once output...
-
-- For monitoring -- we need stats on the entire "child tree" and it could be under singularity... I guess we would not be able to monitor server'ish docker 
-
-  - may be via cgroups somehow?
-  - may be there is already a tool? how brainlife does it?
-
-- Would be nice to collect it through time evolution to plots the graphs but then in the .json itself have only summaries over those monitored parameters
-
-  - again -- look into brainlife?
+duct --report-interval 4 -- ./test_script.py --duration 12 --cpu-load 50000 --memory-size 50 | jq
+```
