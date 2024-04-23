@@ -6,6 +6,7 @@ import json
 import os
 import pprint
 import sys
+import shutil
 import subprocess
 import time
 
@@ -13,27 +14,41 @@ import profilers
 
 
 __version__ = "0.0.1"
+ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 
 
 class Report:
+
     def __init__(self, command, session_id):
         self.command = command
-        self.system = {}
+        self.session_id = session_id
+        self.system_info = {"uid":  os.environ['USER']}
+        self.env = {k: v for k, v in os.environ.items() if k.startswith(ENV_PREFIXES)},
+        self.gpu = None
         self.subreports = []
         self.stdout = ""
         self.stderr = ""
-        self.system["max_memory_total"] = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
-        # TODO(asmacdo) in smon these are also identical... is this correct?
-        self.system["cpu_total"] = os.sysconf('SC_NPROCESSORS_CONF')
-        self.system["max_ppn"] = os.sysconf('SC_NPROCESSORS_CONF')  # default to all available cores
-        self.system["sid"] = session_id
-        self.system["uid"] = os.environ['USER']
+        self.get_system_info()
 
+    def get_system_info(self):
+        """Gathers system information related to CPU, GPU, memory, and environment variables."""
+        self.system_info["memory_total"] = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+        self.system_info["cpu_total"] = os.sysconf('SC_NPROCESSORS_CONF')
+
+        # GPU information
+        if shutil.which("nvidia-smi"):
+            try:
+                gpu_info = subprocess.check_output(["nvidia-smi", "--query-gpu=index,name,pci.bus_id,driver_version,memory.total,compute_mode", "--format=csv"], text=True).strip().split('\n')[1:]
+                self.gpus = [dict(zip(gpu_info[0].split(", "), gpu.split(", "))) for gpu in gpu_info[1:]]
+            except subprocess.CalledProcessError:
+                self.gpus = "Failed to query GPU info"
 
     def __repr__(self):
         return json.dumps({
             "Command": self.command,
-            "System": self.system,
+            "System": self.system_info,
+            "ENV": self.env,
+            "GPU": self.gpu,
             "Subreports": [str(subreport) for subreport in self.subreports],
             "STDOUT": self.stdout,
             "STDERR": self.stderr,
@@ -103,8 +118,8 @@ def main():
         stdout, stderr = process.communicate()
         end_time = time.time()
 
-        report.system["end_time"] = end_time
-        report.system["run_time_seconds"] = f"{end_time - start_time}"
+        report.system_info["end_time"] = end_time
+        report.system_info["run_time_seconds"] = f"{end_time - start_time}"
         report.stdout = stdout.decode()
         report.stderr = stderr.decode()
 
