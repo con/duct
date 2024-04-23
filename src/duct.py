@@ -18,7 +18,7 @@ ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 
 
 class Report:
-
+    """Top level report"""
     def __init__(self, command, session_id):
         self.command = command
         self.session_id = session_id
@@ -49,7 +49,7 @@ class Report:
             self.subreports.append(subreport)
             subreport = SubReport(subreport.number+1)
         # TODO currently clobbers, fix when implementing aggregation.
-        subreport.process_data = profilers.monitor_processes(session_id)
+        subreport.session_data = profilers.monitor_processes(session_id)
         return subreport
 
     def __repr__(self):
@@ -58,7 +58,7 @@ class Report:
             "System": self.system_info,
             "ENV": self.env,
             "GPU": self.gpu,
-            "Subreports": [str(subreport) for subreport in self.subreports],
+            "Subreports": [subreport.serialize() for subreport in self.subreports],
             "STDOUT": self.stdout,
             "STDERR": self.stderr,
         })
@@ -66,16 +66,17 @@ class Report:
 
 @dataclass
 class SubReport:
+    """Group of aggregated statestics on a session"""
     number: int = 0
     pids_dummy: list = field(default_factory=lambda: defaultdict(list))
-    process_data = None
+    session_data = None
 
-    def __repr__(self):
-        return json.dumps({
+    def serialize(self):
+        return {
             "Subreport Number": self.number,
             "Number": self.number,
-            "Process Data": self.process_data,
-        })
+            "Session Data": self.session_data,
+        }
 
 
 def main():
