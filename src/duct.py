@@ -43,6 +43,15 @@ class Report:
             except subprocess.CalledProcessError:
                 self.gpus = "Failed to query GPU info"
 
+    def generate_subreport(self, session_id, elapsed_time, report_interval, subreport):
+        """Monitor and log details about all processes in the given session."""
+        if elapsed_time >= (subreport.number+1) * report_interval:
+            self.subreports.append(subreport)
+            subreport = SubReport(subreport.number+1)
+        # TODO currently clobbers, fix when implementing aggregation.
+        subreport.process_data = profilers.monitor_processes(session_id)
+        return subreport
+
     def __repr__(self):
         return json.dumps({
             "Command": self.command,
@@ -59,34 +68,14 @@ class Report:
 class SubReport:
     number: int = 0
     pids_dummy: list = field(default_factory=lambda: defaultdict(list))
+    process_data = None
 
-
-def get_processes_in_session(session_id):
-    """Retrieve all PIDs belonging to the given session ID."""
-    pids = []
-    for pid in os.listdir('/proc'):
-        if pid.isdigit():
-            try:
-                with open(os.path.join('/proc', pid, 'stat'), 'r') as f:
-                    data = f.read().split()
-                if int(data[5]) == session_id:  # Check session ID in stat file
-                    pids.append(int(pid))
-            except IOError:  # proc has already terminated
-                continue
-    return pids
-
-
-def generate_subreport(session_id, elapsed_time, report_interval, report, subreport):
-    """Monitor and log details about all processes in the given session."""
-    if elapsed_time >= (subreport.number+1) * report_interval:
-        report.subreports.append(subreport)
-        subreport = SubReport(subreport.number+1)
-
-    pids = get_processes_in_session(session_id)
-    for pid in pids:
-        profilers.pid_dummy_monitor(pid, elapsed_time, subreport)
-
-    return subreport
+    def __repr__(self):
+        return json.dumps({
+            "Subreport Number": self.number,
+            "Number": self.number,
+            "Process Data": self.process_data,
+        })
 
 
 def main():
@@ -110,7 +99,7 @@ def main():
         while True:
             current_time = time.time()
             elapsed_time = current_time - start_time
-            subreport = generate_subreport(session_id, elapsed_time, args.report_interval, report, subreport)
+            subreport = report.generate_subreport(session_id, elapsed_time, args.report_interval, subreport)
             if process.poll() is not None:  # the process has stopped
                 break
             time.sleep(args.sample_interval)
