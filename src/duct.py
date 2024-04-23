@@ -28,7 +28,8 @@ class Report:
             {k: v for k, v in os.environ.items() if k.startswith(ENV_PREFIXES)},
         )
         self.gpu = None
-        self.subreports = []
+        self.samples = []  # append samples, until you generate subreport
+        self.rolling_stats = ...
         self.stdout = ""
         self.stderr = ""
         self.get_system_info()
@@ -135,18 +136,23 @@ def main():
             preexec_fn=os.setsid,
         )
         session_id = os.getsid(process.pid)  # Get session ID of the new process
+
         report = Report(args.command, session_id)
-        subreport = SubReport()
+        report.generate_systemreport()
 
         while True:
-            subreport = report.generate_subreport(
-                session_id, args.report_interval, subreport
-            )
+            report.add_sample()
+            if time() - report.last_subreport >= report_interval:
+                # in generate_subreport update last_subreport
+                report.generate_subreport()
             if process.poll() is not None:  # the process has stopped
                 break
             time.sleep(args.sample_interval)
 
         stdout, stderr = process.communicate()
+        # TODO: make sure that if there were samples without report -- generate final subreport
+        report.generate_finalreport()
+        # this all could go there ...
         report.end_time = time.time()
         report.run_time_seconds = f"{report.end_time - report.start_time}"
         report.stdout = stdout.decode()
