@@ -21,7 +21,9 @@ def get_processes_in_session(session_id):
 
 def monitor_processes(session_id):
     """Monitor processes for the given session ID and collect resource usage metrics."""
-    process_data = {}
+    # Alternate calculation. For performance we could instead get this from the output of ps below
+    num_pids = len(get_processes_in_session(session_id))
+    process_data = {"npids": num_pids}
     try:
         output = subprocess.check_output(["ps", "-s", str(session_id), "-o", "pid,pcpu,pmem,rss,vsz,etime,cmd"], text=True)
         for line in output.splitlines()[1:]:
