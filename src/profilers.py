@@ -30,12 +30,15 @@ def monitor_processes(session_id):
             if line:
                 pid, pcpu, pmem, rss, vsz, etime, cmd = line.split(maxsplit=6)
                 process_data[pid] = {
+                    # %CPU
                     'pcpu': float(pcpu),
+                    # %MEM
                     'pmem': float(pmem),
+                    # Memory Resident Set Size
                     'rss': int(rss),
+                    # Virtual Memory size
                     'vsz': int(vsz),
-                    'etime': etime,
-                    'cmd': cmd
+                    'current_pid_run_time': etime,
                 }
     except subprocess.CalledProcessError:
         process_data['error'] = "Failed to query process data"
@@ -49,5 +52,3 @@ def pid_dummy_monitor(pid, elapsed_time, subreport):
         subreport.pids_dummy[pid].append(f"Process {pid} checked at {elapsed_time} seconds")
     except OSError:
         subreport.pids_dummy[pid].append(f"Process {pid} has terminated.")
-
-

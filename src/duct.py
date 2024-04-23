@@ -20,6 +20,7 @@ ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 class Report:
     """Top level report"""
     def __init__(self, command, session_id):
+        self.start_time = time.time()
         self.command = command
         self.session_id = session_id
         self.system_info = {"uid":  os.environ['USER']}
@@ -43,10 +44,13 @@ class Report:
             except subprocess.CalledProcessError:
                 self.gpus = "Failed to query GPU info"
 
-    def generate_subreport(self, session_id, elapsed_time, report_interval, subreport):
+    def generate_subreport(self, session_id, report_interval, subreport):
         """Monitor and log details about all processes in the given session."""
+        elapsed_time = time.time() - self.start_time
         if elapsed_time >= (subreport.number+1) * report_interval:
+            subreport.elapsed_time = elapsed_time
             self.subreports.append(subreport)
+
             subreport = SubReport(subreport.number+1)
         # TODO currently clobbers, fix when implementing aggregation.
         subreport.session_data = profilers.monitor_processes(session_id)
@@ -70,11 +74,13 @@ class SubReport:
     number: int = 0
     pids_dummy: list = field(default_factory=lambda: defaultdict(list))
     session_data = None
+    elapsed_time = None
 
     def serialize(self):
         return {
             "Subreport Number": self.number,
             "Number": self.number,
+            "Elapsed Time": self.elapsed_time,
             "Session Data": self.session_data,
         }
 
@@ -89,30 +95,22 @@ def main():
     args = parser.parse_args()
 
     try:
-        start_time = time.time()
         process = subprocess.Popen([str(args.command)] + args.arguments.copy(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, preexec_fn=os.setsid)
-
         session_id = os.getsid(process.pid)  # Get session ID of the new process
         report = Report(args.command, session_id)
         subreport = SubReport()
-        elapsed_time = 0
 
         while True:
-            current_time = time.time()
-            elapsed_time = current_time - start_time
-            subreport = report.generate_subreport(session_id, elapsed_time, args.report_interval, subreport)
+            subreport = report.generate_subreport(session_id, args.report_interval, subreport)
             if process.poll() is not None:  # the process has stopped
                 break
             time.sleep(args.sample_interval)
 
         stdout, stderr = process.communicate()
-        end_time = time.time()
-
-        report.system_info["end_time"] = end_time
-        report.system_info["run_time_seconds"] = f"{end_time - start_time}"
+        report.end_time = time.time()
+        report.run_time_seconds = f"{report.end_time - report.start_time}"
         report.stdout = stdout.decode()
         report.stderr = stderr.decode()
-
         pprint.pprint(report, width=120)
 
     except Exception as e:
