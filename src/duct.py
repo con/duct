@@ -131,8 +131,7 @@ class SubReport:
         }
 
 
-def main():
-    """A wrapper to execute a command, monitor and log the process details."""
+def create_and_parse_args():
     parser = argparse.ArgumentParser(
         description="A process wrapper script that monitors the execution of a command."
     )
@@ -155,8 +154,12 @@ def main():
         default=60.0,
         help="Interval in seconds at which to report aggregated data.",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def main():
+    """A wrapper to execute a command, monitor and log the process details."""
+    args = create_and_parse_args()
     try:
         process = subprocess.Popen(
             [str(args.command)] + args.arguments.copy(),
