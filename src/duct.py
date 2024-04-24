@@ -24,8 +24,6 @@ class Report:
         self.session_id = session_id
         self.gpu = None
         self.unaggregated_samples = []
-        self.stdout = ""
-        self.stderr = ""
         self.number = 0
         self.system_info = {}
 
@@ -153,7 +151,6 @@ def create_and_parse_args():
         type=str,
         default="TODO_BETTER.system.json",
     )
-
     parser.add_argument(
         "--report-interval",
         type=float,
@@ -177,8 +174,6 @@ def main():
         report = Report(args.command, session_id)
         report.collect_environment()
         report.get_system_info()
-        with open(args.system_log_path, "a") as system_logs:
-            system_logs.write(str(report))
 
         while True:
             elapsed_time = time.time() - report.start_time
@@ -196,15 +191,14 @@ def main():
             time.sleep(args.sample_interval)
 
         with open(args.system_log_path, "a") as system_logs:
-            report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.end_time = time.time()
+            report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
-            # TODO redundant. maybe just write new stuff or wait to write the begining?
             system_logs.write(str(report))
         stdout, stderr = process.communicate()
-        report.stdout = stdout.decode()
-        report.stderr = stderr.decode()
         pprint.pprint(report, width=120)
+        print(f"STDOUT: {stdout.decode()}")
+        print(f"STDERR: {stderr.decode()}")
 
     except Exception as e:
         print(f"Failed to execute command: {str(e)}")
