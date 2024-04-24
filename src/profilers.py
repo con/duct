@@ -19,32 +19,7 @@ def get_processes_in_session(session_id):
     return pids
 
 
-def monitor_processes(session_id):
-    """Monitor processes for the given session ID and collect resource usage metrics."""
-    # Alternate calculation. For performance we could instead get this from the output of ps below
-    num_pids = len(get_processes_in_session(session_id))
-    process_data = {"npids": num_pids}
-    try:
-        output = subprocess.check_output(["ps", "-s", str(session_id), "-o", "pid,pcpu,pmem,rss,vsz,etime,cmd"], text=True)
-        for line in output.splitlines()[1:]:
-            if line:
-                pid, pcpu, pmem, rss, vsz, etime, cmd = line.split(maxsplit=6)
-                process_data[pid] = {
-                    # %CPU
-                    'pcpu': float(pcpu),
-                    # %MEM
-                    'pmem': float(pmem),
-                    # Memory Resident Set Size
-                    'rss': int(rss),
-                    # Virtual Memory size
-                    'vsz': int(vsz),
-                    'current_pid_run_time': etime,
-                }
-    except subprocess.CalledProcessError:
-        process_data['error'] = "Failed to query process data"
-
-    return process_data
-
+    
 def pid_dummy_monitor(pid, elapsed_time, subreport):
     """A dummy function to simulate process monitoring and logging."""
     try:
