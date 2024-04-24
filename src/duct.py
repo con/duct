@@ -10,7 +10,6 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-import profilers
 
 __version__ = "0.0.1"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -23,19 +22,22 @@ class Report:
         self.start_time = time.time()
         self.command = command
         self.session_id = session_id
-        self.system_info = {"uid": os.environ["USER"]}
-        self.env = (
-            {k: v for k, v in os.environ.items() if k.startswith(ENV_PREFIXES)},
-        )
         self.gpu = None
         self.unaggregated_samples = []
         self.stdout = ""
         self.stderr = ""
         self.number = 0
-        self.get_system_info()
+        self.system_info = {}
+
+    # TODO property?
+    def collect_environment(self):
+        self.env = (
+            {k: v for k, v in os.environ.items() if k.startswith(ENV_PREFIXES)},
+        )
 
     def get_system_info(self):
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
+        self.system_info["uid"] = os.environ["USER"]
         self.system_info["memory_total"] = os.sysconf("SC_PAGE_SIZE") * os.sysconf(
             "SC_PHYS_PAGES"
         )
@@ -164,6 +166,8 @@ def main():
         )
         session_id = os.getsid(process.pid)  # Get session ID of the new process
         report = Report(args.command, session_id)
+        report.collect_environment()
+        report.get_system_info()
 
         while True:
             elapsed_time = time.time() - report.start_time
