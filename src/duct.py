@@ -149,6 +149,12 @@ def create_and_parse_args():
         default="TODO_BETTER.stats.json",
     )
     parser.add_argument(
+        "--system_log_path",
+        type=str,
+        default="TODO_BETTER.system.json",
+    )
+
+    parser.add_argument(
         "--report-interval",
         type=float,
         default=60.0,
@@ -171,6 +177,8 @@ def main():
         report = Report(args.command, session_id)
         report.collect_environment()
         report.get_system_info()
+        with open(args.system_log_path, "a") as system_logs:
+            system_logs.write(str(report))
 
         while True:
             elapsed_time = time.time() - report.start_time
@@ -187,9 +195,13 @@ def main():
                 break
             time.sleep(args.sample_interval)
 
+        with open(args.system_log_path, "a") as system_logs:
+            report.run_time_seconds = f"{report.end_time - report.start_time}"
+            report.end_time = time.time()
+            report.get_system_info()
+            # TODO redundant. maybe just write new stuff or wait to write the begining?
+            system_logs.write(str(report))
         stdout, stderr = process.communicate()
-        report.end_time = time.time()
-        report.run_time_seconds = f"{report.end_time - report.start_time}"
         report.stdout = stdout.decode()
         report.stderr = stderr.decode()
         pprint.pprint(report, width=120)
