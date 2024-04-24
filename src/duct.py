@@ -28,9 +28,10 @@ class Report:
             {k: v for k, v in os.environ.items() if k.startswith(ENV_PREFIXES)},
         )
         self.gpu = None
-        self.subreports = []
+        self.unaggregated_samples = []
         self.stdout = ""
         self.stderr = ""
+        self.number = 0
         self.get_system_info()
 
     def get_system_info(self):
@@ -62,17 +63,40 @@ class Report:
             except subprocess.CalledProcessError:
                 self.gpus = "Failed to query GPU info"
 
-    def generate_subreport(self, session_id, report_interval, subreport):
-        """Monitor and log details about all processes in the given session."""
-        elapsed_time = time.time() - self.start_time
-        if elapsed_time >= (subreport.number + 1) * report_interval:
-            subreport.elapsed_time = elapsed_time
-            self.subreports.append(subreport)
+    def collect_sample(self):
+        process_data = {}
+        try:
+            output = subprocess.check_output(["ps", "-s", str(self.session_id), "-o", "pid,pcpu,pmem,rss,vsz,etime,cmd"], text=True)
+            for line in output.splitlines()[1:]:
+                if line:
+                    pid, pcpu, pmem, rss, vsz, etime, cmd = line.split(maxsplit=6)
+                    process_data[pid] = {
+                        # %CPU
+                        'pcpu': float(pcpu),
+                        # %MEM
+                        'pmem': float(pmem),
+                        # Memory Resident Set Size
+                        'rss': int(rss),
+                        # Virtual Memory size
+                        'vsz': int(vsz),
+                    }
+        except subprocess.CalledProcessError:
+            process_data['error'] = "Failed to query process data"
 
-            subreport = SubReport(subreport.number + 1)
-        # TODO currently clobbers, fix when implementing aggregation.
-        subreport.session_data = profilers.monitor_processes(session_id)
-        return subreport
+        self.unaggregated_samples.append(process_data)
+
+    def aggregate_samples(self):
+        max_values = {}
+        for sample in self.unaggregated_samples:
+            for pid, metrics in sample.items():
+                if pid not in max_values:
+                    max_values[pid] = metrics.copy()  # Make a copy of the metrics for the first entry
+                else:
+                    # Update each metric to the maximum found so far
+                    for key in metrics:
+                        max_values[pid][key] = max(max_values[pid][key], metrics[key])
+
+        return max_values
 
     def __repr__(self):
         return json.dumps(
@@ -81,7 +105,6 @@ class Report:
                 "System": self.system_info,
                 "ENV": self.env,
                 "GPU": self.gpu,
-                "Subreports": [subreport.serialize() for subreport in self.subreports],
                 "STDOUT": self.stdout,
                 "STDERR": self.stderr,
             }
@@ -120,6 +143,11 @@ def main():
         help="Interval in seconds between status checks of the running process.",
     )
     parser.add_argument(
+        "--stats_log_path",
+        type=str,
+        default="TODO_BETTER.stats.json",
+    )
+    parser.add_argument(
         "--report-interval",
         type=float,
         default=60.0,
@@ -136,13 +164,19 @@ def main():
         )
         session_id = os.getsid(process.pid)  # Get session ID of the new process
         report = Report(args.command, session_id)
-        subreport = SubReport()
 
         while True:
-            subreport = report.generate_subreport(
-                session_id, args.report_interval, subreport
-            )
-            if process.poll() is not None:  # the process has stopped
+            elapsed_time = time.time() - report.start_time
+            report.collect_sample()
+            if elapsed_time >= (report.number + 1) * args.report_interval:
+                aggregated = report.aggregate_samples()
+                print(aggregated)
+                with open(args.stats_log_path, "a") as resource_statistics_log:
+                    aggregated["elapsed_time"] = elapsed_time
+                    resource_statistics_log.write(json.dumps(aggregated))
+                report.number += 1
+
+            if process.poll() is not None:  # the passthrough command has finished
                 break
             time.sleep(args.sample_interval)
 
