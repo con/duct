@@ -106,8 +106,6 @@ class Report:
                 "System": self.system_info,
                 "ENV": self.env,
                 "GPU": self.gpu,
-                "STDOUT": self.stdout,
-                "STDERR": self.stderr,
             }
         )
 
@@ -190,7 +188,7 @@ def main():
                 break
             time.sleep(args.sample_interval)
 
-        with open(f"{args.output_prefix}/{report.session_id}", "a") as system_logs:
+        with open(f"{args.output_prefix}/system-report.session-{report.session_id}.json", "a") as system_logs:
             report.end_time = time.time()
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
