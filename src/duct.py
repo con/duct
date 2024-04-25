@@ -9,6 +9,7 @@ import sys
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 __version__ = "0.0.1"
@@ -87,7 +88,8 @@ class Report:
 
     def aggregate_samples(self):
         max_values = {}
-        for sample in self.unaggregated_samples:
+        while self.unaggregated_samples:
+            sample = self.unaggregated_samples.pop()
             for pid, metrics in sample.items():
                 if pid not in max_values:
                     max_values[pid] = metrics.copy()  # Make a copy of the metrics for the first entry
@@ -95,7 +97,6 @@ class Report:
                     # Update each metric to the maximum found so far
                     for key in metrics:
                         max_values[pid][key] = max(max_values[pid][key], metrics[key])
-
         return max_values
 
     def __repr__(self):
@@ -130,6 +131,9 @@ class SubReport:
 
 
 def create_and_parse_args():
+    now = datetime.now()
+    # 'pure' iso 8601 does not make good filenames
+    file_safe_iso = now.strftime('%Y-%m-%d.%H-%M-%S')
     parser = argparse.ArgumentParser(
         description="A process wrapper script that monitors the execution of a command."
     )
@@ -142,14 +146,9 @@ def create_and_parse_args():
         help="Interval in seconds between status checks of the running process.",
     )
     parser.add_argument(
-        "--stats_log_path",
+        "--output_prefix",
         type=str,
-        default="TODO_BETTER.stats.json",
-    )
-    parser.add_argument(
-        "--system_log_path",
-        type=str,
-        default="TODO_BETTER.system.json",
+        default=os.getenv("DUCT_OUTPUT_PREFIX", f".duct/run-logs/{file_safe_iso}")
     )
     parser.add_argument(
         "--report-interval",
@@ -163,6 +162,7 @@ def create_and_parse_args():
 def main():
     """A wrapper to execute a command, monitor and log the process details."""
     args = create_and_parse_args()
+    os.makedirs(args.output_prefix, exist_ok=True)
     try:
         process = subprocess.Popen(
             [str(args.command)] + args.arguments.copy(),
@@ -180,17 +180,17 @@ def main():
             report.collect_sample()
             if elapsed_time >= (report.number + 1) * args.report_interval:
                 aggregated = report.aggregate_samples()
-                print(aggregated)
-                with open(args.stats_log_path, "a") as resource_statistics_log:
-                    aggregated["elapsed_time"] = elapsed_time
-                    resource_statistics_log.write(json.dumps(aggregated))
+                for pid, pinfo in aggregated.items():
+                    with open(f"{args.output_prefix}/{pid}_resource_usage.json", "a") as resource_statistics_log:
+                        pinfo["elapsed_time"] = elapsed_time
+                        resource_statistics_log.write(json.dumps(aggregated))
                 report.number += 1
 
             if process.poll() is not None:  # the passthrough command has finished
                 break
             time.sleep(args.sample_interval)
 
-        with open(args.system_log_path, "a") as system_logs:
+        with open(f"{args.output_prefix}/{report.session_id}", "a") as system_logs:
             report.end_time = time.time()
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
@@ -201,6 +201,9 @@ def main():
         print(f"STDERR: {stderr.decode()}")
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        import ipdb; ipdb.set_trace()
         print(f"Failed to execute command: {str(e)}")
 
 
