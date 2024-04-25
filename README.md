@@ -6,9 +6,14 @@ A process wrapper script that monitors the execution of a command.
 
 ```shell
 > duct --help
-duct [-h] [--sample-interval SAMPLE_INTERVAL] [--report-interval REPORT_INTERVAL] [--] command [arguments ...]
 
-Duct creates a new session to run a command and all its child processes, and the collects metrics for all processes in the session.
+usage: duct [-h] [--sample-interval SAMPLE_INTERVAL]
+            [--output_prefix OUTPUT_PREFIX]
+            [--report-interval REPORT_INTERVAL]
+            command [arguments ...]
+
+Duct creates a new session to run a command and all its child processes, and
+the collects metrics for all processes in the session.
 
 positional arguments:
   command               The command to execute.
@@ -17,9 +22,13 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --sample-interval SAMPLE_INTERVAL
-                        Interval in seconds between status checks of the running process.
+                        Interval in seconds between status checks of the
+                        running process.
+  --output_prefix OUTPUT_PREFIX
+                        Directory in which all logs will be saved.
   --report-interval REPORT_INTERVAL
-                        Interval in seconds at which to report aggregated data.
+                        Interval in seconds at which to report aggregated
+                        data.
 ```
 
 ## Testing:

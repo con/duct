@@ -142,7 +142,7 @@ def create_and_parse_args():
     # 'pure' iso 8601 does not make good filenames
     file_safe_iso = now.strftime("%Y-%m-%d.%H-%M-%S")
     parser = argparse.ArgumentParser(
-        description="A process wrapper script that monitors the execution of a command."
+        description="Gathers metrics on a command and all its child processes."
     )
     parser.add_argument("command", help="The command to execute.")
     parser.add_argument("arguments", nargs="*", help="Arguments for the command.")
@@ -156,6 +156,7 @@ def create_and_parse_args():
         "--output_prefix",
         type=str,
         default=os.getenv("DUCT_OUTPUT_PREFIX", f".duct/run-logs/{file_safe_iso}"),
+        help="Directory in which all logs will be saved.",
     )
     parser.add_argument(
         "--report-interval",
