@@ -17,7 +17,7 @@ def consume_memory(size):
     """Function to consume amount of memory specified by 'size' in megabytes"""
     # Create a list of size MB
     bytes_in_mb = 1024 * 1024
-    memory = bytearray(size * bytes_in_mb)
+    _memory = bytearray(size * bytes_in_mb)  # noqa
 
 
 def main(duration, cpu_load, memory_size):

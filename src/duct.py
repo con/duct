@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 import argparse
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
 import json
 import os
 import pprint
 import shutil
 import subprocess
-import sys
 import time
-from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime
-
 
 __version__ = "0.0.1"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -67,22 +65,31 @@ class Report:
     def collect_sample(self):
         process_data = {}
         try:
-            output = subprocess.check_output(["ps", "-s", str(self.session_id), "-o", "pid,pcpu,pmem,rss,vsz,etime,cmd"], text=True)
+            output = subprocess.check_output(
+                [
+                    "ps",
+                    "-s",
+                    str(self.session_id),
+                    "-o",
+                    "pid,pcpu,pmem,rss,vsz,etime,cmd",
+                ],
+                text=True,
+            )
             for line in output.splitlines()[1:]:
                 if line:
                     pid, pcpu, pmem, rss, vsz, etime, cmd = line.split(maxsplit=6)
                     process_data[pid] = {
                         # %CPU
-                        'pcpu': float(pcpu),
+                        "pcpu": float(pcpu),
                         # %MEM
-                        'pmem': float(pmem),
+                        "pmem": float(pmem),
                         # Memory Resident Set Size
-                        'rss': int(rss),
+                        "rss": int(rss),
                         # Virtual Memory size
-                        'vsz': int(vsz),
+                        "vsz": int(vsz),
                     }
         except subprocess.CalledProcessError:
-            process_data['error'] = "Failed to query process data"
+            process_data["error"] = "Failed to query process data"
 
         self.unaggregated_samples.append(process_data)
 
@@ -92,7 +99,9 @@ class Report:
             sample = self.unaggregated_samples.pop()
             for pid, metrics in sample.items():
                 if pid not in max_values:
-                    max_values[pid] = metrics.copy()  # Make a copy of the metrics for the first entry
+                    max_values[
+                        pid
+                    ] = metrics.copy()  # Make a copy of the metrics for the first entry
                 else:
                     # Update each metric to the maximum found so far
                     for key in metrics:
@@ -131,7 +140,7 @@ class SubReport:
 def create_and_parse_args():
     now = datetime.now()
     # 'pure' iso 8601 does not make good filenames
-    file_safe_iso = now.strftime('%Y-%m-%d.%H-%M-%S')
+    file_safe_iso = now.strftime("%Y-%m-%d.%H-%M-%S")
     parser = argparse.ArgumentParser(
         description="A process wrapper script that monitors the execution of a command."
     )
@@ -146,7 +155,7 @@ def create_and_parse_args():
     parser.add_argument(
         "--output_prefix",
         type=str,
-        default=os.getenv("DUCT_OUTPUT_PREFIX", f".duct/run-logs/{file_safe_iso}")
+        default=os.getenv("DUCT_OUTPUT_PREFIX", f".duct/run-logs/{file_safe_iso}"),
     )
     parser.add_argument(
         "--report-interval",
@@ -179,7 +188,9 @@ def main():
             if elapsed_time >= (report.number + 1) * args.report_interval:
                 aggregated = report.aggregate_samples()
                 for pid, pinfo in aggregated.items():
-                    with open(f"{args.output_prefix}/{pid}_resource_usage.json", "a") as resource_statistics_log:
+                    with open(
+                        f"{args.output_prefix}/{pid}_resource_usage.json", "a"
+                    ) as resource_statistics_log:
                         pinfo["elapsed_time"] = elapsed_time
                         resource_statistics_log.write(json.dumps(aggregated))
                 report.number += 1
@@ -188,7 +199,9 @@ def main():
                 break
             time.sleep(args.sample_interval)
 
-        with open(f"{args.output_prefix}/system-report.session-{report.session_id}.json", "a") as system_logs:
+        with open(
+            f"{args.output_prefix}/system-report.session-{report.session_id}.json", "a"
+        ) as system_logs:
             report.end_time = time.time()
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
@@ -200,8 +213,11 @@ def main():
 
     except Exception as e:
         import traceback
+
         traceback.print_exc()
-        import ipdb; ipdb.set_trace()
+        import ipdb
+
+        ipdb.set_trace()
         print(f"Failed to execute command: {str(e)}")
 
 
