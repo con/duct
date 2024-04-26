@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 import argparse
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
 import json
 import os
 import pprint
 import shutil
 import subprocess
-import sys
 import time
-from collections import defaultdict
-from dataclasses import dataclass, field
-
-import profilers
 
 __version__ = "0.0.1"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -23,19 +21,20 @@ class Report:
         self.start_time = time.time()
         self.command = command
         self.session_id = session_id
-        self.system_info = {"uid": os.environ["USER"]}
+        self.gpu = None
+        self.unaggregated_samples = []
+        self.number = 0
+        self.system_info = {}
+
+    # TODO property?
+    def collect_environment(self):
         self.env = (
             {k: v for k, v in os.environ.items() if k.startswith(ENV_PREFIXES)},
         )
-        self.gpu = None
-        self.unaggregated_samples = []
-        self.stdout = ""
-        self.stderr = ""
-        self.number = 0
-        self.get_system_info()
 
     def get_system_info(self):
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
+        self.system_info["uid"] = os.environ["USER"]
         self.system_info["memory_total"] = os.sysconf("SC_PAGE_SIZE") * os.sysconf(
             "SC_PHYS_PAGES"
         )
@@ -66,36 +65,47 @@ class Report:
     def collect_sample(self):
         process_data = {}
         try:
-            output = subprocess.check_output(["ps", "-s", str(self.session_id), "-o", "pid,pcpu,pmem,rss,vsz,etime,cmd"], text=True)
+            output = subprocess.check_output(
+                [
+                    "ps",
+                    "-s",
+                    str(self.session_id),
+                    "-o",
+                    "pid,pcpu,pmem,rss,vsz,etime,cmd",
+                ],
+                text=True,
+            )
             for line in output.splitlines()[1:]:
                 if line:
                     pid, pcpu, pmem, rss, vsz, etime, cmd = line.split(maxsplit=6)
                     process_data[pid] = {
                         # %CPU
-                        'pcpu': float(pcpu),
+                        "pcpu": float(pcpu),
                         # %MEM
-                        'pmem': float(pmem),
+                        "pmem": float(pmem),
                         # Memory Resident Set Size
-                        'rss': int(rss),
+                        "rss": int(rss),
                         # Virtual Memory size
-                        'vsz': int(vsz),
+                        "vsz": int(vsz),
                     }
         except subprocess.CalledProcessError:
-            process_data['error'] = "Failed to query process data"
+            process_data["error"] = "Failed to query process data"
 
         self.unaggregated_samples.append(process_data)
 
     def aggregate_samples(self):
         max_values = {}
-        for sample in self.unaggregated_samples:
+        while self.unaggregated_samples:
+            sample = self.unaggregated_samples.pop()
             for pid, metrics in sample.items():
                 if pid not in max_values:
-                    max_values[pid] = metrics.copy()  # Make a copy of the metrics for the first entry
+                    max_values[
+                        pid
+                    ] = metrics.copy()  # Make a copy of the metrics for the first entry
                 else:
                     # Update each metric to the maximum found so far
                     for key in metrics:
                         max_values[pid][key] = max(max_values[pid][key], metrics[key])
-
         return max_values
 
     def __repr__(self):
@@ -105,8 +115,6 @@ class Report:
                 "System": self.system_info,
                 "ENV": self.env,
                 "GPU": self.gpu,
-                "STDOUT": self.stdout,
-                "STDERR": self.stderr,
             }
         )
 
@@ -129,10 +137,12 @@ class SubReport:
         }
 
 
-def main():
-    """A wrapper to execute a command, monitor and log the process details."""
+def create_and_parse_args():
+    now = datetime.now()
+    # 'pure' iso 8601 does not make good filenames
+    file_safe_iso = now.strftime("%Y-%m-%d.%H-%M-%S")
     parser = argparse.ArgumentParser(
-        description="A process wrapper script that monitors the execution of a command."
+        description="Gathers metrics on a command and all its child processes."
     )
     parser.add_argument("command", help="The command to execute.")
     parser.add_argument("arguments", nargs="*", help="Arguments for the command.")
@@ -143,9 +153,10 @@ def main():
         help="Interval in seconds between status checks of the running process.",
     )
     parser.add_argument(
-        "--stats_log_path",
+        "--output_prefix",
         type=str,
-        default="TODO_BETTER.stats.json",
+        default=os.getenv("DUCT_OUTPUT_PREFIX", f".duct/run-logs/{file_safe_iso}"),
+        help="Directory in which all logs will be saved.",
     )
     parser.add_argument(
         "--report-interval",
@@ -153,8 +164,13 @@ def main():
         default=60.0,
         help="Interval in seconds at which to report aggregated data.",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def main():
+    """A wrapper to execute a command, monitor and log the process details."""
+    args = create_and_parse_args()
+    os.makedirs(args.output_prefix, exist_ok=True)
     try:
         process = subprocess.Popen(
             [str(args.command)] + args.arguments.copy(),
@@ -164,30 +180,45 @@ def main():
         )
         session_id = os.getsid(process.pid)  # Get session ID of the new process
         report = Report(args.command, session_id)
+        report.collect_environment()
+        report.get_system_info()
 
         while True:
             elapsed_time = time.time() - report.start_time
             report.collect_sample()
             if elapsed_time >= (report.number + 1) * args.report_interval:
                 aggregated = report.aggregate_samples()
-                print(aggregated)
-                with open(args.stats_log_path, "a") as resource_statistics_log:
-                    aggregated["elapsed_time"] = elapsed_time
-                    resource_statistics_log.write(json.dumps(aggregated))
+                for pid, pinfo in aggregated.items():
+                    with open(
+                        f"{args.output_prefix}/{pid}_resource_usage.json", "a"
+                    ) as resource_statistics_log:
+                        pinfo["elapsed_time"] = elapsed_time
+                        resource_statistics_log.write(json.dumps(aggregated))
                 report.number += 1
 
             if process.poll() is not None:  # the passthrough command has finished
                 break
             time.sleep(args.sample_interval)
 
+        with open(
+            f"{args.output_prefix}/system-report.session-{report.session_id}.json", "a"
+        ) as system_logs:
+            report.end_time = time.time()
+            report.run_time_seconds = f"{report.end_time - report.start_time}"
+            report.get_system_info()
+            system_logs.write(str(report))
         stdout, stderr = process.communicate()
-        report.end_time = time.time()
-        report.run_time_seconds = f"{report.end_time - report.start_time}"
-        report.stdout = stdout.decode()
-        report.stderr = stderr.decode()
         pprint.pprint(report, width=120)
+        print(f"STDOUT: {stdout.decode()}")
+        print(f"STDERR: {stderr.decode()}")
 
     except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        import ipdb
+
+        ipdb.set_trace()
         print(f"Failed to execute command: {str(e)}")
 
 
