@@ -153,7 +153,7 @@ def create_and_parse_args():
         help="Interval in seconds between status checks of the running process.",
     )
     parser.add_argument(
-        "--output_prefix",
+        "--output-prefix",
         type=str,
         default=os.getenv("DUCT_OUTPUT_PREFIX", f".duct/run-logs/{file_safe_iso}"),
         help="Directory in which all logs will be saved.",
