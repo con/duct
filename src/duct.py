@@ -178,7 +178,13 @@ def create_and_parse_args():
         type=str,
         default="all",
         choices=["all", "none", "stdout", "stderr"],
-        help="print stdout, stderr, both, or neither to log files.",
+        help="print stdout, stderr, both, or neither to stdout/stderr respectively.",
+    )
+    parser.add_argument(
+        "--record-types",
+        type=str,
+        default="all",
+        choices=["all", "system-summary", "processes-samples"],
     )
     return parser.parse_args()
 
@@ -262,17 +268,18 @@ def main():
         report.get_system_info()
 
         while True:
-            elapsed_time = time.time() - report.start_time
-            report.collect_sample()
-            if elapsed_time >= (report.number + 1) * args.report_interval:
-                aggregated = report.aggregate_samples()
-                for pid, pinfo in aggregated.items():
-                    with open(
-                        f"{args.output_prefix}/{pid}_resource_usage.json", "a"
-                    ) as resource_statistics_log:
-                        pinfo["elapsed_time"] = elapsed_time
-                        resource_statistics_log.write(json.dumps(aggregated))
-                report.number += 1
+            if args.record_types in ["all", "processes-samples"]:
+                elapsed_time = time.time() - report.start_time
+                report.collect_sample()
+                if elapsed_time >= (report.number + 1) * args.report_interval:
+                    aggregated = report.aggregate_samples()
+                    for pid, pinfo in aggregated.items():
+                        with open(
+                            f"{args.output_prefix}/{pid}_resource_usage.json", "a"
+                        ) as resource_statistics_log:
+                            pinfo["elapsed_time"] = elapsed_time
+                            resource_statistics_log.write(json.dumps(aggregated))
+                    report.number += 1
 
             if process.poll() is not None:  # the passthrough command has finished
                 if isinstance(stdout, TeeStream):
@@ -282,13 +289,15 @@ def main():
                 break
             time.sleep(args.sample_interval)
 
-        with open(
-            f"{args.output_prefix}/system-report.session-{report.session_id}.json", "a"
-        ) as system_logs:
-            report.end_time = time.time()
-            report.run_time_seconds = f"{report.end_time - report.start_time}"
-            report.get_system_info()
-            system_logs.write(str(report))
+        if args.record_types in ["all", "system-summary"]:
+            with open(
+                f"{args.output_prefix}/system-report.session-{report.session_id}.json",
+                "a",
+            ) as system_logs:
+                report.end_time = time.time()
+                report.run_time_seconds = f"{report.end_time - report.start_time}"
+                report.get_system_info()
+                system_logs.write(str(report))
         pprint.pprint(report, width=120)
 
     except Exception as e:
