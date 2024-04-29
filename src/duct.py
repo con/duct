@@ -228,6 +228,32 @@ class TeeStream:
         self.file.close()
 
 
+def monitor_process(
+    stdout, stderr, report, process, report_interval, sample_interval, output_prefix
+):
+    while True:
+        if process.poll() is not None:  # the passthrough command has finished
+            if isinstance(stdout, TeeStream):
+                stdout.close()
+            if isinstance(stderr, TeeStream):
+                stderr.close()
+            break
+
+        elapsed_time = time.time() - report.start_time
+        report.collect_sample()
+        if elapsed_time >= (report.number + 1) * report_interval:
+            aggregated = report.aggregate_samples()
+            for pid, pinfo in aggregated.items():
+                with open(
+                    f"{output_prefix}/{pid}_resource_usage.json", "a"
+                ) as resource_statistics_log:
+                    pinfo["elapsed_time"] = elapsed_time
+                    resource_statistics_log.write(json.dumps(aggregated))
+            report.number += 1
+
+    time.sleep(sample_interval)
+
+
 def main():
     """A wrapper to execute a command, monitor and log the process details."""
     args = create_and_parse_args()
@@ -267,28 +293,23 @@ def main():
         report.collect_environment()
         report.get_system_info()
 
-        while True:
-            if args.record_types in ["all", "processes-samples"]:
-                elapsed_time = time.time() - report.start_time
-                report.collect_sample()
-                if elapsed_time >= (report.number + 1) * args.report_interval:
-                    aggregated = report.aggregate_samples()
-                    for pid, pinfo in aggregated.items():
-                        with open(
-                            f"{args.output_prefix}/{pid}_resource_usage.json", "a"
-                        ) as resource_statistics_log:
-                            pinfo["elapsed_time"] = elapsed_time
-                            resource_statistics_log.write(json.dumps(aggregated))
-                    report.number += 1
-
-            if process.poll() is not None:  # the passthrough command has finished
-                if isinstance(stdout, TeeStream):
-                    stdout.close()
-                if isinstance(stderr, TeeStream):
-                    stderr.close()
-                break
-            time.sleep(args.sample_interval)
-
+        if args.record_types in ["all", "processes-samples"]:
+            # TODO yoh is there a less ugly way to do this?
+            monitoring_args = [
+                stdout,
+                stderr,
+                report,
+                process,
+                args.report_interval,
+                args.sample_interval,
+                args.output_prefix,
+            ]
+            monitoring_thread = threading.Thread(
+                target=monitor_process, args=monitoring_args
+            )
+            monitoring_thread.start()
+            monitoring_thread.join()
+        #
         if args.record_types in ["all", "system-summary"]:
             with open(
                 f"{args.output_prefix}/system-report.session-{report.session_id}.json",
