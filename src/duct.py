@@ -3,6 +3,7 @@ import argparse
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+import errno
 import json
 import os
 import pprint
@@ -212,10 +213,13 @@ class TeeStream:
         with os.fdopen(self.listener_fd, "rb", buffering=0) as stream:
             while True:
                 try:
-                    data = stream.read(1024)  # Read larger blocks of data
-                except OSError:  # The file has been closed
-                    break
-                if not data:  # Still open, nothing to do
+                    data = stream.read(1024)
+                except OSError as e:
+                    if e.errno == errno.EIO:  # The file has been closed
+                        break
+                    else:
+                        raise
+                if not data:  # Still open, but no new data to write
                     break
                 sys.stdout.buffer.write(data)
                 sys.stdout.buffer.flush()
@@ -282,51 +286,46 @@ def main():
     """A wrapper to execute a command, monitor and log the process details."""
     args = create_and_parse_args()
     os.makedirs(args.output_prefix, exist_ok=True)
-
     stdout, stderr = prepare_outputs(
         args.capture_outputs, args.outputs, args.output_prefix
     )
-    try:
-        process = subprocess.Popen(
-            [str(args.command)] + args.arguments.copy(),
-            stdout=stdout,
-            stderr=stderr,
-            preexec_fn=os.setsid,
+    process = subprocess.Popen(
+        [str(args.command)] + args.arguments.copy(),
+        stdout=stdout,
+        stderr=stderr,
+        preexec_fn=os.setsid,
+    )
+    session_id = os.getsid(process.pid)  # Get session ID of the new process
+    report = Report(args.command, session_id)
+    report.collect_environment()
+    report.get_system_info()
+
+    if args.record_types in ["all", "processes-samples"]:
+        monitoring_args = [
+            stdout,
+            stderr,
+            report,
+            process,
+            args.report_interval,
+            args.sample_interval,
+            args.output_prefix,
+        ]
+        monitoring_thread = threading.Thread(
+            target=monitor_process, args=monitoring_args
         )
-        session_id = os.getsid(process.pid)  # Get session ID of the new process
-        report = Report(args.command, session_id)
-        report.collect_environment()
-        report.get_system_info()
+        monitoring_thread.start()
+        monitoring_thread.join()
 
-        if args.record_types in ["all", "processes-samples"]:
-            monitoring_args = [
-                stdout,
-                stderr,
-                report,
-                process,
-                args.report_interval,
-                args.sample_interval,
-                args.output_prefix,
-            ]
-            monitoring_thread = threading.Thread(
-                target=monitor_process, args=monitoring_args
-            )
-            monitoring_thread.start()
-            monitoring_thread.join()
-
-        if args.record_types in ["all", "system-summary"]:
-            with open(
-                f"{args.output_prefix}/system-report.session-{report.session_id}.json",
-                "a",
-            ) as system_logs:
-                report.end_time = time.time()
-                report.run_time_seconds = f"{report.end_time - report.start_time}"
-                report.get_system_info()
-                system_logs.write(str(report))
-        pprint.pprint(report, width=120)
-
-    except Exception as e:
-        print(f"Failed to execute command: {str(e)}")
+    if args.record_types in ["all", "system-summary"]:
+        with open(
+            f"{args.output_prefix}/system-report.session-{report.session_id}.json",
+            "a",
+        ) as system_logs:
+            report.end_time = time.time()
+            report.run_time_seconds = f"{report.end_time - report.start_time}"
+            report.get_system_info()
+            system_logs.write(str(report))
+    pprint.pprint(report, width=120)
 
 
 if __name__ == "__main__":
