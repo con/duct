@@ -256,8 +256,7 @@ def monitor_process(
                     pinfo["elapsed_time"] = elapsed_time
                     resource_statistics_log.write(json.dumps(aggregated))
             report.number += 1
-
-    time.sleep(sample_interval)
+        time.sleep(sample_interval)
 
 
 def prepare_outputs(capture_outputs, outputs, output_prefix):
