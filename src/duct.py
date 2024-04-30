@@ -256,33 +256,36 @@ def monitor_process(
     time.sleep(sample_interval)
 
 
-def main():
-    """A wrapper to execute a command, monitor and log the process details."""
-    args = create_and_parse_args()
-    os.makedirs(args.output_prefix, exist_ok=True)
-
-    if args.capture_outputs in ["all", "stdout"] and args.outputs in ["all", "stdout"]:
-        stdout = TeeStream(f"{args.output_prefix}/stdout.txt")
+def prepare_outputs(capture_outputs, outputs, output_prefix):
+    if capture_outputs in ["all", "stdout"] and outputs in ["all", "stdout"]:
+        stdout = TeeStream(f"{output_prefix}/stdout.txt")
         stdout.start()
-    elif args.capture_outputs in ["none", "stderr"] and args.outputs in [
-        "all",
-        "stdout",
-    ]:
+    elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
         stdout = subprocess.PIPE
     else:
         stdout = subprocess.DEVNULL
 
-    if args.capture_outputs in ["all", "stderr"] and args.outputs in ["all", "stderr"]:
-        stderr = TeeStream(f"{args.output_prefix}/stderr.txt")
+    if capture_outputs in ["all", "stderr"] and outputs in ["all", "stderr"]:
+        stderr = TeeStream(f"{output_prefix}/stderr.txt")
         stderr.start()
-    elif args.capture_outputs in ["none", "stdout"] and args.outputs in [
+    elif capture_outputs in ["none", "stdout"] and outputs in [
         "all",
         "stderr",
     ]:
         stderr = subprocess.PIPE
     else:
         stderr = subprocess.DEVNULL
+    return stdout, stderr
 
+
+def main():
+    """A wrapper to execute a command, monitor and log the process details."""
+    args = create_and_parse_args()
+    os.makedirs(args.output_prefix, exist_ok=True)
+
+    stdout, stderr = prepare_outputs(
+        args.capture_outputs, args.outputs, args.output_prefix
+    )
     try:
         process = subprocess.Popen(
             [str(args.command)] + args.arguments.copy(),
