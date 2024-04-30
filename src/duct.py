@@ -28,7 +28,6 @@ class Report:
         self.number = 0
         self.system_info = {}
 
-    # TODO property?
     def collect_environment(self):
         self.env = (
             {k: v for k, v in os.environ.items() if k.startswith(ENV_PREFIXES)},
@@ -171,43 +170,46 @@ def create_and_parse_args():
         type=str,
         default="all",
         choices=["all", "none", "stdout", "stderr"],
-        help="Record stdout, stderr, both, or neither to log files.",
+        help="Record stdout, stderr, all, or none to log files.",
     )
     parser.add_argument(
         "--outputs",
         type=str,
         default="all",
         choices=["all", "none", "stdout", "stderr"],
-        help="print stdout, stderr, both, or neither to stdout/stderr respectively.",
+        help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
     )
     parser.add_argument(
         "--record-types",
         type=str,
         default="all",
         choices=["all", "system-summary", "processes-samples"],
+        help="Record system-summary, processes-samples, or all",
     )
     return parser.parse_args()
 
 
 class TeeStream:
+    """TeeStream simultaneously streams to standard output (stdout) and a specified file."""
+
     def __init__(self, file_path):
         self.file = open(file_path, "w")
         (
-            self.master_fd,
-            self.slave_fd,
+            self.listener_fd,
+            self.writer_fd,
         ) = os.openpty()  # Use pseudo-terminal to simulate terminal behavior
 
     def fileno(self):
         """Return the file descriptor to be used by subprocess as stdout/stderr."""
-        return self.slave_fd
+        return self.listener_fd
 
     def start(self):
-        """Start a thread to read from the master_fd and write to stdout and the file."""
+        """Start a thread to read from the main_fd and write to stdout and the file."""
         thread = threading.Thread(target=self._redirect_output, daemon=True)
         thread.start()
 
     def _redirect_output(self):
-        with os.fdopen(self.master_fd, "rb", buffering=0) as stream:
+        with os.fdopen(self.listener_fd, "rb", buffering=0) as stream:
             while True:
                 try:
                     data = stream.read(1024)  # Read larger blocks of data
@@ -224,7 +226,7 @@ class TeeStream:
 
     def close(self):
         """Close the slave fd and the file when done."""
-        os.close(self.slave_fd)
+        os.close(self.listener_fd)
         self.file.close()
 
 
@@ -260,7 +262,7 @@ def main():
     os.makedirs(args.output_prefix, exist_ok=True)
 
     if args.capture_outputs in ["all", "stdout"] and args.outputs in ["all", "stdout"]:
-        stdout = TeeStream(args.output_prefix + "/stdout.txt")
+        stdout = TeeStream(f"{args.output_prefix}/stdout.txt")
         stdout.start()
     elif args.capture_outputs in ["none", "stderr"] and args.outputs in [
         "all",
@@ -271,7 +273,7 @@ def main():
         stdout = subprocess.DEVNULL
 
     if args.capture_outputs in ["all", "stderr"] and args.outputs in ["all", "stderr"]:
-        stderr = TeeStream(args.output_prefix + "/stderr.txt")
+        stderr = TeeStream(f"{args.output_prefix}/stderr.txt")
         stderr.start()
     elif args.capture_outputs in ["none", "stdout"] and args.outputs in [
         "all",
@@ -294,7 +296,6 @@ def main():
         report.get_system_info()
 
         if args.record_types in ["all", "processes-samples"]:
-            # TODO yoh is there a less ugly way to do this?
             monitoring_args = [
                 stdout,
                 stderr,
@@ -309,7 +310,7 @@ def main():
             )
             monitoring_thread.start()
             monitoring_thread.join()
-        #
+
         if args.record_types in ["all", "system-summary"]:
             with open(
                 f"{args.output_prefix}/system-report.session-{report.session_id}.json",
@@ -322,12 +323,6 @@ def main():
         pprint.pprint(report, width=120)
 
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        import ipdb
-
-        ipdb.set_trace()
         print(f"Failed to execute command: {str(e)}")
 
 
