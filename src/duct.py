@@ -261,21 +261,22 @@ def monitor_process(
 
 
 def prepare_outputs(capture_outputs, outputs, output_prefix):
+    sep = "" if output_prefix.endswith(os.sep) else "-"
     if capture_outputs in ["all", "stdout"] and outputs in ["all", "stdout"]:
-        stdout = TeeStream(f"{output_prefix}stdout")
+        stdout = TeeStream(f"{output_prefix}{sep}stdout")
         stdout.start()
     elif capture_outputs in ["all", "stdout"] and outputs in ["none", "stderr"]:
-        stdout = open(f"{output_prefix}stdout")
+        stdout = open(f"{output_prefix}{sep}stdout")
     elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
         stdout = subprocess.PIPE
     else:
         stdout = subprocess.DEVNULL
 
     if capture_outputs in ["all", "stderr"] and outputs in ["all", "stderr"]:
-        stderr = TeeStream(f"{output_prefix}stderr")
+        stderr = TeeStream(f"{output_prefix}{sep}stderr")
         stderr.start()
     elif capture_outputs in ["all", "stderr"] and outputs in ["none", "stdout"]:
-        stderr = open(f"{output_prefix}/stderr")
+        stderr = open(f"{output_prefix}{sep}stderr")
     elif capture_outputs in ["none", "stdout"] and outputs in [
         "all",
         "stderr",

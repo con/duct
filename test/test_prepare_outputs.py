@@ -10,7 +10,7 @@ def test_prepare_outputs_all_stdout():
     ) as mock_open:
         mock_tee_stream.return_value.start = MagicMock()
         stdout, stderr = prepare_outputs("all", "stdout", output_prefix)
-        mock_tee_stream.assert_called_with(f"{output_prefix}/stdout.txt")
+        mock_tee_stream.assert_called_with(f"{output_prefix}-stdout")
         assert stdout == mock_tee_stream.return_value
         assert stderr == mock_open.return_value
 
@@ -22,7 +22,7 @@ def test_prepare_outputs_all_stderr():
     ) as mock_open:
         mock_tee_stream.return_value.start = MagicMock()
         stdout, stderr = prepare_outputs("all", "stderr", output_prefix)
-        mock_tee_stream.assert_called_with(f"{output_prefix}/stderr.txt")
+        mock_tee_stream.assert_called_with(f"{output_prefix}-stderr")
         assert stdout == mock_open.return_value
         assert stderr == mock_tee_stream.return_value
 
@@ -32,8 +32,8 @@ def test_prepare_outputs_all_none():
     with patch("builtins.open", new_callable=MagicMock) as mock_open:
         stdout, stderr = prepare_outputs("all", "none", output_prefix)
         calls = [
-            call(f"{output_prefix}/stdout.txt"),
-            call(f"{output_prefix}/stderr.txt"),
+            call(f"{output_prefix}-stdout"),
+            call(f"{output_prefix}-stderr"),
         ]
         mock_open.assert_has_calls(calls, any_order=True)
         assert stdout == mock_open.return_value
@@ -62,7 +62,7 @@ def test_prepare_outputs_all_all():
         assert stdout == mock_tee_stream.return_value
         assert stderr == mock_tee_stream.return_value
         calls = [
-            call(f"{output_prefix}/stdout.txt"),
-            call(f"{output_prefix}/stderr.txt"),
+            call(f"{output_prefix}-stdout"),
+            call(f"{output_prefix}-stderr"),
         ]
         mock_tee_stream.assert_has_calls(calls, any_order=True)
