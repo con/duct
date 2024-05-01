@@ -39,7 +39,6 @@ jobs:
           # - 'pypy-3.8'
           # - 'pypy-3.9'
           # - 'pypy-3.10'
-        toxenv: [py]
         # exclude:
         #   # No older Pythons on arm64 macos-latest
         #   - python-version: '3.7'
@@ -77,24 +76,5 @@ jobs:
         run: pip install .
 
       - name: Run tests
-        # if: matrix.toxenv == 'py'
-        run: ./run-tests.sh
-        # run: ./run-tests.sh -e py -- -vv --ci --cov-report=xml
-        # env:
-          # GITHUB_TOKEN: ${{ secrets.GH_DOWNLOAD_TOKEN }}
-
-      # TODO
-      # - name: Run generic tests
-      #   if: matrix.toxenv != 'py'
-      #   run: tox -e ${{ matrix.toxenv }}
-      #
-      # TODO
-      # - name: Upload coverage to Codecov
-      #   if: matrix.toxenv == 'py'
-      #   uses: codecov/codecov-action@v4
-      #   with:
-      #     fail_ci_if_error: false
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-      #     name: ${{ matrix.python-version }}
-
+        run: tox -e py
 # vim:set et sts=2:

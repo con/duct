@@ -239,9 +239,9 @@ def monitor_process(
 ):
     while True:
         if process.poll() is not None:  # the passthrough command has finished
-            if isinstance(stdout, TeeStream):
+            if hasattr(stdout, "close"):
                 stdout.close()
-            if isinstance(stderr, TeeStream):
+            if hasattr(stderr, "close"):
                 stderr.close()
             break
 
@@ -263,6 +263,8 @@ def prepare_outputs(capture_outputs, outputs, output_prefix):
     if capture_outputs in ["all", "stdout"] and outputs in ["all", "stdout"]:
         stdout = TeeStream(f"{output_prefix}/stdout.txt")
         stdout.start()
+    elif capture_outputs in ["all", "stdout"] and outputs in ["none", "stderr"]:
+        stdout = open(f"{output_prefix}/stdout.txt")
     elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
         stdout = subprocess.PIPE
     else:
@@ -271,6 +273,8 @@ def prepare_outputs(capture_outputs, outputs, output_prefix):
     if capture_outputs in ["all", "stderr"] and outputs in ["all", "stderr"]:
         stderr = TeeStream(f"{output_prefix}/stderr.txt")
         stderr.start()
+    elif capture_outputs in ["all", "stderr"] and outputs in ["none", "stdout"]:
+        stderr = open(f"{output_prefix}/stderr.txt")
     elif capture_outputs in ["none", "stdout"] and outputs in [
         "all",
         "stderr",
