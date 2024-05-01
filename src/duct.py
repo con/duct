@@ -147,44 +147,52 @@ def create_and_parse_args():
     parser.add_argument("command", help="The command to execute.")
     parser.add_argument("arguments", nargs="*", help="Arguments for the command.")
     parser.add_argument(
-        "-p", "--output-prefix",
+        "-p",
+        "--output-prefix",
         type=str,
-        default=os.getenv("DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"),
+        default=os.getenv(
+            "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
+        ),
         help="File string format to be used as a prefix for the files -- the captured "
-             "stdout and stderr and the resource usage logs. The understood variables are "
-             "{datetime}, {datetime_filesafe}, and {pid}. "
-             "Leading directories will be created if they do not exist. "
-             "You can also provide value via DUCT_OUTPUT_PREFIX env variable. "
+        "stdout and stderr and the resource usage logs. The understood variables are "
+        "{datetime}, {datetime_filesafe}, and {pid}. "
+        "Leading directories will be created if they do not exist. "
+        "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
     )
     parser.add_argument(
-        "--s-i", "--sample-interval",
+        "--sample-interval",
+        "--s-i",
         type=float,
         default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
         help="Interval in seconds between status checks of the running process.",
     )
     parser.add_argument(
-        "--r-i", "--report-interval",
+        "--report-interval",
+        "--r-i",
         type=float,
         default=float(os.getenv("DUCT_REPORT_INTERVAL", "60.0")),
         help="Interval in seconds at which to report aggregated data.",
     )
     parser.add_argument(
-        "-c", "--capture-outputs",
+        "-c",
+        "--capture-outputs",
         type=str,
         default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
         choices=["all", "none", "stdout", "stderr"],
         help="Record stdout, stderr, all, or none to log files. "
-        "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable."
+        "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
     )
     parser.add_argument(
-        "-o", "--outputs",
+        "-o",
+        "--outputs",
         type=str,
         default="all",
         choices=["all", "none", "stdout", "stderr"],
         help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
     )
     parser.add_argument(
-        "-t", "--record-types",
+        "-t",
+        "--record-types",
         type=str,
         default="all",
         choices=["all", "system-summary", "processes-samples"],
@@ -255,7 +263,7 @@ def monitor_process(
             for pid, pinfo in aggregated.items():
                 with open(
                     resource_stats_log_path.format(
-                        output_prefix=output_prefix, sep=sep, pid=pid
+                        output_prefix=output_prefix, pid=pid
                     ),
                     "a",
                 ) as resource_statistics_log:
