@@ -12,6 +12,7 @@ import subprocess
 import sys
 import threading
 import time
+from typing import Any, DefaultDict, Dict, List, Optional, TextIO, Tuple, Union
 
 __version__ = "0.0.1"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -20,11 +21,19 @@ ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 class Report:
     """Top level report"""
 
-    def __init__(self, command, session_id):
+    start_time: float
+    command: str
+    session_id: int
+    gpus: Optional[list]
+    unaggregated_samples: List[Dict]
+    number: int
+    system_info: Dict[str, Any]  # Use more specific types if possible
+
+    def __init__(self, command: str, session_id: int) -> None:
         self.start_time = time.time()
         self.command = command
         self.session_id = session_id
-        self.gpu = None
+        self.gpus = []
         self.unaggregated_samples = []
         self.number = 0
         self.system_info = {}
@@ -126,7 +135,10 @@ class SubReport:
     """Group of aggregated statestics on a session"""
 
     number: int = 0
-    pids_dummy: list = field(default_factory=lambda: defaultdict(list))
+
+    pids_dummy: DefaultDict[Any, List[Any]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
     session_data = None
     elapsed_time = None
 
@@ -204,14 +216,18 @@ def create_and_parse_args():
 class TeeStream:
     """TeeStream simultaneously streams to standard output (stdout) and a specified file."""
 
-    def __init__(self, file_path):
+    listener_fd: int
+    writer_fd: int
+    file: TextIO
+
+    def __init__(self, file_path: str) -> None:
         self.file = open(file_path, "w")
         (
             self.listener_fd,
             self.writer_fd,
         ) = os.openpty()  # Use pseudo-terminal to simulate terminal behavior
 
-    def fileno(self):
+    def fileno(self) -> int:
         """Return the file descriptor to be used by subprocess as stdout/stderr."""
         return self.listener_fd
 
@@ -273,12 +289,18 @@ def monitor_process(
         time.sleep(sample_interval)
 
 
-def prepare_outputs(capture_outputs, outputs, output_prefix):
+def prepare_outputs(
+    capture_outputs: str, outputs: str, output_prefix: str
+) -> Tuple[Union[TextIO, TeeStream, int], Union[TextIO, TeeStream, int]]:
+    stdout: Union[TextIO, TeeStream, int]
+    stderr: Union[TextIO, TeeStream, int]
+
+    # Code remains the same
     if capture_outputs in ["all", "stdout"] and outputs in ["all", "stdout"]:
         stdout = TeeStream(f"{output_prefix}stdout")
-        stdout.start()
+        stdout.start()  # type: ignore
     elif capture_outputs in ["all", "stdout"] and outputs in ["none", "stderr"]:
-        stdout = open(f"{output_prefix}stdout")
+        stdout = open(f"{output_prefix}stdout", "w")
     elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
         stdout = subprocess.PIPE
     else:
@@ -286,20 +308,17 @@ def prepare_outputs(capture_outputs, outputs, output_prefix):
 
     if capture_outputs in ["all", "stderr"] and outputs in ["all", "stderr"]:
         stderr = TeeStream(f"{output_prefix}stderr")
-        stderr.start()
+        stderr.start()  # type: ignore
     elif capture_outputs in ["all", "stderr"] and outputs in ["none", "stdout"]:
-        stderr = open(f"{output_prefix}stderr")
-    elif capture_outputs in ["none", "stdout"] and outputs in [
-        "all",
-        "stderr",
-    ]:
+        stderr = open(f"{output_prefix}stderr", "w")
+    elif capture_outputs in ["none", "stdout"] and outputs in ["all", "stderr"]:
         stderr = subprocess.PIPE
     else:
         stderr = subprocess.DEVNULL
     return stdout, stderr
 
 
-def format_output_prefix(output_prefix_template):
+def format_output_prefix(output_prefix_template: str) -> str:
     datenow = datetime.now()
     f_kwargs = {
         # 'pure' iso 8601 does not make good filenames
@@ -310,7 +329,7 @@ def format_output_prefix(output_prefix_template):
     return output_prefix_template.format(**f_kwargs)
 
 
-def ensure_directories(path):
+def ensure_directories(path: str) -> None:
     if path.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
         os.makedirs(path, exist_ok=True)
     else:
