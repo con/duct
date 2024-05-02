@@ -71,7 +71,7 @@ class Report:
                     for gpu in gpu_info[1:]
                 ]
             except subprocess.CalledProcessError:
-                self.gpus = "Failed to query GPU info"
+                self.gpus = ["Failed to query GPU info"]
 
     def collect_sample(self):
         process_data = {}
@@ -125,7 +125,7 @@ class Report:
                 "Command": self.command,
                 "System": self.system_info,
                 "ENV": self.env,
-                "GPU": self.gpu,
+                "GPU": self.gpus,
             }
         )
 
@@ -257,7 +257,7 @@ class TeeStream:
 
     def close(self):
         """Close the slave fd and the file when done."""
-        os.close(self.listener_fd)
+        os.close(self.writer_fd)
         self.file.close()
 
 
