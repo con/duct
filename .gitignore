@@ -4,3 +4,4 @@ duct.egg-info/
 
 .duct/
 .idea
+.tox/
