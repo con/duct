@@ -30,15 +30,14 @@ jobs:
           # - windows-latest
           - ubuntu-latest
         python-version:
-          # - '3.7'
-          # - '3.8'
-          # - '3.9'
-          # - '3.10'
+          - '3.8'
+          - '3.9'
+          - '3.10'
           - '3.11'
           - '3.12'
-          # - 'pypy-3.8'
-          # - 'pypy-3.9'
-          # - 'pypy-3.10'
+          - 'pypy-3.8'
+          - 'pypy-3.9'
+          - 'pypy-3.10'
         # exclude:
         #   # No older Pythons on arm64 macos-latest
         #   - python-version: '3.7'
@@ -77,4 +76,7 @@ jobs:
 
       - name: Run tests
         run: tox -e py
+
+      - name: Run smoke tests
+        run: ./smoke-tests.sh
 # vim:set et sts=2:
