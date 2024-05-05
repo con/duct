@@ -3,3 +3,4 @@ src/__pycache__/
 duct.egg-info/
 
 .duct/
+.idea
