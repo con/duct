@@ -9,12 +9,12 @@ from duct import TeeStream
 @pytest.mark.parametrize(
     "file_path",
     [
-        "ten_1",
-        "ten_2",
-        "ten_3",
-        "ten_4",
-        # "ten_5",
-        # "ten_6",
+        "test/e2e/ten_1",
+        "test/e2e/ten_2",
+        # "test/e2e/ten_3",
+        # "test/e2e/ten_4",
+        # "test/e2e/ten_5",
+        # "test/e2e/ten_6",
     ],
 )
 @patch("sys.stdout.buffer.write")
@@ -48,16 +48,14 @@ def test_cat(mock_write, file_path):
 @pytest.mark.parametrize(
     "file_path",
     [
-        "ten_1",
-        "ten_2",
-        "ten_3",
-        "ten_4",
-        # "ten_5",
-        # "ten_6",
+        "test/e2e/ten_1",
+        "test/e2e/ten_2",
+        "test/e2e/ten_3",
+        "test/e2e/ten_4",
     ],
 )
 def test_sanity(file_path):
-    with open(f"tmp-{file_path}", "wb") as file:
+    with open(f"{file_path}-copy", "wb") as file:
         process = subprocess.Popen(
             ["cat", file_path],
             stdout=file,
@@ -71,7 +69,7 @@ def test_sanity(file_path):
         expected_data = file.read()
     byte_expected_data = expected_data.replace("\n", "\r\n").encode("utf-8")
 
-    with open(f"tmp-{file_path}", "r", newline="") as file:
+    with open(f"{file_path}-copy", "r", newline="") as file:
         actual_data = file.read()
     byte_actual_data = actual_data.replace("\n", "\r\n").encode("utf-8")
     assert byte_actual_data == byte_expected_data
@@ -84,7 +82,7 @@ def test_cat_empty(mock_write):
     tee.start()
     try:
         process = subprocess.Popen(
-            ["cat", "empty-file"],
+            ["cat", "test/e2e/empty-file"],
             stdout=tee,
             stderr=subprocess.DEVNULL,
             preexec_fn=os.setsid,
