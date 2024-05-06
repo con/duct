@@ -3,26 +3,32 @@ from unittest.mock import MagicMock, call, patch
 from duct import prepare_outputs
 
 
-def test_prepare_outputs_all_stdout():
+@patch("duct.threading.Event")
+def test_prepare_outputs_all_stdout(mock_event):
     output_prefix = "test_outputs_"
     with patch("duct.TeeStream") as mock_tee_stream, patch(
         "builtins.open", new_callable=MagicMock
     ) as mock_open:
         mock_tee_stream.return_value.start = MagicMock()
         stdout, stderr = prepare_outputs("all", "stdout", output_prefix)
-        mock_tee_stream.assert_called_with(f"{output_prefix}stdout")
+        mock_tee_stream.assert_called_with(
+            f"{output_prefix}stdout", mock_event.return_value
+        )
         assert stdout == mock_tee_stream.return_value
         assert stderr == mock_open.return_value
 
 
-def test_prepare_outputs_all_stderr():
+@patch("duct.threading.Event")
+def test_prepare_outputs_all_stderr(mock_event):
     output_prefix = "test_outputs_"
     with patch("duct.TeeStream") as mock_tee_stream, patch(
         "builtins.open", new_callable=MagicMock
     ) as mock_open:
         mock_tee_stream.return_value.start = MagicMock()
         stdout, stderr = prepare_outputs("all", "stderr", output_prefix)
-        mock_tee_stream.assert_called_with(f"{output_prefix}stderr")
+        mock_tee_stream.assert_called_with(
+            f"{output_prefix}stderr", mock_event.return_value
+        )
         assert stdout == mock_open.return_value
         assert stderr == mock_tee_stream.return_value
 
@@ -54,7 +60,8 @@ def test_prepare_outputs_none_stderr():
     assert stdout == subprocess.DEVNULL
 
 
-def test_prepare_outputs_all_all():
+@patch("duct.threading.Event")
+def test_prepare_outputs_all_all(mock_event):
     output_prefix = "test_outputs_"
     with patch("duct.TeeStream") as mock_tee_stream:
         mock_tee_stream.return_value.start = MagicMock()
@@ -62,7 +69,7 @@ def test_prepare_outputs_all_all():
         assert stdout == mock_tee_stream.return_value
         assert stderr == mock_tee_stream.return_value
         calls = [
-            call(f"{output_prefix}stdout"),
-            call(f"{output_prefix}stderr"),
+            call(f"{output_prefix}stdout", mock_event.return_value),
+            call(f"{output_prefix}stderr", mock_event.return_value),
         ]
         mock_tee_stream.assert_has_calls(calls, any_order=True)
