@@ -9,9 +9,9 @@ from duct import TeeStream
 @pytest.mark.parametrize(
     "file_path",
     [
-        "test/e2e/ten_1",
-        "test/e2e/ten_2",
-        # "test/e2e/ten_3",
+        # "test/e2e/ten_1",
+        # "test/e2e/ten_2",
+        "test/e2e/ten_3",
         # "test/e2e/ten_4",
         # "test/e2e/ten_5",
         # "test/e2e/ten_6",

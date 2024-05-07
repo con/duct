@@ -11,7 +11,17 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Any, DefaultDict, Dict, List, Optional, TextIO, Tuple, Union
+from typing import (
+    Any,
+    BinaryIO,
+    DefaultDict,
+    Dict,
+    List,
+    Optional,
+    TextIO,
+    Tuple,
+    Union,
+)
 
 __version__ = "0.0.1"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -217,16 +227,16 @@ class TeeStream:
 
     write_fd: int
     read_fd: int
-    file: TextIO
+    file: BinaryIO
 
     CHUNK_SIZE = 1024
 
     def __init__(self, file_path: str, stop_event: threading.Event):
         self.stop_event = stop_event
-        self.file = open(file_path, "w")
+        self.file = open(file_path, "wb")
         self.read_fd, self.write_fd = os.openpty()
 
-    def fileno(self):
+    def fileno(self) -> int:
         """Return the file descriptor to be used by subprocess as stdout/stderr."""
         return self.write_fd
 
@@ -242,9 +252,13 @@ class TeeStream:
                     chunk = stream.read(self.CHUNK_SIZE)
                     if not chunk:
                         break
+                    # Yarik thinks this is a bad idea, because it might be
+                    # a part of unicode and we need to write string here probably...
+                    # If fails -- check/use solution from
+                    # https://github.com/sassoftware/epdb/pull/13/files
                     sys.stdout.buffer.write(chunk)
                     sys.stdout.buffer.flush()
-                    self.file.write(chunk.decode())
+                    self.file.write(chunk)
                     self.file.flush()
         except Exception as e:
             print(f"DEBUG: Error in _redirect_output: {e}", file=sys.stderr)
