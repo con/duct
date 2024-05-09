@@ -1,8 +1,8 @@
-from io import StringIO
 import os
 import subprocess
 from unittest.mock import patch
 import pytest
+from utils import MockStdout
 from duct import TailPipe
 
 FIXTURE_LIST = [f"ten_{i}" for i in range(1, 7)]
@@ -28,7 +28,7 @@ def fixture_path(request, tmp_path_factory):
 
 
 @pytest.mark.parametrize("fixture_path", FIXTURE_LIST, indirect=True)
-@patch("sys.stdout", new_callable=StringIO)
+@patch("sys.stdout", new_callable=lambda: MockStdout())
 def test_high_throughput(mock_stdout, fixture_path):
     outfile = "TEST"
     with open(outfile, "wb") as stdout:
@@ -36,13 +36,13 @@ def test_high_throughput(mock_stdout, fixture_path):
             ["cat", fixture_path],
             stdout=stdout,
         )
-        tail_stream = TailPipe(outfile)
+        tail_stream = TailPipe(outfile, mock_stdout.buffer)
         tail_stream.start()
         process.wait()
         tail_stream.close()
 
     assert process.returncode == 0
-    with open(fixture_path) as fixture:
+    with open(fixture_path, "rb") as fixture:
         expected = fixture.read()
     assert mock_stdout.getvalue() == expected
 

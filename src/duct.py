@@ -239,9 +239,13 @@ class TailPipe:
             time.sleep(0.01)
 
         # After stop event, collect and passthrough data one last time
-        data = self.infile.read()
-        if data:
-            self.buffer.write(data)
+        try:
+            data = self.infile.read()
+            if data:
+                self.buffer.write(data)
+        except Exception as e:
+            print(f"DEBUG: THIS SHOULD NOT HAPPEN {e}")
+            pass
 
     def close(self):
         self.stop_event.set()
@@ -249,15 +253,9 @@ class TailPipe:
         self.infile.close()
 
 
-def monitor_process(
-    stdout, stderr, report, process, report_interval, sample_interval, output_prefix
-):
+def monitor_process(report, process, report_interval, sample_interval, output_prefix):
     while True:
         if process.poll() is not None:  # the passthrough command has finished
-            if hasattr(stdout, "close"):
-                stdout.close()
-            if hasattr(stderr, "close"):
-                stderr.close()
             break
 
         elapsed_time = time.time() - report.start_time
@@ -342,17 +340,17 @@ def main():
             preexec_fn=os.setsid,
         )
         stdout.start()
+        stderr.start()
         session_id = os.getsid(process.pid)  # Get session ID of the new process
         report = Report(args.command, session_id)
         report.collect_environment()
         report.get_system_info()
         process.wait()
         stdout.close()
+        stderr.close()
 
     if args.record_types in ["all", "processes-samples"]:
         monitoring_args = [
-            stdout,
-            stderr,
             report,
             process,
             args.report_interval,
