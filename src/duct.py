@@ -3,13 +3,11 @@ import argparse
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-import errno
 import json
 import os
-import pprint
+from pathlib import Path
 import shutil
 import subprocess
-import sys
 import threading
 import time
 from typing import Any, DefaultDict, Dict, List, Optional, TextIO, Tuple, Union
@@ -213,52 +211,39 @@ def create_and_parse_args():
     return parser.parse_args()
 
 
-class TeeStream:
-    """TeeStream simultaneously streams to standard output (stdout) and a specified file."""
+class TailPipe:
+    """TailPipe simultaneously streams to standard output (stdout) and a specified file."""
 
-    listener_fd: int
-    writer_fd: int
-    file: TextIO
-
-    def __init__(self, file_path: str) -> None:
-        self.file = open(file_path, "w")
-        (
-            self.listener_fd,
-            self.writer_fd,
-        ) = os.openpty()  # Use pseudo-terminal to simulate terminal behavior
-
-    def fileno(self) -> int:
-        """Return the file descriptor to be used by subprocess as stdout/stderr."""
-        return self.listener_fd
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.has_run = False
 
     def start(self):
-        """Start a thread to read from the main_fd and write to stdout and the file."""
-        thread = threading.Thread(target=self._redirect_output, daemon=True)
-        thread.start()
+        Path(self.file_path).touch()
+        self.stop_event = threading.Event()
+        self.infile = open(self.file_path, "rb")
+        self.thread = threading.Thread(target=self._tail, daemon=True)
+        self.thread.start()
 
-    def _redirect_output(self):
-        with os.fdopen(self.listener_fd, "rb", buffering=0) as stream:
-            while True:
-                try:
-                    data = stream.read(1024)
-                except OSError as e:
-                    if e.errno == errno.EIO:  # The file has been closed
-                        break
-                    else:
-                        raise
-                if not data:  # Still open, but no new data to write
-                    break
-                sys.stdout.buffer.write(data)
-                sys.stdout.buffer.flush()
-                self.file.write(
-                    data.decode("utf-8", "replace")
-                )  # Handling decoding errors
-                self.file.flush()
+    def fileno(self):
+        return self.infile.fileno()
+
+    def _tail(self):
+        while not self.stop_event.is_set():
+            data = self.infile.read()
+            if data:
+                print(data.decode("utf-8"), end="")
+            # Do we really need this? TODO should be configurable
+            time.sleep(0.01)
+
+        data = self.infile.read()
+        if data:
+            print(data.decode("utf-8"), end="")
 
     def close(self):
-        """Close the slave fd and the file when done."""
-        os.close(self.writer_fd)
-        self.file.close()
+        self.stop_event.set()
+        self.thread.join()
+        self.infile.close()
 
 
 def monitor_process(
@@ -291,14 +276,13 @@ def monitor_process(
 
 def prepare_outputs(
     capture_outputs: str, outputs: str, output_prefix: str
-) -> Tuple[Union[TextIO, TeeStream, int], Union[TextIO, TeeStream, int]]:
-    stdout: Union[TextIO, TeeStream, int]
-    stderr: Union[TextIO, TeeStream, int]
+) -> Tuple[Union[TextIO, TailPipe, int], Union[TextIO, TailPipe, int]]:
+    stdout: Union[TextIO, TailPipe, int]
+    stderr: Union[TextIO, TailPipe, int]
 
     # Code remains the same
     if capture_outputs in ["all", "stdout"] and outputs in ["all", "stdout"]:
-        stdout = TeeStream(f"{output_prefix}stdout")
-        stdout.start()  # type: ignore
+        stdout = TailPipe(f"{output_prefix}stdout")
     elif capture_outputs in ["all", "stdout"] and outputs in ["none", "stderr"]:
         stdout = open(f"{output_prefix}stdout", "w")
     elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
@@ -307,7 +291,7 @@ def prepare_outputs(
         stdout = subprocess.DEVNULL
 
     if capture_outputs in ["all", "stderr"] and outputs in ["all", "stderr"]:
-        stderr = TeeStream(f"{output_prefix}stderr")
+        stderr = TailPipe(f"{output_prefix}stderr")
         stderr.start()  # type: ignore
     elif capture_outputs in ["all", "stderr"] and outputs in ["none", "stdout"]:
         stderr = open(f"{output_prefix}stderr", "w")
@@ -347,16 +331,20 @@ def main():
     stdout, stderr = prepare_outputs(
         args.capture_outputs, args.outputs, formatted_output_prefix
     )
-    process = subprocess.Popen(
-        [str(args.command)] + args.arguments,
-        stdout=stdout,
-        stderr=stderr,
-        preexec_fn=os.setsid,
-    )
-    session_id = os.getsid(process.pid)  # Get session ID of the new process
-    report = Report(args.command, session_id)
-    report.collect_environment()
-    report.get_system_info()
+    with open(stdout.file_path, "wb") as write_out:
+        process = subprocess.Popen(
+            [str(args.command)] + args.arguments,
+            stdout=write_out,
+            stderr=stderr,
+            preexec_fn=os.setsid,
+        )
+        stdout.start()
+        session_id = os.getsid(process.pid)  # Get session ID of the new process
+        report = Report(args.command, session_id)
+        report.collect_environment()
+        report.get_system_info()
+        process.wait()
+        stdout.close()
 
     if args.record_types in ["all", "processes-samples"]:
         monitoring_args = [
@@ -381,7 +369,6 @@ def main():
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
             system_logs.write(str(report))
-    pprint.pprint(report, width=120)
 
 
 if __name__ == "__main__":

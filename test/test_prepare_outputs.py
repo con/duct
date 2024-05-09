@@ -5,7 +5,7 @@ from duct import prepare_outputs
 
 def test_prepare_outputs_all_stdout():
     output_prefix = "test_outputs_"
-    with patch("duct.TeeStream") as mock_tee_stream, patch(
+    with patch("duct.TailPipe") as mock_tee_stream, patch(
         "builtins.open", new_callable=MagicMock
     ) as mock_open:
         mock_tee_stream.return_value.start = MagicMock()
@@ -17,7 +17,7 @@ def test_prepare_outputs_all_stdout():
 
 def test_prepare_outputs_all_stderr():
     output_prefix = "test_outputs_"
-    with patch("duct.TeeStream") as mock_tee_stream, patch(
+    with patch("duct.TailPipe") as mock_tee_stream, patch(
         "builtins.open", new_callable=MagicMock
     ) as mock_open:
         mock_tee_stream.return_value.start = MagicMock()
@@ -56,7 +56,7 @@ def test_prepare_outputs_none_stderr():
 
 def test_prepare_outputs_all_all():
     output_prefix = "test_outputs_"
-    with patch("duct.TeeStream") as mock_tee_stream:
+    with patch("duct.TailPipe") as mock_tee_stream:
         mock_tee_stream.return_value.start = MagicMock()
         stdout, stderr = prepare_outputs("all", "all", output_prefix)
         assert stdout == mock_tee_stream.return_value
