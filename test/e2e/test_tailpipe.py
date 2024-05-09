@@ -29,7 +29,7 @@ def fixture_path(request, tmp_path_factory):
 
 @pytest.mark.parametrize("fixture_path", FIXTURE_LIST, indirect=True)
 @patch("sys.stdout", new_callable=StringIO)
-def test_POC(mock_stdout, fixture_path):
+def test_high_throughput(mock_stdout, fixture_path):
     outfile = "TEST"
     with open(outfile, "wb") as stdout:
         process = subprocess.Popen(
@@ -48,4 +48,4 @@ def test_POC(mock_stdout, fixture_path):
 
 
 if __name__ == "__main__":
-    test_POC()
+    test_high_throughput()

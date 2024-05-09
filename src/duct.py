@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import threading
 import time
 from typing import Any, DefaultDict, Dict, List, Optional, TextIO, Tuple, Union
@@ -214,9 +215,10 @@ def create_and_parse_args():
 class TailPipe:
     """TailPipe simultaneously streams to standard output (stdout) and a specified file."""
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, buffer):
         self.file_path = file_path
         self.has_run = False
+        self.buffer = buffer
 
     def start(self):
         Path(self.file_path).touch()
@@ -232,13 +234,14 @@ class TailPipe:
         while not self.stop_event.is_set():
             data = self.infile.read()
             if data:
-                print(data.decode("utf-8"), end="")
+                self.buffer.write(data)
             # Do we really need this? TODO should be configurable
             time.sleep(0.01)
 
+        # After stop event, collect and passthrough data one last time
         data = self.infile.read()
         if data:
-            print(data.decode("utf-8"), end="")
+            self.buffer.write(data)
 
     def close(self):
         self.stop_event.set()
@@ -282,7 +285,7 @@ def prepare_outputs(
 
     # Code remains the same
     if capture_outputs in ["all", "stdout"] and outputs in ["all", "stdout"]:
-        stdout = TailPipe(f"{output_prefix}stdout")
+        stdout = TailPipe(f"{output_prefix}stdout", buffer=sys.stdout.buffer)
     elif capture_outputs in ["all", "stdout"] and outputs in ["none", "stderr"]:
         stdout = open(f"{output_prefix}stdout", "w")
     elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
@@ -291,8 +294,8 @@ def prepare_outputs(
         stdout = subprocess.DEVNULL
 
     if capture_outputs in ["all", "stderr"] and outputs in ["all", "stderr"]:
-        stderr = TailPipe(f"{output_prefix}stderr")
-        stderr.start()  # type: ignore
+        stderr = TailPipe(f"{output_prefix}stderr", buffer=sys.stderr.buffer)
+        stderr.start()
     elif capture_outputs in ["all", "stderr"] and outputs in ["none", "stdout"]:
         stderr = open(f"{output_prefix}stderr", "w")
     elif capture_outputs in ["none", "stdout"] and outputs in ["all", "stderr"]:
