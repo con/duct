@@ -332,19 +332,18 @@ def main():
     stdout, stderr = prepare_outputs(
         args.capture_outputs, args.outputs, formatted_output_prefix
     )
-    write_out = open(stdout.file_path, "wb")
-    process = subprocess.Popen(
-        [str(args.command)] + args.arguments,
-        stdout=write_out,
-        stderr=stderr,
-        preexec_fn=os.setsid,
-    )
+    stdout_file = open(stdout.file_path, "wb")
+    stderr_file = open(stderr.file_path, "wb")
     stdout.start()
     stderr.start()
+    process = subprocess.Popen(
+        [str(args.command)] + args.arguments,
+        stdout=stdout_file,
+        stderr=stderr_file,
+        preexec_fn=os.setsid,
+    )
     session_id = os.getsid(process.pid)  # Get session ID of the new process
-
     report = Report(args.command, session_id)
-
     if args.record_types in ["all", "processes-samples"]:
         monitoring_args = [
             report,
@@ -370,7 +369,8 @@ def main():
             system_logs.write(str(report))
 
     process.wait()
-    write_out.close()
+    stdout_file.close()
+    stderr_file.close()
     stdout.close()
     stderr.close()
 
