@@ -2,7 +2,7 @@ import os
 import subprocess
 from unittest.mock import patch
 import pytest
-from utils import MockStdout
+from utils import MockStream
 from duct import TailPipe
 
 FIXTURE_LIST = [f"ten_{i}" for i in range(1, 7)]
@@ -28,7 +28,7 @@ def fixture_path(request, tmp_path_factory):
 
 
 @pytest.mark.parametrize("fixture_path", FIXTURE_LIST, indirect=True)
-@patch("sys.stdout", new_callable=lambda: MockStdout())
+@patch("sys.stdout", new_callable=lambda: MockStream())
 def test_high_throughput(mock_stdout, fixture_path):
     outfile = "TEST"
     with open(outfile, "wb") as stdout:

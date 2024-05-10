@@ -1,10 +1,10 @@
 import subprocess
 from unittest.mock import MagicMock, call, patch
-from utils import MockStdout
+from utils import MockStream
 from duct import prepare_outputs
 
 
-@patch("sys.stdout", new_callable=lambda: MockStdout())
+@patch("sys.stdout", new_callable=lambda: MockStream())
 def test_prepare_outputs_all_stdout(mock_stdout):
     output_prefix = "test_outputs_"
     with patch("duct.TailPipe") as mock_tee_stream, patch(
@@ -19,7 +19,7 @@ def test_prepare_outputs_all_stdout(mock_stdout):
         assert stderr == mock_open.return_value
 
 
-@patch("sys.stderr", new_callable=lambda: MockStdout())
+@patch("sys.stderr", new_callable=lambda: MockStream())
 def test_prepare_outputs_all_stderr(mock_stderr):
     output_prefix = "test_outputs_"
     with patch("duct.TailPipe") as mock_tee_stream, patch(
@@ -61,8 +61,8 @@ def test_prepare_outputs_none_stderr():
     assert stdout == subprocess.DEVNULL
 
 
-@patch("sys.stderr", new_callable=lambda: MockStdout())
-@patch("sys.stdout", new_callable=lambda: MockStdout())
+@patch("sys.stderr", new_callable=lambda: MockStream())
+@patch("sys.stdout", new_callable=lambda: MockStream())
 def test_prepare_outputs_all_all(mock_stdout, mock_stderr):
     output_prefix = "test_outputs_"
     with patch("duct.TailPipe") as mock_tee_stream:
