@@ -222,7 +222,7 @@ class TailPipe:
     def start(self):
         Path(self.file_path).touch()
         self.stop_event = threading.Event()
-        self.infile = open(self.file_path, "rb", buffering=0)
+        self.infile = open(self.file_path, "rb")
         self.thread = threading.Thread(target=self._tail, daemon=True)
         self.thread.start()
 
@@ -335,7 +335,7 @@ def main():
         args.capture_outputs, args.outputs, formatted_output_prefix
     )
     if isinstance(stdout, TailPipe):
-        stdout_file = open(stdout.file_path, "wb", buffering=0)
+        stdout_file = open(stdout.file_path, "wb")
     else:
         stdout_file = stdout
     if isinstance(stderr, TailPipe):
@@ -347,7 +347,6 @@ def main():
         [str(args.command)] + args.arguments,
         stdout=stdout_file,
         stderr=stderr_file,
-        bufsize=0,
         preexec_fn=os.setsid,
     )
     session_id = os.getsid(process.pid)  # Get session ID of the new process
@@ -386,5 +385,4 @@ def main():
 
 
 if __name__ == "__main__":
-    os.environ["PYTHONUNBUFFERED"] = "1"
     main()
