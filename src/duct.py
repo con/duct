@@ -222,7 +222,7 @@ class TailPipe:
     def start(self):
         Path(self.file_path).touch()
         self.stop_event = threading.Event()
-        self.infile = open(self.file_path, "rb")
+        self.infile = open(self.file_path, "rb", buffering=0)
         self.thread = threading.Thread(target=self._tail, daemon=True)
         self.thread.start()
 
@@ -232,9 +232,8 @@ class TailPipe:
     def _tail(self):
         while not self.stop_event.is_set():
             data = self.infile.read()
-            if data:
-                self.buffer.write(data)
-                self.buffer.flush()
+            self.buffer.write(data)
+            self.buffer.flush()
             # Do we really need this? TODO should be configurable
             time.sleep(0.01)
 
@@ -243,9 +242,10 @@ class TailPipe:
             data = self.infile.read()
             if data:
                 self.buffer.write(data)
-                self.buffer.flush()
+            self.buffer.flush()
         except Exception as e:
             print(f"DEBUG: THIS SHOULD NOT HAPPEN {e}")
+            self.buffer.flush()
             pass
 
     def close(self):
@@ -334,12 +334,20 @@ def main():
     stdout, stderr = prepare_outputs(
         args.capture_outputs, args.outputs, formatted_output_prefix
     )
-    stdout_file = open(stdout.file_path, "wb")
-    stderr_file = open(stderr.file_path, "wb")
+    if isinstance(stdout, TailPipe):
+        stdout_file = open(stdout.file_path, "wb", buffering=0)
+    else:
+        stdout_file = stdout
+    if isinstance(stderr, TailPipe):
+        stderr_file = open(stderr.file_path, "wb")
+    else:
+        stderr_file = stderr
+
     process = subprocess.Popen(
         [str(args.command)] + args.arguments,
         stdout=stdout_file,
         stderr=stderr_file,
+        bufsize=0,
         preexec_fn=os.setsid,
     )
     session_id = os.getsid(process.pid)  # Get session ID of the new process
@@ -369,11 +377,14 @@ def main():
             system_logs.write(str(report))
 
     process.wait()
-    stdout_file.close()
-    stderr_file.close()
-    stdout.close()
-    stderr.close()
+    if isinstance(stdout, TailPipe):
+        stdout_file.close()
+        stdout.close()
+    if isinstance(stderr, TailPipe):
+        stderr_file.close()
+        stderr.close()
 
 
 if __name__ == "__main__":
+    os.environ["PYTHONUNBUFFERED"] = "1"
     main()
