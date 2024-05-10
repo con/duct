@@ -213,7 +213,7 @@ def create_and_parse_args():
 
 
 class TailPipe:
-    """TailPipe simultaneously streams to standard output (stdout) and a specified file."""
+    """TailPipe simultaneously streams to an output stream (stdout or stderr) and a specified file."""
 
     def __init__(self, file_path, buffer):
         self.file_path = file_path
@@ -231,7 +231,6 @@ class TailPipe:
         return self.infile.fileno()
 
     def _tail(self):
-        """Monitor a file, and minic `tail -f` by printing to a stream."""
         while not self.stop_event.is_set():
             data = self.infile.read()
             if data:
