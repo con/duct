@@ -217,7 +217,6 @@ class TailPipe:
 
     def __init__(self, file_path, buffer):
         self.file_path = file_path
-        self.has_run = False
         self.buffer = buffer
 
     def start(self):
@@ -286,6 +285,7 @@ def prepare_outputs(
     # Code remains the same
     if capture_outputs in ["all", "stdout"] and outputs in ["all", "stdout"]:
         stdout = TailPipe(f"{output_prefix}stdout", buffer=sys.stdout.buffer)
+        stdout.start()
     elif capture_outputs in ["all", "stdout"] and outputs in ["none", "stderr"]:
         stdout = open(f"{output_prefix}stdout", "w")
     elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
@@ -336,8 +336,6 @@ def main():
     )
     stdout_file = open(stdout.file_path, "wb")
     stderr_file = open(stderr.file_path, "wb")
-    stdout.start()
-    stderr.start()
     process = subprocess.Popen(
         [str(args.command)] + args.arguments,
         stdout=stdout_file,
