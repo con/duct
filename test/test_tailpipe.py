@@ -19,12 +19,8 @@ def fixture_path(request, tmp_path_factory):
     with open(file_path, "w") as f:
         for i in range(10**num_lines_exponent):
             f.write(f"{i}\n")
-        # print(10 ^ num_lines_exponent)
     yield str(file_path)
 
-    print(f"cleaning up {file_path}")
-    with open(file_path, "r") as sanity:
-        print(sanity.read())
     os.remove(file_path)
 
 
