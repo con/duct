@@ -235,6 +235,7 @@ class TailPipe:
             data = self.infile.read()
             if data:
                 self.buffer.write(data)
+                self.buffer.flush()
             # Do we really need this? TODO should be configurable
             time.sleep(0.01)
 
@@ -243,6 +244,7 @@ class TailPipe:
             data = self.infile.read()
             if data:
                 self.buffer.write(data)
+                self.buffer.flush()
         except Exception as e:
             print(f"DEBUG: THIS SHOULD NOT HAPPEN {e}")
             pass
