@@ -332,22 +332,18 @@ def main():
     stdout, stderr = prepare_outputs(
         args.capture_outputs, args.outputs, formatted_output_prefix
     )
-    with open(stdout.file_path, "wb") as write_out:
-        process = subprocess.Popen(
-            [str(args.command)] + args.arguments,
-            stdout=write_out,
-            stderr=stderr,
-            preexec_fn=os.setsid,
-        )
-        stdout.start()
-        stderr.start()
-        session_id = os.getsid(process.pid)  # Get session ID of the new process
-        report = Report(args.command, session_id)
-        report.collect_environment()
-        report.get_system_info()
-        process.wait()
-        stdout.close()
-        stderr.close()
+    write_out = open(stdout.file_path, "wb")
+    process = subprocess.Popen(
+        [str(args.command)] + args.arguments,
+        stdout=write_out,
+        stderr=stderr,
+        preexec_fn=os.setsid,
+    )
+    stdout.start()
+    stderr.start()
+    session_id = os.getsid(process.pid)  # Get session ID of the new process
+
+    report = Report(args.command, session_id)
 
     if args.record_types in ["all", "processes-samples"]:
         monitoring_args = [
@@ -364,12 +360,19 @@ def main():
         monitoring_thread.join()
 
     if args.record_types in ["all", "system-summary"]:
+        report.collect_environment()
+        report.get_system_info()
         system_info_path = f"{formatted_output_prefix}info.json"
         with open(system_info_path, "a") as system_logs:
             report.end_time = time.time()
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
             system_logs.write(str(report))
+
+    process.wait()
+    write_out.close()
+    stdout.close()
+    stderr.close()
 
 
 if __name__ == "__main__":
