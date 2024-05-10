@@ -1,5 +1,6 @@
 import os
 import subprocess
+import tempfile
 from unittest.mock import patch
 import pytest
 from utils import MockStream
@@ -30,16 +31,15 @@ def fixture_path(request, tmp_path_factory):
 @pytest.mark.parametrize("fixture_path", FIXTURE_LIST, indirect=True)
 @patch("sys.stdout", new_callable=lambda: MockStream())
 def test_high_throughput(mock_stdout, fixture_path):
-    outfile = "TEST"
-    with open(outfile, "wb") as stdout:
+    with tempfile.NamedTemporaryFile(mode="wb") as tmpfile:
         process = subprocess.Popen(
             ["cat", fixture_path],
-            stdout=stdout,
+            stdout=tmpfile,
         )
-        tail_stream = TailPipe(outfile, mock_stdout.buffer)
-        tail_stream.start()
+        stream = TailPipe(tmpfile.name, mock_stdout.buffer)
+        stream.start()
         process.wait()
-        tail_stream.close()
+        stream.close()
 
     assert process.returncode == 0
     with open(fixture_path, "rb") as fixture:
