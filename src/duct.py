@@ -232,7 +232,8 @@ class TailPipe:
     def _tail(self):
         while not self.stop_event.is_set():
             data = self.infile.read()
-            self.buffer.write(data)
+            if data:
+                self.buffer.write(data)
             self.buffer.flush()
             # Do we really need this? TODO should be configurable
             time.sleep(0.01)
