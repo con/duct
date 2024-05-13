@@ -1,5 +1,7 @@
 # duct
 
+[![codecov](https://codecov.io/gh/con/duct/graph/badge.svg?token=JrPazw0Vn4)](https://codecov.io/gh/con/duct)
+
 ## Summary:
 
 A process wrapper script that monitors the execution of a command.
