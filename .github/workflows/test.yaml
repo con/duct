@@ -75,7 +75,7 @@ jobs:
         run: pip install .
 
       - name: Run tests
-        run: tox -e py -vv --cov-report=xml
+        run: tox -e py -- -vv --cov-report=xml
 
       - name: Run smoke tests
         run: ./smoke-tests.sh
