@@ -8,8 +8,8 @@ import time
 def consume_cpu(duration, _):
     """Function to consume CPU proportional to 'load' for 'duration' seconds"""
     for i in range(duration):
-        print(f"out: {i}")
-        print(f"err: {i}", file=sys.stderr)
+        print(f"out: {i}", file=sys.stdout, flush=True)
+        print(f"err: {i}", file=sys.stderr, flush=True)
         time.sleep(1)
 
 
@@ -21,15 +21,17 @@ def consume_memory(size):
 
 
 def main(duration, cpu_load, memory_size):
-    print("Printing something to STDOUT at start")
-    print("Printing something to STDERR at start", file=sys.stderr)
+    print("Printing something to STDOUT at start", file=sys.stdout, flush=True)
+    print("Printing something to STDERR at start", file=sys.stderr, flush=True)
     consume_memory(memory_size)
     consume_cpu(duration, cpu_load)
     print(
-        f"Test completed. Consumed {memory_size} MB for {duration} seconds with CPU load factor {cpu_load}."
+        f"Test completed. Consumed {memory_size} MB for {duration} seconds with CPU load factor {cpu_load}.",
+        file=sys.stdout,
+        flush=True,
     )
-    print("Printing something to STDOUT at finish")
-    print("Printing something to STDERR at finish", file=sys.stderr)
+    print("Printing something to STDOUT at finish", file=sys.stdout, flush=True)
+    print("Printing something to STDERR at finish", file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":
