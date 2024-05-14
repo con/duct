@@ -215,6 +215,8 @@ def create_and_parse_args():
 class TailPipe:
     """TailPipe simultaneously streams to an output stream (stdout or stderr) and a specified file."""
 
+    TAIL_CYCLE_TIME = 0.01
+
     def __init__(self, file_path, buffer):
         self.file_path = file_path
         self.buffer = buffer
@@ -235,8 +237,7 @@ class TailPipe:
             if data:
                 self.buffer.write(data)
             self.buffer.flush()
-            # Do we really need this? TODO should be configurable
-            time.sleep(0.01)
+            time.sleep(TailPipe.TAIL_CYCLE_TIME)
 
         # After stop event, collect and passthrough data one last time
         try:
