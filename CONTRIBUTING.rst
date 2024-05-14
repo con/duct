@@ -19,3 +19,14 @@ The following pull request labels are respected:
     * tests: Add or improve existing tests
     * dependencies: Update one or more dependencies version
     * performance: Improve performance of an existing feature
+
+
+Testing
+-------
+If you are contributing code, please consider adding a unit test.
+
+To run the tests:
+`tox`
+
+To run tests on one file (args after -- are passed to pytest):
+`tox -- test/test_my_thing.py`
