@@ -220,6 +220,9 @@ class TailPipe:
     def __init__(self, file_path, buffer):
         self.file_path = file_path
         self.buffer = buffer
+        self.stop_event = None
+        self.infile = None
+        self.thread = None
 
     def start(self):
         Path(self.file_path).touch()

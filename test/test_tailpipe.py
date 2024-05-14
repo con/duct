@@ -43,5 +43,14 @@ def test_high_throughput(mock_stdout, fixture_path):
     assert mock_stdout.getvalue() == expected
 
 
+@patch("sys.stdout", new_callable=lambda: MockStream())
+def test_close(mock_stdout):
+    with tempfile.NamedTemporaryFile(mode="wb") as tmpfile:
+        stream = TailPipe(tmpfile.name, mock_stdout.buffer)
+        stream.start()
+        stream.close()
+        assert stream.infile.closed
+
+
 if __name__ == "__main__":
     test_high_throughput()
