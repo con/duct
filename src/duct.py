@@ -231,24 +231,24 @@ class TailPipe:
     def fileno(self):
         return self.infile.fileno()
 
-    def _tail(self):
-        while not self.stop_event.is_set():
-            data = self.infile.read()
-            if data:
-                self.buffer.write(data)
+    def _catch_up(self):
+        data = self.infile.read()
+        if data:
+            self.buffer.write(data)
             self.buffer.flush()
-            time.sleep(TailPipe.TAIL_CYCLE_TIME)
 
-        # After stop event, collect and passthrough data one last time
+    def _tail(self):
         try:
-            data = self.infile.read()
-            if data:
-                self.buffer.write(data)
+            while not self.stop_event.is_set():
+                self._catch_up()
+                time.sleep(TailPipe.TAIL_CYCLE_TIME)
+
+            # After stop event, collect and passthrough data one last time
+            self._catch_up()
+        except Exception:
+            raise
+        finally:
             self.buffer.flush()
-        except Exception as e:
-            print(f"DEBUG: THIS SHOULD NOT HAPPEN {e}")
-            self.buffer.flush()
-            pass
 
     def close(self):
         self.stop_event.set()
@@ -284,7 +284,6 @@ def prepare_outputs(
     stdout: Union[TextIO, TailPipe, int]
     stderr: Union[TextIO, TailPipe, int]
 
-    # Code remains the same
     if capture_outputs in ["all", "stdout"] and outputs in ["all", "stdout"]:
         stdout = TailPipe(f"{output_prefix}stdout", buffer=sys.stdout.buffer)
         stdout.start()
