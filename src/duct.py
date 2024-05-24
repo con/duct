@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from collections import defaultdict
 from datetime import datetime
 import json
 import os
@@ -15,6 +16,18 @@ __version__ = "0.0.1"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 
 
+class Colors:
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKCYAN = "\033[96m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"  # Reset to default color
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+
+
 class Report:
     """Top level report"""
 
@@ -26,15 +39,28 @@ class Report:
     number: int
     system_info: Dict[str, Any]  # Use more specific types if possible
 
-    def __init__(self, command: str, session_id: int, output_prefix: str) -> None:
+    def __init__(
+        self, command: str, arguments, session_id: int, output_prefix: str, process
+    ) -> None:
         self.start_time = time.time()
-        self.command = command
+        self._command = command
+        self.arguments = arguments
         self.session_id = session_id
         self.gpus = []
         self.unaggregated_samples = []
         self.number = 0
         self.system_info = {}
         self.output_prefix = output_prefix
+        self.max_values = defaultdict(dict)
+        self.process = process
+
+    @property
+    def command(self):
+        return " ".join([self._command] + self.arguments)
+
+    @property
+    def elapsed_time(self):
+        return time.time() - self.start_time
 
     def collect_environment(self):
         self.env = (
@@ -72,7 +98,6 @@ class Report:
                 self.gpus = ["Failed to query GPU info"]
 
     def collect_sample(self):
-        print("DEBUG: collecting sample")
         process_data = {}
         try:
             output = subprocess.check_output(
@@ -99,6 +124,13 @@ class Report:
                         "vsz": int(vsz),
                         "timestamp": datetime.utcnow().isoformat() + "Z",
                     }
+                    for key, value in process_data[pid].items():
+                        if key in self.max_values.get(pid, {}):
+                            self.max_values[pid][key] = max(
+                                self.max_values[pid][key], value
+                            )
+                        else:
+                            self.max_values[pid][key] = value
         except subprocess.CalledProcessError:
             process_data["error"] = "Failed to query process data"
         self.write_sample(process_data)
@@ -128,6 +160,28 @@ class Report:
                     for key in metrics:
                         max_values[pid][key] = max(max_values[pid][key], metrics[key])
 
+    def print_max_values(self):
+        for pid, maxes in self.max_values.items():
+            print(f"PID {pid} Maximum Values: {maxes}")
+
+    def finalize(self):
+        if not self.process.returncode:
+            print(Colors.OKGREEN)
+        else:
+            print(Colors.FAIL)
+
+        print("-----------------------------------------------------")
+        print("                    duct report")
+        print("-----------------------------------------------------")
+        print(f"Exit Code: {self.process.returncode}")
+        print(Colors.ENDC)
+        print(f"Command: {self.command}")
+        print(f"Wall Clock Time: {self.elapsed_time}")
+        print(f"Number of Processes: {len(self.max_values)}")
+        for pid, values in self.max_values.items():
+            values.pop("timestamp")  # Meaningless
+            print(f"    {pid} Max Usage: {values}")
+
     def __repr__(self):
         return json.dumps(
             {
@@ -143,14 +197,9 @@ def monitor_process(report, process, report_interval, sample_interval):
     while True:
         if process.poll() is not None:  # the passthrough command has finished
             break
-
-        elapsed_time = time.time() - report.start_time
         # print(f"Resource stats log path: {resource_stats_log_path}")
         report.collect_sample()
-        print(f"Elapsed time: {elapsed_time}")
-        print(f"Report number: {report.number}")
-        print(f"Report interval: {report_interval}")
-        if elapsed_time >= (report.number + 1) * report_interval:
+        if report.elapsed_time >= (report.number + 1) * report_interval:
             # report.aggregate_samples()
             # report.write_subreport()
 
@@ -332,7 +381,8 @@ def main():
         stderr_file = open(stderr.file_path, "wb")
     else:
         stderr_file = stderr
-
+    print(f"{Colors.OKBLUE}duct is executing {[str(args.command)] + args.arguments}...")
+    print(f"-----------------------------------------------------{Colors.ENDC}")
     process = subprocess.Popen(
         [str(args.command)] + args.arguments,
         stdout=stdout_file,
@@ -340,7 +390,9 @@ def main():
         preexec_fn=os.setsid,
     )
     session_id = os.getsid(process.pid)  # Get session ID of the new process
-    report = Report(args.command, session_id, formatted_output_prefix)
+    report = Report(
+        args.command, args.arguments, session_id, formatted_output_prefix, process
+    )
     if args.record_types in ["all", "processes-samples"]:
         monitoring_args = [
             report,
@@ -365,12 +417,14 @@ def main():
             system_logs.write(str(report))
 
     process.wait()
+    report.process = process
     if isinstance(stdout, TailPipe):
         stdout_file.close()
         stdout.close()
     if isinstance(stderr, TailPipe):
         stderr_file.close()
         stderr.close()
+    report.finalize()
 
 
 if __name__ == "__main__":
