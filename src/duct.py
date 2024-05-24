@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-from collections import defaultdict
-from dataclasses import dataclass, field
 from datetime import datetime
 import json
 import os
@@ -11,7 +9,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Any, DefaultDict, Dict, List, Optional, TextIO, Tuple, Union
+from typing import Any, Dict, List, Optional, TextIO, Tuple, Union
 
 __version__ = "0.0.1"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -28,7 +26,7 @@ class Report:
     number: int
     system_info: Dict[str, Any]  # Use more specific types if possible
 
-    def __init__(self, command: str, session_id: int) -> None:
+    def __init__(self, command: str, session_id: int, output_prefix: str) -> None:
         self.start_time = time.time()
         self.command = command
         self.session_id = session_id
@@ -36,6 +34,7 @@ class Report:
         self.unaggregated_samples = []
         self.number = 0
         self.system_info = {}
+        self.output_prefix = output_prefix
 
     def collect_environment(self):
         self.env = (
@@ -73,6 +72,7 @@ class Report:
                 self.gpus = ["Failed to query GPU info"]
 
     def collect_sample(self):
+        print("DEBUG: collecting sample")
         process_data = {}
         try:
             output = subprocess.check_output(
@@ -97,11 +97,22 @@ class Report:
                         "rss": int(rss),
                         # Virtual Memory size
                         "vsz": int(vsz),
+                        "timestamp": datetime.utcnow().isoformat() + "Z",
                     }
         except subprocess.CalledProcessError:
             process_data["error"] = "Failed to query process data"
+        self.write_sample(process_data)
 
-        self.unaggregated_samples.append(process_data)
+    def write_sample(self, process_data):
+        resource_stats_log_path = "{output_prefix}usage.json"
+        for pid, pinfo in process_data.items():
+            with open(
+                resource_stats_log_path.format(
+                    output_prefix=self.output_prefix, pid=pid
+                ),
+                "a",
+            ) as resource_statistics_log:
+                resource_statistics_log.write(json.dumps(pinfo) + "\n")
 
     def aggregate_samples(self):
         max_values = {}
@@ -116,7 +127,6 @@ class Report:
                     # Update each metric to the maximum found so far
                     for key in metrics:
                         max_values[pid][key] = max(max_values[pid][key], metrics[key])
-        return max_values
 
     def __repr__(self):
         return json.dumps(
@@ -129,25 +139,23 @@ class Report:
         )
 
 
-@dataclass
-class SubReport:
-    """Group of aggregated statestics on a session"""
+def monitor_process(report, process, report_interval, sample_interval):
+    while True:
+        if process.poll() is not None:  # the passthrough command has finished
+            break
 
-    number: int = 0
+        elapsed_time = time.time() - report.start_time
+        # print(f"Resource stats log path: {resource_stats_log_path}")
+        report.collect_sample()
+        print(f"Elapsed time: {elapsed_time}")
+        print(f"Report number: {report.number}")
+        print(f"Report interval: {report_interval}")
+        if elapsed_time >= (report.number + 1) * report_interval:
+            # report.aggregate_samples()
+            # report.write_subreport()
 
-    pids_dummy: DefaultDict[Any, List[Any]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
-    session_data = None
-    elapsed_time = None
-
-    def serialize(self):
-        return {
-            "Subreport Number": self.number,
-            "Number": self.number,
-            "Elapsed Time": self.elapsed_time,
-            "Session Data": self.session_data,
-        }
+            report.number += 1
+        time.sleep(sample_interval)
 
 
 def create_and_parse_args():
@@ -259,28 +267,6 @@ class TailPipe:
         self.infile.close()
 
 
-def monitor_process(report, process, report_interval, sample_interval, output_prefix):
-    while True:
-        if process.poll() is not None:  # the passthrough command has finished
-            break
-
-        elapsed_time = time.time() - report.start_time
-        resource_stats_log_path = "{output_prefix}usage.json"
-        if elapsed_time >= (report.number + 1) * report_interval:
-            aggregated = report.aggregate_samples()
-            for pid, pinfo in aggregated.items():
-                with open(
-                    resource_stats_log_path.format(
-                        output_prefix=output_prefix, pid=pid
-                    ),
-                    "a",
-                ) as resource_statistics_log:
-                    pinfo["elapsed_time"] = elapsed_time
-                    resource_statistics_log.write(json.dumps(aggregated))
-            report.number += 1
-        time.sleep(sample_interval)
-
-
 def prepare_outputs(
     capture_outputs: str, outputs: str, output_prefix: str
 ) -> Tuple[Union[TextIO, TailPipe, int], Union[TextIO, TailPipe, int]]:
@@ -354,14 +340,13 @@ def main():
         preexec_fn=os.setsid,
     )
     session_id = os.getsid(process.pid)  # Get session ID of the new process
-    report = Report(args.command, session_id)
+    report = Report(args.command, session_id, formatted_output_prefix)
     if args.record_types in ["all", "processes-samples"]:
         monitoring_args = [
             report,
             process,
             args.report_interval,
             args.sample_interval,
-            formatted_output_prefix,
         ]
         monitoring_thread = threading.Thread(
             target=monitor_process, args=monitoring_args
