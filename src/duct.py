@@ -366,7 +366,7 @@ def main():
     else:
         stderr_file = stderr
 
-    full_command = "".join([str(args.command)] + args.arguments)
+    full_command = " ".join([str(args.command)] + args.arguments)
     print(f"{Colors.OKCYAN}-----------------------------------------------------")
     print(f"duct is executing {full_command}...")
     print()
