@@ -186,9 +186,6 @@ def monitor_process(report, process, report_interval, sample_interval):
         # print(f"Resource stats log path: {resource_stats_log_path}")
         report.collect_sample()
         if report.elapsed_time >= (report.number + 1) * report_interval:
-            print(
-                f"{Colors.OKCYAN} report interval exceeded, writing temporal report{Colors.ENDC}"
-            )
             report.write_pid_samples()
             report._sample = defaultdict(dict)  # Reset sample
             report.number += 1
