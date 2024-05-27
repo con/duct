@@ -10,7 +10,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Any, Dict, List, Optional, TextIO, Tuple, Union
+from typing import Any, Dict, Optional, TextIO, Tuple, Union
 
 __version__ = "0.0.1"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -35,7 +35,6 @@ class Report:
     command: str
     session_id: int
     gpus: Optional[list]
-    unaggregated_samples: List[Dict]
     number: int
     system_info: Dict[str, Any]  # Use more specific types if possible
 
@@ -47,12 +46,12 @@ class Report:
         self.arguments = arguments
         self.session_id = session_id
         self.gpus = []
-        self.unaggregated_samples = []
         self.number = 0
         self.system_info = {}
         self.output_prefix = output_prefix
         self.max_values = defaultdict(dict)
         self.process = process
+        self._sample = defaultdict(dict)
 
     @property
     def command(self):
@@ -113,7 +112,8 @@ class Report:
             for line in output.splitlines()[1:]:
                 if line:
                     pid, pcpu, pmem, rss, vsz, etime, cmd = line.split(maxsplit=6)
-                    process_data[pid] = {
+
+                    pid_sample = {
                         # %CPU
                         "pcpu": float(pcpu),
                         # %MEM
@@ -124,20 +124,20 @@ class Report:
                         "vsz": int(vsz),
                         "timestamp": datetime.utcnow().isoformat() + "Z",
                     }
-                    for key, value in process_data[pid].items():
-                        if key in self.max_values.get(pid, {}):
-                            self.max_values[pid][key] = max(
-                                self.max_values[pid][key], value
+                    if pid in self._sample:
+                        for key, value in pid_sample.items():
+                            self._sample[pid][key] = max(
+                                self._sample[pid].get(key, value), value
                             )
-                        else:
-                            self.max_values[pid][key] = value
+                    else:
+                        self._sample[pid] = pid_sample
+
         except subprocess.CalledProcessError:
             process_data["error"] = "Failed to query process data"
-        self.write_sample(process_data)
 
-    def write_sample(self, process_data):
+    def write_pid_samples(self):
         resource_stats_log_path = "{output_prefix}usage.json"
-        for pid, pinfo in process_data.items():
+        for pid, pinfo in self._sample.items():
             with open(
                 resource_stats_log_path.format(
                     output_prefix=self.output_prefix, pid=pid
@@ -145,20 +145,6 @@ class Report:
                 "a",
             ) as resource_statistics_log:
                 resource_statistics_log.write(json.dumps(pinfo) + "\n")
-
-    def aggregate_samples(self):
-        max_values = {}
-        while self.unaggregated_samples:
-            sample = self.unaggregated_samples.pop()
-            for pid, metrics in sample.items():
-                if pid not in max_values:
-                    max_values[
-                        pid
-                    ] = metrics.copy()  # Make a copy of the metrics for the first entry
-                else:
-                    # Update each metric to the maximum found so far
-                    for key in metrics:
-                        max_values[pid][key] = max(max_values[pid][key], metrics[key])
 
     def print_max_values(self):
         for pid, maxes in self.max_values.items():
@@ -200,9 +186,11 @@ def monitor_process(report, process, report_interval, sample_interval):
         # print(f"Resource stats log path: {resource_stats_log_path}")
         report.collect_sample()
         if report.elapsed_time >= (report.number + 1) * report_interval:
-            # report.aggregate_samples()
-            # report.write_subreport()
-
+            print(
+                f"{Colors.OKCYAN} report interval exceeded, writing temporal report{Colors.ENDC}"
+            )
+            report.write_pid_samples()
+            report._sample = defaultdict(dict)  # Reset sample
             report.number += 1
         time.sleep(sample_interval)
 
