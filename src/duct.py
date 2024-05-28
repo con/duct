@@ -174,16 +174,6 @@ class Report:
             values.pop("timestamp")  # Meaningless
             print(f"    {pid} Max Usage: {values}")
 
-    def __repr__(self):
-        return json.dumps(
-            {
-                "Command": self.command,
-                "System": self.system_info,
-                "ENV": self.env,
-                "GPU": self.gpus,
-            }
-        )
-
 
 def monitor_process(report, process, report_interval, sample_interval):
     while True:
@@ -423,6 +413,12 @@ def main():
         stderr_file.close()
         stderr.close()
     report.finalize()
+    logs_parent = report.output_prefix.format(
+        pid=duct_pid, datetime_filesafe=datetime_filesafe
+    )
+    if not logs_parent.endswith(os.sep):
+        logs_parent = os.path.dirname(logs_parent)
+    print(f"Log files location: {logs_parent}")
 
 
 if __name__ == "__main__":
