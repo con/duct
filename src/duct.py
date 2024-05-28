@@ -333,7 +333,7 @@ def format_output_prefix(output_prefix_template: str) -> str:
     f_kwargs = {
         # 'pure' iso 8601 does not make good filenames
         "datetime": datenow.isoformat(),
-        "datetime_filesafe": datenow.strftime("%Y-%m-%dT%H-%M-%S"),
+        "datetime_filesafe": datenow.strftime("%Y.%m.%dT%H.%M.%S"),
         "pid": os.getpid(),
     }
     return output_prefix_template.format(**f_kwargs)
