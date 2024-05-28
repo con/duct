@@ -39,7 +39,13 @@ class Report:
     system_info: Dict[str, Any]  # Use more specific types if possible
 
     def __init__(
-        self, command: str, arguments, session_id: int, output_prefix: str, process
+        self,
+        command: str,
+        arguments,
+        session_id: int,
+        output_prefix: str,
+        process,
+        datetime_filesafe,
     ) -> None:
         self.start_time = time.time()
         self._command = command
@@ -52,6 +58,7 @@ class Report:
         self.max_values = defaultdict(dict)
         self.process = process
         self._sample = defaultdict(dict)
+        self.datetime_filesafe = datetime_filesafe
 
     @property
     def command(self):
@@ -136,14 +143,16 @@ class Report:
             process_data["error"] = "Failed to query process data"
 
     def write_pid_samples(self):
-        resource_stats_log_path = "{output_prefix}usage.json"
+        resource_stats_log_path = f"{self.output_prefix}usage.json"
         for pid, pinfo in self._sample.items():
-            with open(
-                resource_stats_log_path.format(
-                    output_prefix=self.output_prefix, pid=pid
-                ),
-                "a",
-            ) as resource_statistics_log:
+            print(pid)
+            print(self.datetime_filesafe)
+            pid_resources_log_path = resource_stats_log_path.format(
+                pid=pid, datetime_filesafe=self.datetime_filesafe
+            )
+            print(pid_resources_log_path)
+            ensure_directories(pid_resources_log_path)
+            with open(pid_resources_log_path, "a") as resource_statistics_log:
                 resource_statistics_log.write(json.dumps(pinfo) + "\n")
 
     def print_max_values(self):
@@ -328,17 +337,6 @@ def prepare_outputs(
     return stdout, stderr
 
 
-def format_output_prefix(output_prefix_template: str) -> str:
-    datenow = datetime.now()
-    f_kwargs = {
-        # 'pure' iso 8601 does not make good filenames
-        "datetime": datenow.isoformat(),
-        "datetime_filesafe": datenow.strftime("%Y.%m.%dT%H.%M.%S"),
-        "pid": os.getpid(),
-    }
-    return output_prefix_template.format(**f_kwargs)
-
-
 def ensure_directories(path: str) -> None:
     if path.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
         os.makedirs(path, exist_ok=True)
@@ -352,7 +350,12 @@ def ensure_directories(path: str) -> None:
 def main():
     """A wrapper to execute a command, monitor and log the process details."""
     args = create_and_parse_args()
-    formatted_output_prefix = format_output_prefix(args.output_prefix)
+    datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
+    duct_pid = os.getpid()
+    formatted_output_prefix = args.output_prefix.format(
+        datetime_filesafe=datetime_filesafe, pid=duct_pid
+    )
+    print(formatted_output_prefix)
     ensure_directories(formatted_output_prefix)
     stdout, stderr = prepare_outputs(
         args.capture_outputs, args.outputs, formatted_output_prefix
@@ -370,7 +373,7 @@ def main():
     print(f"{Colors.OKCYAN}-----------------------------------------------------")
     print(f"duct is executing {full_command}...")
     print()
-    print(f"Log files will be written to {formatted_output_prefix}")
+    print(f"Log files will be written to {args.output_prefix}")
     print(f"-----------------------------------------------------{Colors.ENDC}")
     process = subprocess.Popen(
         [str(args.command)] + args.arguments,
@@ -380,7 +383,12 @@ def main():
     )
     session_id = os.getsid(process.pid)  # Get session ID of the new process
     report = Report(
-        args.command, args.arguments, session_id, formatted_output_prefix, process
+        args.command,
+        args.arguments,
+        session_id,
+        args.output_prefix,
+        process,
+        datetime_filesafe,
     )
     if args.record_types in ["all", "processes-samples"]:
         monitoring_args = [
@@ -398,7 +406,9 @@ def main():
     if args.record_types in ["all", "system-summary"]:
         report.collect_environment()
         report.get_system_info()
-        system_info_path = f"{formatted_output_prefix}info.json"
+        system_info_path = f"{args.output_prefix}info.json".format(
+            pid=duct_pid, datetime_filesafe=datetime_filesafe
+        )
         with open(system_info_path, "a") as system_logs:
             report.end_time = time.time()
             report.run_time_seconds = f"{report.end_time - report.start_time}"
