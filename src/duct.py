@@ -145,13 +145,8 @@ class Report:
 
     def write_pid_samples(self):
         resource_stats_log_path = f"{self.output_prefix}usage.json"
-        for pid, pinfo in self._sample.items():
-            pid_resources_log_path = resource_stats_log_path.format(
-                pid=pid, datetime_filesafe=self.datetime_filesafe
-            )
-            ensure_directories(pid_resources_log_path)
-            with open(pid_resources_log_path, "a") as resource_statistics_log:
-                resource_statistics_log.write(json.dumps(pinfo) + "\n")
+        with open(resource_stats_log_path, "a") as resource_statistics_log:
+            resource_statistics_log.write(json.dumps(self._sample) + "\n")
 
     def print_max_values(self):
         for pid, maxes in self.max_values.items():
@@ -362,7 +357,7 @@ def main():
     print(f"{Colors.OKCYAN}-----------------------------------------------------")
     print(f"duct is executing {full_command}...")
     print()
-    print(f"Log files will be written to {args.output_prefix}")
+    print(f"Log files will be written to {formatted_output_prefix}")
     print(f"-----------------------------------------------------{Colors.ENDC}")
     process = subprocess.Popen(
         [str(args.command)] + args.arguments,
@@ -375,7 +370,7 @@ def main():
         args.command,
         args.arguments,
         session_id,
-        args.output_prefix,
+        formatted_output_prefix,
         process,
         datetime_filesafe,
     )
@@ -413,12 +408,7 @@ def main():
         stderr_file.close()
         stderr.close()
     report.finalize()
-    logs_parent = report.output_prefix.format(
-        pid=duct_pid, datetime_filesafe=datetime_filesafe
-    )
-    if not logs_parent.endswith(os.sep):
-        logs_parent = os.path.dirname(logs_parent)
-    print(f"Log files location: {logs_parent}")
+    print(f"Log files location: {report.output_prefix}")
 
 
 if __name__ == "__main__":
