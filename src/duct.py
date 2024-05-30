@@ -137,7 +137,7 @@ class Report:
                         "rss": int(rss),
                         # Virtual Memory size
                         "vsz": int(vsz),
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": datetime.now().astimezone().isoformat(),
                     }
         except subprocess.CalledProcessError:
             process_data["error"] = "Failed to query process data"
