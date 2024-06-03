@@ -217,7 +217,9 @@ def create_and_parse_args():
         "--s-i",
         type=float,
         default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
-        help="Interval in seconds between status checks of the running process.",
+        help="Interval in seconds between status checks of the running process. "
+        "Sample interval should be larger than the runtime of the process or `duct` may "
+        "underreport the number of processes started.",
     )
     parser.add_argument(
         "--report-interval",

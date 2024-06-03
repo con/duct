@@ -34,7 +34,9 @@ options:
                         .duct/logs/{datetime_filesafe}-{pid}_)
   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
-                        running process. (default: 1.0)
+                        running process. Sample interval should be larger than
+                        the runtime of the process or `duct` may underreport
+                        the number of processes started. (default: 1.0)
   --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
                         Interval in seconds at which to report aggregated
                         data. (default: 60.0)
