@@ -157,12 +157,9 @@ class Report:
             print(Colors.OKGREEN)
         else:
             print(Colors.FAIL)
-
-        print("-----------------------------------------------------")
-        print("                    duct report")
-        print("-----------------------------------------------------")
         print(f"Exit Code: {self.process.returncode}")
         print(f"{Colors.OKCYAN}Command: {self.command}")
+        print(f"Log files location: {self.output_prefix}")
         print(f"Wall Clock Time: {self.elapsed_time}")
         print(f"Number of Processes: {len(self.max_values)}")
         for pid, values in self.max_values.items():
@@ -354,11 +351,8 @@ def main():
         stderr_file = stderr
 
     full_command = " ".join([str(args.command)] + args.arguments)
-    print(f"{Colors.OKCYAN}-----------------------------------------------------")
-    print(f"duct is executing {full_command}...")
-    print()
-    print(f"Log files will be written to {formatted_output_prefix}")
-    print(f"-----------------------------------------------------{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}duct is executing {full_command}...")
+    print(f"Log files will be written to {formatted_output_prefix}{Colors.ENDC}")
     process = subprocess.Popen(
         [str(args.command)] + args.arguments,
         stdout=stdout_file,
@@ -408,7 +402,6 @@ def main():
         stderr_file.close()
         stderr.close()
     report.finalize()
-    print(f"Log files location: {report.output_prefix}")
 
 
 if __name__ == "__main__":
