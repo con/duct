@@ -166,6 +166,16 @@ class Report:
             values.pop("timestamp")  # Meaningless
             print(f"    {pid} Max Usage: {values}")
 
+    def __repr__(self):
+        return json.dumps(
+            {
+                "Command": self.command,
+                "System": self.system_info,
+                "ENV": self.env,
+                "GPU": self.gpus,
+            }
+        )
+
 
 def monitor_process(report, process, report_interval, sample_interval):
     while True:
