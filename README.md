@@ -9,28 +9,45 @@ A process wrapper script that monitors the execution of a command.
 ```shell
 > duct --help
 
-usage: duct [-h] [--sample-interval SAMPLE_INTERVAL]
-            [--output_prefix OUTPUT_PREFIX]
-            [--report-interval REPORT_INTERVAL]
+usage: duct [-h] [-p OUTPUT_PREFIX] [--sample-interval SAMPLE_INTERVAL]
+            [--report-interval REPORT_INTERVAL] [-c {all,none,stdout,stderr}]
+            [-o {all,none,stdout,stderr}]
+            [-t {all,system-summary,processes-samples}]
             command [arguments ...]
 
-Duct creates a new session to run a command and all its child processes, and
-the collects metrics for all processes in the session.
+Gathers metrics on a command and all its child processes.
 
 positional arguments:
   command               The command to execute.
-  arguments             Arguments for the command.
+  arguments             Arguments for the command. (default: None)
 
 options:
   -h, --help            show this help message and exit
-  --sample-interval SAMPLE_INTERVAL
+  -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+                        File string format to be used as a prefix for the
+                        files -- the captured stdout and stderr and the
+                        resource usage logs. The understood variables are
+                        {datetime}, {datetime_filesafe}, and {pid}. Leading
+                        directories will be created if they do not exist. You
+                        can also provide value via DUCT_OUTPUT_PREFIX env
+                        variable. (default:
+                        .duct/logs/{datetime_filesafe}-{pid}_)
+  --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
-                        running process.
-  --output_prefix OUTPUT_PREFIX
-                        Directory in which all logs will be saved.
-  --report-interval REPORT_INTERVAL
+                        running process. (default: 1.0)
+  --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
                         Interval in seconds at which to report aggregated
-                        data.
+                        data. (default: 60.0)
+  -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
+                        Record stdout, stderr, all, or none to log files. You
+                        can also provide value via DUCT_CAPTURE_OUTPUTS env
+                        variable. (default: all)
+  -o {all,none,stdout,stderr}, --outputs {all,none,stdout,stderr}
+                        Print stdout, stderr, all, or none to stdout/stderr
+                        respectively. (default: all)
+  -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
+                        Record system-summary, processes-samples, or all
+                        (default: all)
 ```
 
 ## Testing:
