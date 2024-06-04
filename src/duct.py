@@ -172,8 +172,12 @@ class Report:
         print(f"{Colors.OKCYAN}Command: {self.command}")
         print(f"Log files location: {self.output_prefix}")
         print(f"Wall Clock Time: {self.elapsed_time}")
-        print(f"Memory Peak Usage: {self.max_values['totals']['pmem']}%")
-        print(f"CPU Peak Usage: {self.max_values['totals']['pcpu']}%")
+        print(
+            f"Memory Peak Usage: {self.max_values.get('totals', {}).get('pmem', 'unknown')}%"
+        )
+        print(
+            f"CPU Peak Usage: {self.max_values.get('totals', {}).get('pcpu', 'unknown')}%"
+        )
 
     def __repr__(self):
         return json.dumps(
