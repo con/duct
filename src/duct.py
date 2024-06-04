@@ -104,6 +104,15 @@ class Report:
             except subprocess.CalledProcessError:
                 self.gpus = ["Failed to query GPU info"]
 
+    def calculate_total_usage(self, sample):
+        pmem = 0.0
+        pcpu = 0.0
+        for _pid, pinfo in sample.items():
+            pmem += pinfo["pmem"]
+            pcpu += pinfo["pcpu"]
+        totals = {"totals": {"pmem": pmem, "pcpu": pcpu}}
+        return totals
+
     @staticmethod
     def update_max_resources(maxes, sample):
         for pid in sample:
@@ -163,10 +172,8 @@ class Report:
         print(f"{Colors.OKCYAN}Command: {self.command}")
         print(f"Log files location: {self.output_prefix}")
         print(f"Wall Clock Time: {self.elapsed_time}")
-        print(f"Number of Processes: {len(self.max_values)}")
-        for pid, values in self.max_values.items():
-            values.pop("timestamp")  # Meaningless
-            print(f"    {pid} Max Usage: {values}")
+        print(f"Memory Peak Usage: {self.max_values['totals']['pmem']}%")
+        print(f"CPU Peak Usage: {self.max_values['totals']['pcpu']}%")
 
     def __repr__(self):
         return json.dumps(
@@ -185,6 +192,8 @@ def monitor_process(report, process, report_interval, sample_interval):
             break
         # print(f"Resource stats log path: {resource_stats_log_path}")
         sample = report.collect_sample()
+        totals = report.calculate_total_usage(sample)
+        report.update_max_resources(sample, totals)
         report.update_max_resources(report._sample, sample)
         if report.elapsed_time >= (report.number + 1) * report_interval:
             report.write_pid_samples()
