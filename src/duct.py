@@ -52,6 +52,7 @@ class Report:
         self.arguments = arguments
         self.session_id = session_id
         self.gpus = []
+        self.env = None
         self.number = 0
         self.system_info = {}
         self.output_prefix = output_prefix
@@ -103,13 +104,14 @@ class Report:
             except subprocess.CalledProcessError:
                 self.gpus = ["Failed to query GPU info"]
 
-    def update_max_resources(self, maxes, sample):
+    @staticmethod
+    def update_max_resources(maxes, sample):
         for pid in sample:
             if pid in maxes:
                 for key, value in sample[pid].items():
                     maxes[pid][key] = max(maxes[pid].get(key, value), value)
             else:
-                maxes[pid] = sample[pid]
+                maxes[pid] = sample[pid].copy()
 
     def collect_sample(self):
         process_data = {}
