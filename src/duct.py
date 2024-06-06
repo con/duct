@@ -420,6 +420,7 @@ def main():
             system_logs.write(str(report))
 
     process.wait()
+    report.update_max_resources(report.max_values, report._sample)
     report.process = process
     if isinstance(stdout, TailPipe):
         stdout_file.close()
