@@ -151,7 +151,7 @@ class Report:
                         "timestamp": datetime.now().astimezone().isoformat(),
                     }
         except subprocess.CalledProcessError:
-            process_data["error"] = "Failed to query process data"
+            pass
         return process_data
 
     def write_pid_samples(self):
@@ -199,7 +199,7 @@ def monitor_process(report, process, report_interval, sample_interval):
         totals = report.calculate_total_usage(sample)
         report.update_max_resources(sample, totals)
         report.update_max_resources(report._sample, sample)
-        if report.elapsed_time >= (report.number + 1) * report_interval:
+        if report.elapsed_time >= report.number * report_interval:
             report.write_pid_samples()
             report.update_max_resources(report.max_values, report._sample)
             report._sample = defaultdict(dict)  # Reset sample
@@ -406,7 +406,6 @@ def main():
             target=monitor_process, args=monitoring_args
         )
         monitoring_thread.start()
-        monitoring_thread.join()
 
     if args.record_types in ["all", "system-summary"]:
         report.collect_environment()
