@@ -357,6 +357,11 @@ def ensure_directories(path: str) -> None:
 
 
 def main():
+    args = create_and_parse_args()
+    execute(args)
+
+
+def execute(args):
     """A wrapper to execute a command, monitor and log the process details."""
     args = create_and_parse_args()
     datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
