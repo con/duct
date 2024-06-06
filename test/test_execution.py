@@ -8,9 +8,9 @@ from duct import execute
 
 
 @pytest.fixture
-def temp_output_dir(tmpdir):
-    yield str(tmpdir) + os.sep
-    shutil.rmtree(tmpdir)
+def temp_output_dir(tmp_path):
+    yield str(tmp_path) + os.sep
+    shutil.rmtree(tmp_path)
 
 
 def test_sanity_green(temp_output_dir):
