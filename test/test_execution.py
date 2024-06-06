@@ -2,6 +2,7 @@ import argparse
 import os
 from pathlib import Path
 import shutil
+from unittest import mock
 import pytest
 from duct import execute
 
@@ -12,7 +13,7 @@ def temp_output_dir(tmpdir):
     shutil.rmtree(tmpdir)
 
 
-def test_sanity(temp_output_dir):
+def test_sanity_green(temp_output_dir):
     args = argparse.Namespace(
         command="echo",
         arguments=["hello", "world"],
@@ -30,6 +31,36 @@ def test_sanity(temp_output_dir):
         assert Path(
             temp_output_dir + file_path
         ).exists(), f"Expected file does not exist: {file_path}"
+
+
+def test_sanity_red(temp_output_dir):
+    args = argparse.Namespace(
+        command="false",
+        arguments=[],
+        output_prefix=temp_output_dir,
+        sample_interval=1.0,
+        report_interval=60.0,
+        capture_outputs="all",
+        outputs="all",
+        record_types="all",
+    )
+    with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
+        execute(args)
+        mock_stdout.write.assert_has_calls([mock.call("Exit Code: 1")])
+
+    # We still should execute normally
+    expected_files = ["stdout", "stderr", "info.json"]
+    for file_path in expected_files:
+        assert Path(
+            temp_output_dir + file_path
+        ).exists(), f"Expected file does not exist: {file_path}"
+
+    # But no polling of the already failed command
+    not_expected_files = ["usage.json"]
+    for file_path in not_expected_files:
+        assert not Path(
+            temp_output_dir + file_path
+        ).exists(), f"Unexpected file should not exist: {file_path}"
 
 
 def test_outputs_full(temp_output_dir):
@@ -73,7 +104,7 @@ def test_outputs_passthrough(temp_output_dir):
     for file_path in not_expected_files:
         assert not Path(
             temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
+        ).exists(), f"Unexpected file should not exist: {file_path}"
 
 
 def test_outputs_capture(temp_output_dir):
@@ -121,7 +152,7 @@ def test_outputs_none(temp_output_dir):
     for file_path in not_expected_files:
         assert not Path(
             temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
+        ).exists(), f"Unexpected file should not exist: {file_path}"
 
 
 def test_exit_before_first_sample(temp_output_dir):
@@ -146,7 +177,7 @@ def test_exit_before_first_sample(temp_output_dir):
     for file_path in not_expected_files:
         assert not Path(
             temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
+        ).exists(), f"Unexpected file should not exist: {file_path}"
 
 
 def test_run_less_than_report_interval(temp_output_dir):
