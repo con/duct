@@ -331,7 +331,7 @@ def prepare_outputs(
         stdout = open(f"{output_prefix}stdout", "w")
     elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
         stdout = None
-    else:
+    elif capture_outputs in ["none", "stderr"] and outputs in ["none", "stderr"]:
         stdout = subprocess.DEVNULL
 
     if capture_outputs in ["all", "stderr"] and outputs in ["all", "stderr"]:
@@ -341,9 +341,17 @@ def prepare_outputs(
         stderr = open(f"{output_prefix}stderr", "w")
     elif capture_outputs in ["none", "stdout"] and outputs in ["all", "stderr"]:
         stderr = None
-    else:
+    elif capture_outputs in ["none", "stdout"] and outputs in ["none", "stdout"]:
         stderr = subprocess.DEVNULL
     return stdout, stderr
+
+
+def safe_close_files(file_list):
+    for f in file_list:
+        try:
+            f.close()
+        except Exception:
+            pass
 
 
 def ensure_directories(path: str) -> None:
@@ -432,15 +440,13 @@ def execute(args):
     if monitoring_thread is not None:
         monitoring_thread.join()
 
-    report.update_max_resources(report.max_values, report._sample)
+    # If we have any extra samples that haven't been written yet, do it now
+    if report._sample:
+        report.update_max_resources(report.max_values, report._sample)
+        report.write_pid_samples()
     report.process = process
-    if isinstance(stdout, TailPipe):
-        stdout_file.close()
-        stdout.close()
-    if isinstance(stderr, TailPipe):
-        stderr_file.close()
-        stderr.close()
     report.finalize()
+    safe_close_files([stdout_file, stdout, stderr_file, stderr])
 
 
 if __name__ == "__main__":

@@ -21,7 +21,8 @@ def consume_memory(size):
 
 
 def main(duration, cpu_load, memory_size):
-    print("this is of test of STDERR: ERRRRRRRRRRRRRRR", file=sys.stderr)
+    print("this is of test of STDOUT")
+    print("this is of test of STDERR", file=sys.stderr)
     consume_memory(memory_size)
     consume_cpu(duration, cpu_load)
     print(
