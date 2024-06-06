@@ -330,7 +330,7 @@ def prepare_outputs(
     elif capture_outputs in ["all", "stdout"] and outputs in ["none", "stderr"]:
         stdout = open(f"{output_prefix}stdout", "w")
     elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
-        stdout = subprocess.PIPE
+        stdout = None
     else:
         stdout = subprocess.DEVNULL
 
@@ -340,7 +340,7 @@ def prepare_outputs(
     elif capture_outputs in ["all", "stderr"] and outputs in ["none", "stdout"]:
         stderr = open(f"{output_prefix}stderr", "w")
     elif capture_outputs in ["none", "stdout"] and outputs in ["all", "stderr"]:
-        stderr = subprocess.PIPE
+        stderr = None
     else:
         stderr = subprocess.DEVNULL
     return stdout, stderr
