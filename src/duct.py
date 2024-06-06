@@ -398,7 +398,11 @@ def execute(args):
         stderr=stderr_file,
         preexec_fn=os.setsid,
     )
-    session_id = os.getsid(process.pid)  # Get session ID of the new process
+    try:
+        session_id = os.getsid(process.pid)  # Get session ID of the new process
+    except ProcessLookupError:  # process has already finished
+        session_id = None
+
     report = Report(
         args.command,
         args.arguments,
