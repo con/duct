@@ -1,9 +1,9 @@
 import argparse
 import os
-from pathlib import Path
 import shutil
 from unittest import mock
 import pytest
+from utils import assert_files
 from duct import execute
 
 
@@ -27,10 +27,7 @@ def test_sanity_green(temp_output_dir):
     execute(args)
     # When runtime < sample_interval, we won't have a usage.json
     expected_files = ["stdout", "stderr", "info.json"]
-    for file_path in expected_files:
-        assert Path(
-            temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
+    assert_files(temp_output_dir, expected_files, exists=True)
 
 
 def test_sanity_red(temp_output_dir):
@@ -50,17 +47,10 @@ def test_sanity_red(temp_output_dir):
 
     # We still should execute normally
     expected_files = ["stdout", "stderr", "info.json"]
-    for file_path in expected_files:
-        assert Path(
-            temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
-
+    assert_files(temp_output_dir, expected_files, exists=True)
     # But no polling of the already failed command
     not_expected_files = ["usage.json"]
-    for file_path in not_expected_files:
-        assert not Path(
-            temp_output_dir + file_path
-        ).exists(), f"Unexpected file should not exist: {file_path}"
+    assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
 def test_outputs_full(temp_output_dir):
@@ -76,10 +66,7 @@ def test_outputs_full(temp_output_dir):
     )
     execute(args)
     expected_files = ["stdout", "stderr", "info.json", "usage.json"]
-    for file_path in expected_files:
-        assert Path(
-            temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
+    assert_files(temp_output_dir, expected_files, exists=True)
 
 
 def test_outputs_passthrough(temp_output_dir):
@@ -95,16 +82,9 @@ def test_outputs_passthrough(temp_output_dir):
     )
     execute(args)
     expected_files = ["info.json", "usage.json"]
-    for file_path in expected_files:
-        assert Path(
-            temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
-
+    assert_files(temp_output_dir, expected_files, exists=True)
     not_expected_files = ["stdout", "stderr"]
-    for file_path in not_expected_files:
-        assert not Path(
-            temp_output_dir + file_path
-        ).exists(), f"Unexpected file should not exist: {file_path}"
+    assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
 def test_outputs_capture(temp_output_dir):
@@ -122,10 +102,7 @@ def test_outputs_capture(temp_output_dir):
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
     expected_files = ["stdout", "stderr", "info.json", "usage.json"]
-    for file_path in expected_files:
-        assert Path(
-            temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
+    assert_files(temp_output_dir, expected_files, exists=True)
 
 
 def test_outputs_none(temp_output_dir):
@@ -143,16 +120,10 @@ def test_outputs_none(temp_output_dir):
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
     expected_files = ["info.json", "usage.json"]
-    for file_path in expected_files:
-        assert Path(
-            temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
+    assert_files(temp_output_dir, expected_files, exists=True)
 
     not_expected_files = ["stdout", "stderr"]
-    for file_path in not_expected_files:
-        assert not Path(
-            temp_output_dir + file_path
-        ).exists(), f"Unexpected file should not exist: {file_path}"
+    assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
 def test_exit_before_first_sample(temp_output_dir):
@@ -168,16 +139,9 @@ def test_exit_before_first_sample(temp_output_dir):
     )
     execute(args)
     expected_files = ["stdout", "stderr", "info.json"]
-    for file_path in expected_files:
-        assert Path(
-            temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
-
+    assert_files(temp_output_dir, expected_files, exists=True)
     not_expected_files = ["usage.json"]
-    for file_path in not_expected_files:
-        assert not Path(
-            temp_output_dir + file_path
-        ).exists(), f"Unexpected file should not exist: {file_path}"
+    assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
 def test_run_less_than_report_interval(temp_output_dir):
@@ -194,7 +158,4 @@ def test_run_less_than_report_interval(temp_output_dir):
     execute(args)
     # Specifically we need to assert that usage.json gets written anyway.
     expected_files = ["stdout", "stderr", "usage.json", "info.json"]
-    for file_path in expected_files:
-        assert Path(
-            temp_output_dir + file_path
-        ).exists(), f"Expected file does not exist: {file_path}"
+    assert_files(temp_output_dir, expected_files, exists=True)
