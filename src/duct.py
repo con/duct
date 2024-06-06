@@ -190,21 +190,21 @@ class Report:
         )
 
 
-def monitor_process(report, process, report_interval, sample_interval):
-    while True:
-        if process.poll() is not None:  # the passthrough command has finished
-            break
-        # print(f"Resource stats log path: {resource_stats_log_path}")
-        sample = report.collect_sample()
-        totals = report.calculate_total_usage(sample)
-        report.update_max_resources(sample, totals)
-        report.update_max_resources(report._sample, sample)
-        if report.elapsed_time >= report.number * report_interval:
-            report.write_pid_samples()
-            report.update_max_resources(report.max_values, report._sample)
-            report._sample = defaultdict(dict)  # Reset sample
-            report.number += 1
-        time.sleep(sample_interval)
+def monitor_process(report, process, report_interval, sample_interval, stop_event):
+    while not stop_event.wait(timeout=sample_interval):
+        while True:
+            if process.poll() is not None:  # the passthrough command has finished
+                break
+            # print(f"Resource stats log path: {resource_stats_log_path}")
+            sample = report.collect_sample()
+            totals = report.calculate_total_usage(sample)
+            report.update_max_resources(sample, totals)
+            report.update_max_resources(report._sample, sample)
+            if report.elapsed_time >= report.number * report_interval:
+                report.write_pid_samples()
+                report.update_max_resources(report.max_values, report._sample)
+                report._sample = defaultdict(dict)  # Reset sample
+                report.number += 1
 
 
 def create_and_parse_args():
@@ -363,7 +363,6 @@ def main():
 
 def execute(args):
     """A wrapper to execute a command, monitor and log the process details."""
-    args = create_and_parse_args()
     datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
     duct_pid = os.getpid()
     formatted_output_prefix = args.output_prefix.format(
@@ -400,17 +399,21 @@ def execute(args):
         process,
         datetime_filesafe,
     )
+    stop_event = threading.Event()
     if args.record_types in ["all", "processes-samples"]:
         monitoring_args = [
             report,
             process,
             args.report_interval,
             args.sample_interval,
+            stop_event,
         ]
         monitoring_thread = threading.Thread(
             target=monitor_process, args=monitoring_args
         )
         monitoring_thread.start()
+    else:
+        monitoring_thread = None
 
     if args.record_types in ["all", "system-summary"]:
         report.collect_environment()
@@ -425,6 +428,10 @@ def execute(args):
             system_logs.write(str(report))
 
     process.wait()
+    stop_event.set()
+    if monitoring_thread is not None:
+        monitoring_thread.join()
+
     report.update_max_resources(report.max_values, report._sample)
     report.process = process
     if isinstance(stdout, TailPipe):
