@@ -213,7 +213,9 @@ def create_and_parse_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("command", help="The command to execute.")
-    parser.add_argument("arguments", nargs="*", help="Arguments for the command.")
+    parser.add_argument(
+        "inner_args", nargs=argparse.REMAINDER, help="Arguments for the command."
+    )
     parser.add_argument(
         "-p",
         "--output-prefix",
@@ -268,7 +270,6 @@ def create_and_parse_args():
         choices=["all", "system-summary", "processes-samples"],
         help="Record system-summary, processes-samples, or all",
     )
-    parser.add_argument("inner_args", nargs=argparse.REMAINDER)
     return parser.parse_args()
 
 
