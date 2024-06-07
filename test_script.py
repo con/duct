@@ -17,13 +17,13 @@ def consume_memory(size):
     """Function to consume amount of memory specified by 'size' in megabytes"""
     # Create a list of size MB
     bytes_in_mb = 1024 * 1024
-    _memory = bytearray(size * bytes_in_mb)  # noqa
+    return bytearray(size * bytes_in_mb)
 
 
 def main(duration, cpu_load, memory_size):
     print("this is of test of STDOUT")
     print("this is of test of STDERR", file=sys.stderr)
-    consume_memory(memory_size)
+    _mem_hold = consume_memory(memory_size)  # noqa
     consume_cpu(duration, cpu_load)
     print(
         f"Test completed. Consumed {memory_size} MB for {duration} seconds with CPU load factor {cpu_load}."
