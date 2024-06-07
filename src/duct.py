@@ -171,7 +171,7 @@ class Report:
         print(f"Exit Code: {self.process.returncode}")
         print(f"{Colors.OKCYAN}Command: {self.command}")
         print(f"Log files location: {self.output_prefix}")
-        print(f"Wall Clock Time: {self.elapsed_time}")
+        print(f"Wall Clock Time: {self.elapsed_time:.3f} sec")
         print(
             f"Memory Peak Usage: {self.max_values.get('totals', {}).get('pmem', 'unknown')}%"
         )
