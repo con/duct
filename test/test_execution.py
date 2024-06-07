@@ -14,9 +14,9 @@ def temp_output_dir(tmp_path):
 
 
 def test_sanity_green(temp_output_dir):
+    command_args = ["hello", "world"]
     args = argparse.Namespace(
         command="echo",
-        arguments=["hello", "world"],
         output_prefix=temp_output_dir,
         sample_interval=1.0,
         report_interval=60.0,
@@ -24,16 +24,16 @@ def test_sanity_green(temp_output_dir):
         outputs="all",
         record_types="all",
     )
-    execute(args)
+    execute(args, command_args)
     # When runtime < sample_interval, we won't have a usage.json
     expected_files = ["stdout", "stderr", "info.json"]
     assert_files(temp_output_dir, expected_files, exists=True)
 
 
 def test_sanity_red(temp_output_dir):
+    command_args = []
     args = argparse.Namespace(
         command="false",
-        arguments=[],
         output_prefix=temp_output_dir,
         sample_interval=1.0,
         report_interval=60.0,
@@ -42,7 +42,7 @@ def test_sanity_red(temp_output_dir):
         record_types="all",
     )
     with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
-        execute(args)
+        execute(args, command_args)
         mock_stdout.write.assert_has_calls([mock.call("Exit Code: 1")])
 
     # We still should execute normally
@@ -54,9 +54,9 @@ def test_sanity_red(temp_output_dir):
 
 
 def test_outputs_full(temp_output_dir):
+    command_args = ["--duration", "1"]
     args = argparse.Namespace(
         command="./test_script.py",
-        arguments=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
@@ -64,15 +64,15 @@ def test_outputs_full(temp_output_dir):
         outputs="all",
         record_types="all",
     )
-    execute(args)
+    execute(args, command_args)
     expected_files = ["stdout", "stderr", "info.json", "usage.json"]
     assert_files(temp_output_dir, expected_files, exists=True)
 
 
 def test_outputs_passthrough(temp_output_dir):
+    command_args = ["--duration", "1"]
     args = argparse.Namespace(
         command="./test_script.py",
-        arguments=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
@@ -80,7 +80,7 @@ def test_outputs_passthrough(temp_output_dir):
         outputs="all",
         record_types="all",
     )
-    execute(args)
+    execute(args, command_args)
     expected_files = ["info.json", "usage.json"]
     assert_files(temp_output_dir, expected_files, exists=True)
     not_expected_files = ["stdout", "stderr"]
@@ -88,9 +88,9 @@ def test_outputs_passthrough(temp_output_dir):
 
 
 def test_outputs_capture(temp_output_dir):
+    command_args = ["--duration", "1"]
     args = argparse.Namespace(
         command="./test_script.py",
-        arguments=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
@@ -98,7 +98,7 @@ def test_outputs_capture(temp_output_dir):
         outputs="none",
         record_types="all",
     )
-    execute(args)
+    execute(args, command_args)
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
     expected_files = ["stdout", "stderr", "info.json", "usage.json"]
@@ -106,9 +106,9 @@ def test_outputs_capture(temp_output_dir):
 
 
 def test_outputs_none(temp_output_dir):
+    command_args = ["--duration", "1"]
     args = argparse.Namespace(
         command="./test_script.py",
-        arguments=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
@@ -116,7 +116,7 @@ def test_outputs_none(temp_output_dir):
         outputs="none",
         record_types="all",
     )
-    execute(args)
+    execute(args, command_args)
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
     expected_files = ["info.json", "usage.json"]
@@ -127,9 +127,9 @@ def test_outputs_none(temp_output_dir):
 
 
 def test_exit_before_first_sample(temp_output_dir):
+    command_args = []
     args = argparse.Namespace(
         command="ls",
-        arguments=[],
         output_prefix=temp_output_dir,
         sample_interval=0.1,
         report_interval=0.1,
@@ -137,7 +137,7 @@ def test_exit_before_first_sample(temp_output_dir):
         outputs="none",
         record_types="all",
     )
-    execute(args)
+    execute(args, command_args)
     expected_files = ["stdout", "stderr", "info.json"]
     assert_files(temp_output_dir, expected_files, exists=True)
     not_expected_files = ["usage.json"]
@@ -145,9 +145,9 @@ def test_exit_before_first_sample(temp_output_dir):
 
 
 def test_run_less_than_report_interval(temp_output_dir):
+    command_args = ["0.01"]
     args = argparse.Namespace(
         command="sleep",
-        arguments=["0.01"],
         output_prefix=temp_output_dir,
         sample_interval=0.001,
         report_interval=0.1,
@@ -155,7 +155,7 @@ def test_run_less_than_report_interval(temp_output_dir):
         outputs="none",
         record_types="all",
     )
-    execute(args)
+    execute(args, command_args)
     # Specifically we need to assert that usage.json gets written anyway.
     expected_files = ["stdout", "stderr", "usage.json", "info.json"]
     assert_files(temp_output_dir, expected_files, exists=True)

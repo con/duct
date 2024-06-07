@@ -268,7 +268,7 @@ def create_and_parse_args():
         choices=["all", "system-summary", "processes-samples"],
         help="Record system-summary, processes-samples, or all",
     )
-    return parser.parse_args()
+    return parser.parse_known_args()
 
 
 class TailPipe:
@@ -365,11 +365,11 @@ def ensure_directories(path: str) -> None:
 
 
 def main():
-    args = create_and_parse_args()
-    execute(args)
+    args, command_args = create_and_parse_args()
+    execute(args, command_args)
 
 
-def execute(args):
+def execute(args, command_args):
     """A wrapper to execute a command, monitor and log the process details."""
     datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
     duct_pid = os.getpid()
@@ -389,11 +389,11 @@ def execute(args):
     else:
         stderr_file = stderr
 
-    full_command = " ".join([str(args.command)] + args.arguments)
+    full_command = " ".join([str(args.command)] + command_args)
     print(f"{Colors.OKCYAN}duct is executing {full_command}...")
     print(f"Log files will be written to {formatted_output_prefix}{Colors.ENDC}")
     process = subprocess.Popen(
-        [str(args.command)] + args.arguments,
+        [str(args.command)] + command_args,
         stdout=stdout_file,
         stderr=stderr_file,
         preexec_fn=os.setsid,
@@ -405,7 +405,7 @@ def execute(args):
 
     report = Report(
         args.command,
-        args.arguments,
+        command_args,
         session_id,
         formatted_output_prefix,
         process,
