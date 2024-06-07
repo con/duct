@@ -211,6 +211,10 @@ def create_and_parse_args():
     parser = argparse.ArgumentParser(
         description="Gathers metrics on a command and all its child processes.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        usage="\nduct [-h] [-p OUTPUT_PREFIX] [--sample-interval SAMPLE_INTERVAL] "
+        "[--report-interval REPORT_INTERVAL] [-c {all,none,stdout,stderr}] "
+        "[-o {all,none,stdout,stderr}] [-t {all,system-summary,processes-samples}] "
+        "[--] command [arguments ...]",
     )
     parser.add_argument("command", help="The command to execute.")
     parser.add_argument("arguments", nargs="*", help="Arguments for the command.")
