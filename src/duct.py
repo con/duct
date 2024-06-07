@@ -52,6 +52,7 @@ class Report:
         self.arguments = arguments
         self.session_id = session_id
         self.gpus = []
+        self.env = None
         self.number = 0
         self.system_info = {}
         self.output_prefix = output_prefix
@@ -75,7 +76,7 @@ class Report:
 
     def get_system_info(self):
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
-        self.system_info["uid"] = os.environ["USER"]
+        self.system_info["uid"] = os.environ.get("USER")
         self.system_info["memory_total"] = os.sysconf("SC_PAGE_SIZE") * os.sysconf(
             "SC_PHYS_PAGES"
         )
@@ -103,13 +104,23 @@ class Report:
             except subprocess.CalledProcessError:
                 self.gpus = ["Failed to query GPU info"]
 
-    def update_max_resources(self, maxes, sample):
+    def calculate_total_usage(self, sample):
+        pmem = 0.0
+        pcpu = 0.0
+        for _pid, pinfo in sample.items():
+            pmem += pinfo["pmem"]
+            pcpu += pinfo["pcpu"]
+        totals = {"totals": {"pmem": pmem, "pcpu": pcpu}}
+        return totals
+
+    @staticmethod
+    def update_max_resources(maxes, sample):
         for pid in sample:
             if pid in maxes:
                 for key, value in sample[pid].items():
                     maxes[pid][key] = max(maxes[pid].get(key, value), value)
             else:
-                maxes[pid] = sample[pid]
+                maxes[pid] = sample[pid].copy()
 
     def collect_sample(self):
         process_data = {}
@@ -140,7 +151,7 @@ class Report:
                         "timestamp": datetime.now().astimezone().isoformat(),
                     }
         except subprocess.CalledProcessError:
-            process_data["error"] = "Failed to query process data"
+            pass
         return process_data
 
     def write_pid_samples(self):
@@ -157,32 +168,43 @@ class Report:
             print(Colors.OKGREEN)
         else:
             print(Colors.FAIL)
-
-        print("-----------------------------------------------------")
-        print("                    duct report")
-        print("-----------------------------------------------------")
         print(f"Exit Code: {self.process.returncode}")
         print(f"{Colors.OKCYAN}Command: {self.command}")
+        print(f"Log files location: {self.output_prefix}")
         print(f"Wall Clock Time: {self.elapsed_time}")
-        print(f"Number of Processes: {len(self.max_values)}")
-        for pid, values in self.max_values.items():
-            values.pop("timestamp")  # Meaningless
-            print(f"    {pid} Max Usage: {values}")
+        print(
+            f"Memory Peak Usage: {self.max_values.get('totals', {}).get('pmem', 'unknown')}%"
+        )
+        print(
+            f"CPU Peak Usage: {self.max_values.get('totals', {}).get('pcpu', 'unknown')}%"
+        )
+
+    def __repr__(self):
+        return json.dumps(
+            {
+                "Command": self.command,
+                "System": self.system_info,
+                "ENV": self.env,
+                "GPU": self.gpus,
+            }
+        )
 
 
-def monitor_process(report, process, report_interval, sample_interval):
-    while True:
-        if process.poll() is not None:  # the passthrough command has finished
-            break
-        # print(f"Resource stats log path: {resource_stats_log_path}")
-        sample = report.collect_sample()
-        report.update_max_resources(report._sample, sample)
-        if report.elapsed_time >= (report.number + 1) * report_interval:
-            report.write_pid_samples()
-            report.update_max_resources(report.max_values, report._sample)
-            report._sample = defaultdict(dict)  # Reset sample
-            report.number += 1
-        time.sleep(sample_interval)
+def monitor_process(report, process, report_interval, sample_interval, stop_event):
+    while not stop_event.wait(timeout=sample_interval):
+        while True:
+            if process.poll() is not None:  # the passthrough command has finished
+                break
+            # print(f"Resource stats log path: {resource_stats_log_path}")
+            sample = report.collect_sample()
+            totals = report.calculate_total_usage(sample)
+            report.update_max_resources(sample, totals)
+            report.update_max_resources(report._sample, sample)
+            if report.elapsed_time >= report.number * report_interval:
+                report.write_pid_samples()
+                report.update_max_resources(report.max_values, report._sample)
+                report._sample = defaultdict(dict)  # Reset sample
+                report.number += 1
 
 
 def create_and_parse_args():
@@ -210,7 +232,9 @@ def create_and_parse_args():
         "--s-i",
         type=float,
         default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
-        help="Interval in seconds between status checks of the running process.",
+        help="Interval in seconds between status checks of the running process. "
+        "Sample interval should be larger than the runtime of the process or `duct` may "
+        "underreport the number of processes started.",
     )
     parser.add_argument(
         "--report-interval",
@@ -306,8 +330,8 @@ def prepare_outputs(
     elif capture_outputs in ["all", "stdout"] and outputs in ["none", "stderr"]:
         stdout = open(f"{output_prefix}stdout", "w")
     elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
-        stdout = subprocess.PIPE
-    else:
+        stdout = None
+    elif capture_outputs in ["none", "stderr"] and outputs in ["none", "stderr"]:
         stdout = subprocess.DEVNULL
 
     if capture_outputs in ["all", "stderr"] and outputs in ["all", "stderr"]:
@@ -316,10 +340,18 @@ def prepare_outputs(
     elif capture_outputs in ["all", "stderr"] and outputs in ["none", "stdout"]:
         stderr = open(f"{output_prefix}stderr", "w")
     elif capture_outputs in ["none", "stdout"] and outputs in ["all", "stderr"]:
-        stderr = subprocess.PIPE
-    else:
+        stderr = None
+    elif capture_outputs in ["none", "stdout"] and outputs in ["none", "stdout"]:
         stderr = subprocess.DEVNULL
     return stdout, stderr
+
+
+def safe_close_files(file_list):
+    for f in file_list:
+        try:
+            f.close()
+        except Exception:
+            pass
 
 
 def ensure_directories(path: str) -> None:
@@ -333,8 +365,12 @@ def ensure_directories(path: str) -> None:
 
 
 def main():
-    """A wrapper to execute a command, monitor and log the process details."""
     args = create_and_parse_args()
+    execute(args)
+
+
+def execute(args):
+    """A wrapper to execute a command, monitor and log the process details."""
     datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
     duct_pid = os.getpid()
     formatted_output_prefix = args.output_prefix.format(
@@ -354,18 +390,19 @@ def main():
         stderr_file = stderr
 
     full_command = " ".join([str(args.command)] + args.arguments)
-    print(f"{Colors.OKCYAN}-----------------------------------------------------")
-    print(f"duct is executing {full_command}...")
-    print()
-    print(f"Log files will be written to {formatted_output_prefix}")
-    print(f"-----------------------------------------------------{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}duct is executing {full_command}...")
+    print(f"Log files will be written to {formatted_output_prefix}{Colors.ENDC}")
     process = subprocess.Popen(
         [str(args.command)] + args.arguments,
         stdout=stdout_file,
         stderr=stderr_file,
         preexec_fn=os.setsid,
     )
-    session_id = os.getsid(process.pid)  # Get session ID of the new process
+    try:
+        session_id = os.getsid(process.pid)  # Get session ID of the new process
+    except ProcessLookupError:  # process has already finished
+        session_id = None
+
     report = Report(
         args.command,
         args.arguments,
@@ -374,18 +411,21 @@ def main():
         process,
         datetime_filesafe,
     )
+    stop_event = threading.Event()
     if args.record_types in ["all", "processes-samples"]:
         monitoring_args = [
             report,
             process,
             args.report_interval,
             args.sample_interval,
+            stop_event,
         ]
         monitoring_thread = threading.Thread(
             target=monitor_process, args=monitoring_args
         )
         monitoring_thread.start()
-        monitoring_thread.join()
+    else:
+        monitoring_thread = None
 
     if args.record_types in ["all", "system-summary"]:
         report.collect_environment()
@@ -400,15 +440,17 @@ def main():
             system_logs.write(str(report))
 
     process.wait()
+    stop_event.set()
+    if monitoring_thread is not None:
+        monitoring_thread.join()
+
+    # If we have any extra samples that haven't been written yet, do it now
+    if report._sample:
+        report.update_max_resources(report.max_values, report._sample)
+        report.write_pid_samples()
     report.process = process
-    if isinstance(stdout, TailPipe):
-        stdout_file.close()
-        stdout.close()
-    if isinstance(stderr, TailPipe):
-        stderr_file.close()
-        stderr.close()
     report.finalize()
-    print(f"Log files location: {report.output_prefix}")
+    safe_close_files([stdout_file, stdout, stderr_file, stderr])
 
 
 if __name__ == "__main__":

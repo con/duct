@@ -50,14 +50,14 @@ def test_prepare_outputs_all_none():
 def test_prepare_outputs_none_stdout():
     output_prefix = "test_outputs_"
     stdout, stderr = prepare_outputs("none", "stdout", output_prefix)
-    assert stdout == subprocess.PIPE
+    assert stdout is None
     assert stderr == subprocess.DEVNULL
 
 
 def test_prepare_outputs_none_stderr():
     output_prefix = "test_outputs_"
     stdout, stderr = prepare_outputs("none", "stderr", output_prefix)
-    assert stderr == subprocess.PIPE
+    assert stderr is None
     assert stdout == subprocess.DEVNULL
 
 
