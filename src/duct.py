@@ -214,6 +214,9 @@ def create_and_parse_args():
     )
     parser.add_argument("command", help="The command to execute.")
     parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    parser.add_argument(
         "inner_args", nargs=argparse.REMAINDER, help="Arguments for the command."
     )
     parser.add_argument(
