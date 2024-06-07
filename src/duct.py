@@ -268,6 +268,7 @@ def create_and_parse_args():
         choices=["all", "system-summary", "processes-samples"],
         help="Record system-summary, processes-samples, or all",
     )
+    parser.add_argument("inner_args", nargs=argparse.REMAINDER)
     return parser.parse_args()
 
 
@@ -389,11 +390,11 @@ def execute(args):
     else:
         stderr_file = stderr
 
-    full_command = " ".join([str(args.command)] + args.arguments)
+    full_command = " ".join([str(args.command)] + args.inner_args)
     print(f"{Colors.OKCYAN}duct is executing {full_command}...")
     print(f"Log files will be written to {formatted_output_prefix}{Colors.ENDC}")
     process = subprocess.Popen(
-        [str(args.command)] + args.arguments,
+        [str(args.command)] + args.inner_args,
         stdout=stdout_file,
         stderr=stderr_file,
         preexec_fn=os.setsid,
@@ -405,7 +406,7 @@ def execute(args):
 
     report = Report(
         args.command,
-        args.arguments,
+        args.inner_args,
         session_id,
         formatted_output_prefix,
         process,

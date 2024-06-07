@@ -65,5 +65,5 @@ options:
   --memory-size MEMORY_SIZE
                         Amount of memory to allocate in MB.
 
-duct --report-interval 4 -- ./test_script.py --duration 12 --cpu-load 50000 --memory-size 50 | jq
+duct --report-interval 4 ./test_script.py --duration 12 --cpu-load 50000 --memory-size 50 | jq
 ```
