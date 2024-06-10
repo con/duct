@@ -23,7 +23,7 @@ positional arguments:
   command               The command to execute.
   inner_args            Arguments for the command.
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
   -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX

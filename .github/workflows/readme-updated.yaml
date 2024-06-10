@@ -1,0 +1,27 @@
+name: Check README.md helptext
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: [main]
+
+jobs:
+  check_script_and_diff:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Install duct
+      run: |
+        pip install .
+    - name: Update README.md helptext
+      run: |
+        ./.update-readme-help.sh
+
+    - name: Ensure no diff
+      run: |
+        git diff --exit-code
