@@ -426,11 +426,18 @@ def execute(args):
     full_command = " ".join([str(args.command)] + args.command_args)
     print(f"{Colors.OKCYAN}duct is executing {full_command}...")
     print(f"Log files will be written to {formatted_output_prefix}{Colors.ENDC}")
+
+    # Tell child Python processes to not buffer output and thus flush it "real-time".
+    # TODO: since it changes underlying environment, we might want to
+    #       make it not optional.
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
     process = subprocess.Popen(
         [str(args.command)] + args.command_args,
         stdout=stdout_file,
         stderr=stderr_file,
         preexec_fn=os.setsid,
+        env=env,
     )
     try:
         session_id = os.getsid(process.pid)  # Get session ID of the new process
