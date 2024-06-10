@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import subprocess
 import tempfile
 from unittest.mock import patch
@@ -49,7 +50,7 @@ def test_high_throughput_stdout(mock_stdout, fixture_path):
 def test_high_throughput_stderr(mock_stderr, fixture_path):
     with tempfile.NamedTemporaryFile(mode="wb") as tmpfile:
         process = subprocess.Popen(
-            ["./test/cat_to_err.py", fixture_path],
+            [Path(__file__).with_name("data") / "cat_to_err.py", fixture_path],
             stdout=subprocess.DEVNULL,
             stderr=tmpfile,
         )

@@ -1,10 +1,13 @@
 import argparse
 import os
+from pathlib import Path
 import shutil
 from unittest import mock
 import pytest
 from utils import assert_files
 from duct import execute
+
+TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 
 
 @pytest.fixture
@@ -55,7 +58,7 @@ def test_sanity_red(temp_output_dir):
 
 def test_outputs_full(temp_output_dir):
     args = argparse.Namespace(
-        command="./test_script.py",
+        command=TEST_SCRIPT,
         command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
@@ -71,7 +74,7 @@ def test_outputs_full(temp_output_dir):
 
 def test_outputs_passthrough(temp_output_dir):
     args = argparse.Namespace(
-        command="./test_script.py",
+        command=TEST_SCRIPT,
         command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
@@ -89,7 +92,7 @@ def test_outputs_passthrough(temp_output_dir):
 
 def test_outputs_capture(temp_output_dir):
     args = argparse.Namespace(
-        command="./test_script.py",
+        command=TEST_SCRIPT,
         command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
@@ -107,7 +110,7 @@ def test_outputs_capture(temp_output_dir):
 
 def test_outputs_none(temp_output_dir):
     args = argparse.Namespace(
-        command="./test_script.py",
+        command=TEST_SCRIPT,
         command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
