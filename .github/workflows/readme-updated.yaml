@@ -1,3 +1,4 @@
+---
 name: Check README.md helptext
 
 on:
@@ -12,17 +13,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Install duct
-      run: |
-        pip install .
+      - name: Install duct
+        run: |
+          pip install .
 
-    - name: Update README.md helptext
-      run: |
-        ./.update-readme-help.sh
+      - name: Update README.md helptext
+        run: |
+          ./.update-readme-help.sh
 
-    - name: Ensure no diff
-      run: |
-        git diff --exit-code
+      - name: Ensure no diff
+        run: |
+          git diff --exit-code

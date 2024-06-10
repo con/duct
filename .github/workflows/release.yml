@@ -1,3 +1,4 @@
+---
 name: Auto-release on PR merge
 
 on:
