@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 import argparse
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
 import json
 import os
@@ -191,6 +193,101 @@ class Report:
         )
 
 
+@dataclass
+class Arguments:
+    command: str
+    command_args: list[str]
+    output_prefix: str
+    sample_interval: float
+    report_interval: float
+    capture_outputs: str
+    outputs: str
+    record_types: str
+
+    @classmethod
+    def from_argv(cls) -> Arguments:
+        parser = argparse.ArgumentParser(
+            description="Gathers metrics on a command and all its child processes.",
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        )
+        parser.add_argument(
+            "command",
+            metavar="command [command_args ...]",
+            help="The command to execute, along with its arguments.",
+        )
+        parser.add_argument(
+            "--version", action="version", version=f"%(prog)s {__version__}"
+        )
+        parser.add_argument(
+            "command_args", nargs=argparse.REMAINDER, help="Arguments for the command."
+        )
+        parser.add_argument(
+            "-p",
+            "--output-prefix",
+            type=str,
+            default=os.getenv(
+                "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
+            ),
+            help="File string format to be used as a prefix for the files -- the captured "
+            "stdout and stderr and the resource usage logs. The understood variables are "
+            "{datetime}, {datetime_filesafe}, and {pid}. "
+            "Leading directories will be created if they do not exist. "
+            "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
+        )
+        parser.add_argument(
+            "--sample-interval",
+            "--s-i",
+            type=float,
+            default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
+            help="Interval in seconds between status checks of the running process. "
+            "Sample interval should be larger than the runtime of the process or `duct` may "
+            "underreport the number of processes started.",
+        )
+        parser.add_argument(
+            "--report-interval",
+            "--r-i",
+            type=float,
+            default=float(os.getenv("DUCT_REPORT_INTERVAL", "60.0")),
+            help="Interval in seconds at which to report aggregated data.",
+        )
+        parser.add_argument(
+            "-c",
+            "--capture-outputs",
+            type=str,
+            default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
+            choices=["all", "none", "stdout", "stderr"],
+            help="Record stdout, stderr, all, or none to log files. "
+            "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
+        )
+        parser.add_argument(
+            "-o",
+            "--outputs",
+            type=str,
+            default="all",
+            choices=["all", "none", "stdout", "stderr"],
+            help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
+        )
+        parser.add_argument(
+            "-t",
+            "--record-types",
+            type=str,
+            default="all",
+            choices=["all", "system-summary", "processes-samples"],
+            help="Record system-summary, processes-samples, or all",
+        )
+        args = parser.parse_args()
+        return cls(
+            command=args.command,
+            command_args=args.command_args,
+            output_prefix=args.output_prefix,
+            sample_interval=args.sample_interval,
+            report_interval=args.report_interval,
+            capture_outputs=args.capture_outputs,
+            outputs=args.outputs,
+            record_types=args.record_types,
+        )
+
+
 def monitor_process(report, process, report_interval, sample_interval, stop_event):
     while not stop_event.wait(timeout=sample_interval):
         while True:
@@ -206,79 +303,6 @@ def monitor_process(report, process, report_interval, sample_interval, stop_even
                 report.update_max_resources(report.max_values, report._sample)
                 report._sample = defaultdict(dict)  # Reset sample
                 report.number += 1
-
-
-def create_and_parse_args():
-    parser = argparse.ArgumentParser(
-        description="Gathers metrics on a command and all its child processes.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument(
-        "command",
-        metavar="command [command_args ...]",
-        help="The command to execute, along with its arguments.",
-    )
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
-    )
-    parser.add_argument(
-        "command_args", nargs=argparse.REMAINDER, help="Arguments for the command."
-    )
-    parser.add_argument(
-        "-p",
-        "--output-prefix",
-        type=str,
-        default=os.getenv(
-            "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
-        ),
-        help="File string format to be used as a prefix for the files -- the captured "
-        "stdout and stderr and the resource usage logs. The understood variables are "
-        "{datetime}, {datetime_filesafe}, and {pid}. "
-        "Leading directories will be created if they do not exist. "
-        "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
-    )
-    parser.add_argument(
-        "--sample-interval",
-        "--s-i",
-        type=float,
-        default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
-        help="Interval in seconds between status checks of the running process. "
-        "Sample interval should be larger than the runtime of the process or `duct` may "
-        "underreport the number of processes started.",
-    )
-    parser.add_argument(
-        "--report-interval",
-        "--r-i",
-        type=float,
-        default=float(os.getenv("DUCT_REPORT_INTERVAL", "60.0")),
-        help="Interval in seconds at which to report aggregated data.",
-    )
-    parser.add_argument(
-        "-c",
-        "--capture-outputs",
-        type=str,
-        default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
-        choices=["all", "none", "stdout", "stderr"],
-        help="Record stdout, stderr, all, or none to log files. "
-        "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
-    )
-    parser.add_argument(
-        "-o",
-        "--outputs",
-        type=str,
-        default="all",
-        choices=["all", "none", "stdout", "stderr"],
-        help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
-    )
-    parser.add_argument(
-        "-t",
-        "--record-types",
-        type=str,
-        default="all",
-        choices=["all", "system-summary", "processes-samples"],
-        help="Record system-summary, processes-samples, or all",
-    )
-    return parser.parse_args()
 
 
 class TailPipe:
@@ -375,7 +399,7 @@ def ensure_directories(path: str) -> None:
 
 
 def main():
-    args = create_and_parse_args()
+    args = Arguments.from_argv()
     execute(args)
 
 
