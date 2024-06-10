@@ -398,11 +398,11 @@ def execute(args):
     else:
         stderr_file = stderr
 
-    full_command = " ".join([str(args.command)] + args.inner_args)
+    full_command = " ".join([str(args.command)] + args.command_args)
     print(f"{Colors.OKCYAN}duct is executing {full_command}...")
     print(f"Log files will be written to {formatted_output_prefix}{Colors.ENDC}")
     process = subprocess.Popen(
-        [str(args.command)] + args.inner_args,
+        [str(args.command)] + args.command_args,
         stdout=stdout_file,
         stderr=stderr_file,
         preexec_fn=os.setsid,
@@ -414,7 +414,7 @@ def execute(args):
 
     report = Report(
         args.command,
-        args.inner_args,
+        args.command_args,
         session_id,
         formatted_output_prefix,
         process,

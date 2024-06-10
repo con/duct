@@ -16,7 +16,7 @@ def temp_output_dir(tmp_path):
 def test_sanity_green(temp_output_dir):
     args = argparse.Namespace(
         command="echo",
-        inner_args=["hello", "world"],
+        command_args=["hello", "world"],
         output_prefix=temp_output_dir,
         sample_interval=1.0,
         report_interval=60.0,
@@ -33,7 +33,7 @@ def test_sanity_green(temp_output_dir):
 def test_sanity_red(temp_output_dir):
     args = argparse.Namespace(
         command="false",
-        inner_args=[],
+        command_args=[],
         output_prefix=temp_output_dir,
         sample_interval=1.0,
         report_interval=60.0,
@@ -56,7 +56,7 @@ def test_sanity_red(temp_output_dir):
 def test_outputs_full(temp_output_dir):
     args = argparse.Namespace(
         command="./test_script.py",
-        inner_args=["--duration", "1"],
+        command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
@@ -72,7 +72,7 @@ def test_outputs_full(temp_output_dir):
 def test_outputs_passthrough(temp_output_dir):
     args = argparse.Namespace(
         command="./test_script.py",
-        inner_args=["--duration", "1"],
+        command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
@@ -90,7 +90,7 @@ def test_outputs_passthrough(temp_output_dir):
 def test_outputs_capture(temp_output_dir):
     args = argparse.Namespace(
         command="./test_script.py",
-        inner_args=["--duration", "1"],
+        command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
@@ -108,7 +108,7 @@ def test_outputs_capture(temp_output_dir):
 def test_outputs_none(temp_output_dir):
     args = argparse.Namespace(
         command="./test_script.py",
-        inner_args=["--duration", "1"],
+        command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
@@ -129,7 +129,7 @@ def test_outputs_none(temp_output_dir):
 def test_exit_before_first_sample(temp_output_dir):
     args = argparse.Namespace(
         command="ls",
-        inner_args=[],
+        command_args=[],
         output_prefix=temp_output_dir,
         sample_interval=0.1,
         report_interval=0.1,
@@ -147,7 +147,7 @@ def test_exit_before_first_sample(temp_output_dir):
 def test_run_less_than_report_interval(temp_output_dir):
     args = argparse.Namespace(
         command="sleep",
-        inner_args=["0.01"],
+        command_args=["0.01"],
         output_prefix=temp_output_dir,
         sample_interval=0.001,
         report_interval=0.1,
