@@ -32,12 +32,6 @@ repos:
       - id: codespell
   - repo: local
     hooks:
-      - id: update-readme
-        name: Update README with --help output
-        entry: ./.update-readme-help.py
-        language: system
-  - repo: local
-    hooks:
       - id: yamllint
         name: "YAML linting with yamllint"
         entry: yamllint

@@ -28,11 +28,6 @@ The project uses a number of automated checks to limit tedious work.  The
 checks will be run automatically prior to commit if `pre-commit
 <https://pre-commit.com>`_ is installed in your environment.
 
-Note: ``README.md`` is automatically updated to include the help text, but
-because argparse changed its output in Python 3.10+, CI enforces the 3.10+ help
-text.  Please either use 3.10+ or drop the "optional arguments" vs "options"
-diff.
-
 
 Testing
 -------
