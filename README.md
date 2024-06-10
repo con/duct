@@ -15,15 +15,15 @@ usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
             [--report-interval REPORT_INTERVAL] [-c {all,none,stdout,stderr}]
             [-o {all,none,stdout,stderr}]
             [-t {all,system-summary,processes-samples}]
-            command [inner_args ...] ...
+            command [command_args ...] ...
 
 Gathers metrics on a command and all its child processes.
 
 positional arguments:
-  command [inner_args ...]
+  command [command_args ...]
                         The command to execute, along with its inner
                         arguments.
-  inner_args            Arguments for the command.
+  command_args          Arguments for the command.
 
 options:
   -h, --help            show this help message and exit
