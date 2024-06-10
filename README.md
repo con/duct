@@ -56,19 +56,3 @@ options:
                         (default: all)
 <!--- END HELP -->
 ```
-
-## Testing:
-
-```shell
-❯ ./test_script.py --help
-test_script.py is a test script to consume CPU and memory.
-
-options:
-  -h, --help            show this help message and exit
-  --duration DURATION   Duration to run the test in seconds.
-  --cpu-load CPU_LOAD   Load factor to simulate CPU usage.
-  --memory-size MEMORY_SIZE
-                        Amount of memory to allocate in MB.
-
-duct --report-interval 4 ./test_script.py --duration 12 --cpu-load 50000 --memory-size 50
-```
