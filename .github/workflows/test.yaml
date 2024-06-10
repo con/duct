@@ -62,9 +62,6 @@ jobs:
           python -m pip install --upgrade pip wheel
           python -m pip install --upgrade --upgrade-strategy=eager tox
 
-      - name: Install `duct`
-        run: pip install .
-
       - name: Run tests
         run: tox -e py -- -vv --cov-report=xml
 
