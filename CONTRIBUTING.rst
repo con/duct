@@ -21,6 +21,20 @@ The following pull request labels are respected:
     * performance: Improve performance of an existing feature
 
 
+Precommit
+---------
+
+The project uses a number of automated checks to limit tedious work.
+The checks will be run automatically prior to commit if `pre-commit` is installed in your
+environment.
+
+`pip install pre-commit`
+
+Note: the README.md is automatically updated to include the helptext, but because argparse changed its
+output in python 3.10+, CI enforces the 3.10+ helptext.
+Please either use 3.10+ or drop the `optional arguments` vs `options` diff.
+
+
 Testing
 -------
 If you are contributing code, please consider adding a unit test.
