@@ -4,7 +4,11 @@
 
 ## Quickstart
 
+Try it out!
+
     duct --sample-interval 0.5 --report-interval 1 ./test/data/test_script.py --duration 3 --memory-size=1000
+
+`duct` is most useful when the report-interval is less than the duration of the script.
 
 ## Summary:
 
