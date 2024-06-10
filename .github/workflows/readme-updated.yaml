@@ -18,6 +18,7 @@ jobs:
     - name: Install duct
       run: |
         pip install .
+
     - name: Update README.md helptext
       run: |
         ./.update-readme-help.sh
