@@ -6,3 +6,4 @@ coverage.*
 .duct/
 .idea
 .tox/
+dist/
