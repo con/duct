@@ -14,10 +14,10 @@ Try it out!
 
 A process wrapper script that monitors the execution of a command.
 
+<!-- BEGIN HELP -->
 ```shell
-> duct --help
+>duct --help
 
-<!--- BEGIN HELP -->
 usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
             [--sample-interval SAMPLE_INTERVAL]
             [--report-interval REPORT_INTERVAL] [-c {all,none,stdout,stderr}]
@@ -62,5 +62,6 @@ options:
   -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
                         Record system-summary, processes-samples, or all
                         (default: all)
-<!--- END HELP -->
+
 ```
+<!-- END HELP -->
