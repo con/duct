@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-import shutil
 from unittest import mock
 import pytest
 from utils import assert_files
@@ -10,9 +9,10 @@ TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 
 
 @pytest.fixture
-def temp_output_dir(tmp_path):
-    yield str(tmp_path) + os.sep
-    shutil.rmtree(tmp_path)
+def temp_output_dir(tmp_path: Path) -> str:
+    # Append path separator so that value is recognized as a directory when
+    # passed to `output_prefix`
+    return str(tmp_path) + os.sep
 
 
 def test_sanity_green(temp_output_dir):
