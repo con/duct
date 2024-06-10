@@ -186,6 +186,7 @@ class Report:
                 "system": self.system_info,
                 "env": self.env,
                 "gpu": self.gpus,
+                "duct_version": __version__,
             }
         )
 
