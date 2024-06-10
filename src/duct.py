@@ -212,9 +212,16 @@ def create_and_parse_args():
         description="Gathers metrics on a command and all its child processes.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("command", help="The command to execute.")
     parser.add_argument(
-        "inner_args", nargs=argparse.REMAINDER, help="Arguments for the command."
+        "command",
+        metavar="command [command_args ...]",
+        help="The command to execute, along with its arguments.",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    parser.add_argument(
+        "command_args", nargs=argparse.REMAINDER, help="Arguments for the command."
     )
     parser.add_argument(
         "-p",

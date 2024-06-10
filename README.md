@@ -9,20 +9,24 @@ A process wrapper script that monitors the execution of a command.
 ```shell
 > duct --help
 
-usage: duct [-h] [-p OUTPUT_PREFIX] [--sample-interval SAMPLE_INTERVAL]
+<!--- BEGIN HELP -->
+usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
+            [--sample-interval SAMPLE_INTERVAL]
             [--report-interval REPORT_INTERVAL] [-c {all,none,stdout,stderr}]
             [-o {all,none,stdout,stderr}]
             [-t {all,system-summary,processes-samples}]
-            command [arguments ...]
+            command [command_args ...] ...
 
 Gathers metrics on a command and all its child processes.
 
 positional arguments:
-  command               The command to execute.
-  arguments             Arguments for the command. (default: None)
+  command [command_args ...]
+                        The command to execute, along with its arguments.
+  command_args          Arguments for the command.
 
 options:
   -h, --help            show this help message and exit
+  --version             show program's version number and exit
   -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
                         File string format to be used as a prefix for the
                         files -- the captured stdout and stderr and the
@@ -50,6 +54,7 @@ options:
   -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
                         Record system-summary, processes-samples, or all
                         (default: all)
+<!--- END HELP -->
 ```
 
 ## Testing:
