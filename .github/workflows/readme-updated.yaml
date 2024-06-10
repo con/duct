@@ -22,7 +22,7 @@ jobs:
 
       - name: Update README.md helptext
         run: |
-          ./.update-readme-help.sh
+          ./.update-readme-help.py
 
       - name: Ensure no diff
         run: |

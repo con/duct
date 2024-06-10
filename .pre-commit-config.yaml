@@ -34,7 +34,7 @@ repos:
     hooks:
       - id: update-readme
         name: Update README with --help output
-        entry: ./.update-readme-help.sh
+        entry: ./.update-readme-help.py
         language: system
   - repo: local
     hooks:
