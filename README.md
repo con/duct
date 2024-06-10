@@ -2,6 +2,10 @@
 
 [![codecov](https://codecov.io/gh/con/duct/graph/badge.svg?token=JrPazw0Vn4)](https://codecov.io/gh/con/duct)
 
+## Quickstart
+
+    duct --sample-interval 0.5 --report-interval 1 ./test/data/test_script.py --duration 3 --memory-size=1000
+
 ## Summary:
 
 A process wrapper script that monitors the execution of a command.
