@@ -1,11 +1,10 @@
-import argparse
 import os
 from pathlib import Path
 import shutil
 from unittest import mock
 import pytest
 from utils import assert_files
-from duct import execute
+from duct import Arguments, execute
 
 TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 
@@ -17,7 +16,7 @@ def temp_output_dir(tmp_path):
 
 
 def test_sanity_green(temp_output_dir):
-    args = argparse.Namespace(
+    args = Arguments(
         command="echo",
         command_args=["hello", "world"],
         output_prefix=temp_output_dir,
@@ -34,7 +33,7 @@ def test_sanity_green(temp_output_dir):
 
 
 def test_sanity_red(temp_output_dir):
-    args = argparse.Namespace(
+    args = Arguments(
         command="false",
         command_args=[],
         output_prefix=temp_output_dir,
@@ -57,7 +56,7 @@ def test_sanity_red(temp_output_dir):
 
 
 def test_outputs_full(temp_output_dir):
-    args = argparse.Namespace(
+    args = Arguments(
         command=TEST_SCRIPT,
         command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
@@ -73,7 +72,7 @@ def test_outputs_full(temp_output_dir):
 
 
 def test_outputs_passthrough(temp_output_dir):
-    args = argparse.Namespace(
+    args = Arguments(
         command=TEST_SCRIPT,
         command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
@@ -91,7 +90,7 @@ def test_outputs_passthrough(temp_output_dir):
 
 
 def test_outputs_capture(temp_output_dir):
-    args = argparse.Namespace(
+    args = Arguments(
         command=TEST_SCRIPT,
         command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
@@ -109,7 +108,7 @@ def test_outputs_capture(temp_output_dir):
 
 
 def test_outputs_none(temp_output_dir):
-    args = argparse.Namespace(
+    args = Arguments(
         command=TEST_SCRIPT,
         command_args=["--duration", "1"],
         output_prefix=temp_output_dir,
@@ -130,7 +129,7 @@ def test_outputs_none(temp_output_dir):
 
 
 def test_exit_before_first_sample(temp_output_dir):
-    args = argparse.Namespace(
+    args = Arguments(
         command="ls",
         command_args=[],
         output_prefix=temp_output_dir,
@@ -148,7 +147,7 @@ def test_exit_before_first_sample(temp_output_dir):
 
 
 def test_run_less_than_report_interval(temp_output_dir):
-    args = argparse.Namespace(
+    args = Arguments(
         command="sleep",
         command_args=["0.01"],
         output_prefix=temp_output_dir,
