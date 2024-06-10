@@ -1,23 +1,24 @@
+---
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 exclude: (profilers|sandbox|\.chatgpt)
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
-    -   id: trailing-whitespace
-    -   id: end-of-file-fixer
-    -   id: check-yaml
-    -   id: check-added-large-files
--   repo: https://github.com/psf/black
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: https://github.com/psf/black
     rev: 23.1.0
     hooks:
-    -   id: black
--   repo: https://github.com/PyCQA/isort
+      - id: black
+  - repo: https://github.com/PyCQA/isort
     rev: 5.12.0
     hooks:
-    -   id: isort
--   repo: https://github.com/PyCQA/flake8
+      - id: isort
+  - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
       - id: flake8
@@ -25,13 +26,21 @@ repos:
           - flake8-bugbear
           - flake8-builtins
           - flake8-unused-arguments
-- repo: https://github.com/codespell-project/codespell
-  rev: v2.2.6
-  hooks:
-  - id: codespell
-- repo: local
-  hooks:
-    - id: update-readme
-      name: Update README with --help output
-      entry: ./.update-readme-help.sh
-      language: system
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+      - id: codespell
+  - repo: local
+    hooks:
+      - id: update-readme
+        name: Update README with --help output
+        entry: ./.update-readme-help.sh
+        language: system
+  - repo: local
+    hooks:
+      - id: yamllint
+        name: "YAML linting with yamllint"
+        entry: yamllint
+        language: system
+        types: [yaml]
+        args: ["."]
