@@ -1,17 +1,6 @@
-import os
 from unittest import mock
 import pytest
 from duct import ensure_directories
-
-
-def ensure_directoiries(path: str) -> None:
-    if path.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
-        os.makedirs(path, exist_ok=True)
-    else:
-        # Path does not end with a separator, treat the last part as a filename
-        directory = os.path.dirname(path)
-        if directory:  # If there's a directory part, create it
-            os.makedirs(directory, exist_ok=True)
 
 
 @pytest.mark.parametrize(
