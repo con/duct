@@ -21,8 +21,7 @@ Gathers metrics on a command and all its child processes.
 
 positional arguments:
   command [command_args ...]
-                        The command to execute, along with its inner
-                        arguments.
+                        The command to execute, along with its arguments.
   command_args          Arguments for the command.
 
 options:
