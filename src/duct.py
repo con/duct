@@ -182,10 +182,10 @@ class Report:
     def __repr__(self):
         return json.dumps(
             {
-                "Command": self.command,
-                "System": self.system_info,
-                "ENV": self.env,
-                "GPU": self.gpus,
+                "command": self.command,
+                "system": self.system_info,
+                "env": self.env,
+                "gpu": self.gpus,
             }
         )
 
