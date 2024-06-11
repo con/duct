@@ -105,7 +105,6 @@ class Report:
                     for gpu in gpu_info[1:]
                 ]
             except subprocess.CalledProcessError:
-                # self.gpus = ["Failed to query GPU info"]
                 self.gpus = None
 
     def calculate_total_usage(
