@@ -1,5 +1,5 @@
 from __future__ import annotations
-from duct import ProcessStats, Sample
+from duct.__main__ import ProcessStats, Sample
 
 stat0 = ProcessStats(
     pcpu=0.0, pmem=0, rss=0, vsz=0, timestamp="2024-06-11T10:09:37-04:00"

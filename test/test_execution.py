@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest import mock
 import pytest
 from utils import assert_files
-from duct import Arguments, Outputs, RecordTypes, execute
+from duct.__main__ import Arguments, Outputs, RecordTypes, execute
 
 TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 

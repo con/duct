@@ -14,8 +14,8 @@ import sys
 import threading
 import time
 from typing import IO, Any, TextIO
+from . import __version__
 
-__version__ = "0.0.1"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 
 

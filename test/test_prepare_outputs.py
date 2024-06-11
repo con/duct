@@ -2,13 +2,13 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, call, patch
 from utils import MockStream
-from duct import Outputs, prepare_outputs
+from duct.__main__ import Outputs, prepare_outputs
 
 
 @patch("sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_all_stdout(mock_stdout: MockStream) -> None:
     output_prefix = "test_outputs_"
-    with patch("duct.TailPipe") as mock_tee_stream, patch(
+    with patch("duct.__main__.TailPipe") as mock_tee_stream, patch(
         "builtins.open", new_callable=MagicMock
     ) as mock_open:
         mock_tee_stream.return_value.start = MagicMock()
@@ -23,7 +23,7 @@ def test_prepare_outputs_all_stdout(mock_stdout: MockStream) -> None:
 @patch("sys.stderr", new_callable=MockStream)
 def test_prepare_outputs_all_stderr(mock_stderr: MockStream) -> None:
     output_prefix = "test_outputs_"
-    with patch("duct.TailPipe") as mock_tee_stream, patch(
+    with patch("duct.__main__.TailPipe") as mock_tee_stream, patch(
         "builtins.open", new_callable=MagicMock
     ) as mock_open:
         mock_tee_stream.return_value.start = MagicMock()
@@ -68,7 +68,7 @@ def test_prepare_outputs_all_all(
     mock_stdout: MockStream, mock_stderr: MockStream
 ) -> None:
     output_prefix = "test_outputs_"
-    with patch("duct.TailPipe") as mock_tee_stream:
+    with patch("duct.__main__.TailPipe") as mock_tee_stream:
         mock_tee_stream.return_value.start = MagicMock()
         stdout, stderr = prepare_outputs(Outputs.ALL, Outputs.ALL, output_prefix)
         assert stdout == mock_tee_stream.return_value
