@@ -179,7 +179,7 @@ class Report:
             f"CPU Peak Usage: {self.max_values.get('totals', {}).get('pcpu', 'unknown')}%"
         )
 
-    def __repr__(self) -> str:
+    def dump_json(self) -> str:
         return json.dumps(
             {
                 "command": self.command,
@@ -482,7 +482,7 @@ def execute(args: Arguments) -> None:
             report.end_time = time.time()
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
-            system_logs.write(str(report))
+            system_logs.write(report.dump_json())
 
     process.wait()
     stop_event.set()
