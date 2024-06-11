@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from pathlib import Path
 from unittest import mock
@@ -15,7 +16,7 @@ def temp_output_dir(tmp_path: Path) -> str:
     return str(tmp_path) + os.sep
 
 
-def test_sanity_green(temp_output_dir):
+def test_sanity_green(temp_output_dir: str) -> None:
     args = Arguments(
         command="echo",
         command_args=["hello", "world"],
@@ -32,7 +33,7 @@ def test_sanity_green(temp_output_dir):
     assert_files(temp_output_dir, expected_files, exists=True)
 
 
-def test_sanity_red(temp_output_dir):
+def test_sanity_red(temp_output_dir: str) -> None:
     args = Arguments(
         command="false",
         command_args=[],
@@ -55,7 +56,7 @@ def test_sanity_red(temp_output_dir):
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
-def test_outputs_full(temp_output_dir):
+def test_outputs_full(temp_output_dir: str) -> None:
     args = Arguments(
         command=TEST_SCRIPT,
         command_args=["--duration", "1"],
@@ -71,7 +72,7 @@ def test_outputs_full(temp_output_dir):
     assert_files(temp_output_dir, expected_files, exists=True)
 
 
-def test_outputs_passthrough(temp_output_dir):
+def test_outputs_passthrough(temp_output_dir: str) -> None:
     args = Arguments(
         command=TEST_SCRIPT,
         command_args=["--duration", "1"],
@@ -89,7 +90,7 @@ def test_outputs_passthrough(temp_output_dir):
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
-def test_outputs_capture(temp_output_dir):
+def test_outputs_capture(temp_output_dir: str) -> None:
     args = Arguments(
         command=TEST_SCRIPT,
         command_args=["--duration", "1"],
@@ -107,7 +108,7 @@ def test_outputs_capture(temp_output_dir):
     assert_files(temp_output_dir, expected_files, exists=True)
 
 
-def test_outputs_none(temp_output_dir):
+def test_outputs_none(temp_output_dir: str) -> None:
     args = Arguments(
         command=TEST_SCRIPT,
         command_args=["--duration", "1"],
@@ -128,7 +129,7 @@ def test_outputs_none(temp_output_dir):
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
-def test_exit_before_first_sample(temp_output_dir):
+def test_exit_before_first_sample(temp_output_dir: str) -> None:
     args = Arguments(
         command="ls",
         command_args=[],
@@ -146,7 +147,7 @@ def test_exit_before_first_sample(temp_output_dir):
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
-def test_run_less_than_report_interval(temp_output_dir):
+def test_run_less_than_report_interval(temp_output_dir: str) -> None:
     args = Arguments(
         command="sleep",
         command_args=["0.01"],

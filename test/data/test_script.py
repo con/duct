@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-
+from __future__ import annotations
 import argparse
 import sys
 import time
 
 
-def consume_cpu(duration, load):
+def consume_cpu(duration: int, load: int) -> None:
     """Function to consume CPU proportional to 'load' for 'duration' seconds"""
     end_time = time.time() + duration
     while time.time() < end_time:
@@ -13,14 +13,14 @@ def consume_cpu(duration, load):
             pass  # Busy-wait
 
 
-def consume_memory(size):
+def consume_memory(size: int) -> bytearray:
     """Function to consume amount of memory specified by 'size' in megabytes"""
     # Create a list of size MB
     bytes_in_mb = 1024 * 1024
     return bytearray(size * bytes_in_mb)
 
 
-def main(duration, cpu_load, memory_size):
+def main(duration: int, cpu_load: int, memory_size: int) -> None:
     print("this is of test of STDOUT")
     print("this is of test of STDERR", file=sys.stderr)
     _mem_hold = consume_memory(memory_size)  # noqa
@@ -46,6 +46,5 @@ if __name__ == "__main__":
         default=10,
         help="Amount of memory to allocate in MB.",
     )
-
     args = parser.parse_args()
     main(args.duration, args.cpu_load, args.memory_size)
