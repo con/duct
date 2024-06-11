@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse
-from collections import defaultdict
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 import json
 import os
@@ -38,6 +37,59 @@ class SystemInfo:
     cpu_total: int
 
 
+@dataclass
+class ProcessStats:
+    # %CPU
+    pcpu: float
+    # %MEM
+    pmem: float
+    # Memory Resident Set Size
+    rss: int
+    # Virtual Memory size
+    vsz: int
+    timestamp: str
+
+    def max(self, other: ProcessStats) -> ProcessStats:
+        return ProcessStats(
+            pcpu=max(self.pcpu, other.pcpu),
+            pmem=max(self.pmem, other.pmem),
+            rss=max(self.rss, other.rss),
+            vsz=max(self.vsz, other.vsz),
+            timestamp=max(self.timestamp, other.timestamp),
+        )
+
+
+@dataclass
+class Sample:
+    stats: dict[int, ProcessStats] = field(default_factory=dict)
+    total_pmem: float = 0.0
+    total_pcpu: float = 0.0
+
+    def add(self, pid: int, stats: ProcessStats) -> None:
+        self.total_pmem += stats.pmem
+        self.total_pcpu += stats.pcpu
+        self.stats[pid] = stats
+
+    def max(self: Sample, other: Sample) -> Sample:
+        output = Sample()
+        for pid in self.stats.keys() | other.stats.keys():
+            if (mine := self.stats.get(pid)) is not None:
+                if (theirs := other.stats.get(pid)) is not None:
+                    output.add(pid, mine.max(theirs))
+                else:
+                    output.add(pid, mine)
+            else:
+                output.add(pid, other.stats[pid])
+        output.total_pmem = max(self.total_pmem, other.total_pmem)
+        output.total_pcpu = max(self.total_pcpu, other.total_pcpu)
+        return output
+
+    def for_json(self) -> dict[str, Any]:
+        d = {str(pid): asdict(stats) for pid, stats in self.stats.items()}
+        d["totals"] = {"pmem": self.total_pmem, "pcpu": self.total_pcpu}
+        return d
+
+
 class Report:
     """Top level report"""
 
@@ -59,9 +111,9 @@ class Report:
         self.number = 0
         self.system_info: SystemInfo | None = None
         self.output_prefix = output_prefix
-        self.max_values: dict[str, dict[str, Any]] = defaultdict(dict)
+        self.max_values = Sample()
         self.process = process
-        self._sample: dict[str, dict[str, Any]] = defaultdict(dict)
+        self._sample: Sample | None = None
         self.datetime_filesafe = datetime_filesafe
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
@@ -107,31 +159,9 @@ class Report:
             except subprocess.CalledProcessError:
                 self.gpus = None
 
-    def calculate_total_usage(
-        self, sample: dict[str, dict[str, Any]]
-    ) -> dict[str, dict[str, float]]:
-        pmem = 0.0
-        pcpu = 0.0
-        for _pid, pinfo in sample.items():
-            pmem += pinfo["pmem"]
-            pcpu += pinfo["pcpu"]
-        totals = {"totals": {"pmem": pmem, "pcpu": pcpu}}
-        return totals
-
-    @staticmethod
-    def update_max_resources(
-        maxes: dict[str, dict[str, Any]], sample: dict[str, dict[str, Any]]
-    ) -> None:
-        for pid in sample:
-            if pid in maxes:
-                for key, value in sample[pid].items():
-                    maxes[pid][key] = max(maxes[pid].get(key, value), value)
-            else:
-                maxes[pid] = sample[pid].copy()
-
-    def collect_sample(self) -> dict[str, dict[str, int | float | str]]:
+    def collect_sample(self) -> Sample:
         assert self.session_id is not None
-        process_data: dict[str, dict[str, int | float | str]] = {}
+        sample = Sample()
         try:
             output = subprocess.check_output(
                 [
@@ -146,29 +176,29 @@ class Report:
             for line in output.splitlines()[1:]:
                 if line:
                     pid, pcpu, pmem, rss, vsz, etime, cmd = line.split(maxsplit=6)
-                    process_data[pid] = {
-                        # %CPU
-                        "pcpu": float(pcpu),
-                        # %MEM
-                        "pmem": float(pmem),
-                        # Memory Resident Set Size
-                        "rss": int(rss),
-                        # Virtual Memory size
-                        "vsz": int(vsz),
-                        "timestamp": datetime.now().astimezone().isoformat(),
-                    }
+                    sample.add(
+                        int(pid),
+                        ProcessStats(
+                            pcpu=float(pcpu),
+                            pmem=float(pmem),
+                            rss=int(rss),
+                            vsz=int(vsz),
+                            timestamp=datetime.now().astimezone().isoformat(),
+                        ),
+                    )
         except subprocess.CalledProcessError:
             pass
-        return process_data
+        return sample
 
     def write_pid_samples(self) -> None:
+        assert self._sample is not None
         resource_stats_log_path = f"{self.output_prefix}usage.json"
         with open(resource_stats_log_path, "a") as resource_statistics_log:
-            resource_statistics_log.write(json.dumps(self._sample) + "\n")
+            resource_statistics_log.write(json.dumps(self._sample.for_json()) + "\n")
 
     def print_max_values(self) -> None:
-        for pid, maxes in self.max_values.items():
-            print(f"PID {pid} Maximum Values: {maxes}")
+        for pid, maxes in self.max_values.stats.items():
+            print(f"PID {pid} Maximum Values: {asdict(maxes)}")
 
     def finalize(self) -> None:
         if not self.process.returncode:
@@ -180,10 +210,12 @@ class Report:
         print(f"Log files location: {self.output_prefix}")
         print(f"Wall Clock Time: {self.elapsed_time:.3f} sec")
         print(
-            f"Memory Peak Usage: {self.max_values.get('totals', {}).get('pmem', 'unknown')}%"
+            "Memory Peak Usage:",
+            f"{self.max_values.total_pmem}%" if self.max_values.stats else "unknown%",
         )
         print(
-            f"CPU Peak Usage: {self.max_values.get('totals', {}).get('pcpu', 'unknown')}%"
+            "CPU Peak Usage:",
+            f"{self.max_values.total_pcpu}%" if self.max_values.stats else "unknown%",
         )
 
     def dump_json(self) -> str:
@@ -308,13 +340,13 @@ def monitor_process(
                 break
             # print(f"Resource stats log path: {resource_stats_log_path}")
             sample = report.collect_sample()
-            totals = report.calculate_total_usage(sample)
-            report.update_max_resources(sample, totals)
-            report.update_max_resources(report._sample, sample)
+            report._sample = (
+                report._sample.max(sample) if report._sample is not None else sample
+            )
             if report.elapsed_time >= report.number * report_interval:
                 report.write_pid_samples()
-                report.update_max_resources(report.max_values, report._sample)
-                report._sample = defaultdict(dict)  # Reset sample
+                report.max_values = report.max_values.max(report._sample)
+                report._sample = None  # Reset sample
                 report.number += 1
 
 
@@ -499,8 +531,8 @@ def execute(args: Arguments) -> None:
         monitoring_thread.join()
 
     # If we have any extra samples that haven't been written yet, do it now
-    if report._sample:
-        report.update_max_resources(report.max_values, report._sample)
+    if report._sample is not None:
+        report.max_values = report.max_values.max(report._sample)
         report.write_pid_samples()
     report.process = process
     report.finalize()
