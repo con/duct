@@ -4,6 +4,7 @@ import argparse
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from enum import Enum
 import json
 import os
 from pathlib import Path
@@ -28,6 +29,22 @@ class Colors:
     ENDC = "\033[0m"  # Reset to default color
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
+
+
+class Outputs(str, Enum):
+    ALL = "all"
+    NONE = "none"
+    STDOUT = "stdout"
+    STDERR = "stderr"
+
+    def __str__(self) -> str:
+        return self.value
+
+    def has_stdout(self) -> bool:
+        return self is Outputs.ALL or self is Outputs.STDOUT
+
+    def has_stderr(self) -> bool:
+        return self is Outputs.ALL or self is Outputs.STDERR
 
 
 @dataclass
@@ -239,8 +256,8 @@ class Arguments:
     output_prefix: str
     sample_interval: float
     report_interval: float
-    capture_outputs: str
-    outputs: str
+    capture_outputs: Outputs
+    outputs: Outputs
     record_types: str
 
     @classmethod
@@ -292,18 +309,18 @@ class Arguments:
         parser.add_argument(
             "-c",
             "--capture-outputs",
-            type=str,
             default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
-            choices=["all", "none", "stdout", "stderr"],
+            choices=list(Outputs),
+            type=Outputs,
             help="Record stdout, stderr, all, or none to log files. "
             "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
         )
         parser.add_argument(
             "-o",
             "--outputs",
-            type=str,
             default="all",
-            choices=["all", "none", "stdout", "stderr"],
+            choices=list(Outputs),
+            type=Outputs,
             help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
         )
         parser.add_argument(
@@ -403,29 +420,31 @@ class TailPipe:
 
 
 def prepare_outputs(
-    capture_outputs: str, outputs: str, output_prefix: str
+    capture_outputs: Outputs, outputs: Outputs, output_prefix: str
 ) -> tuple[TextIO | TailPipe | int | None, TextIO | TailPipe | int | None]:
     stdout: TextIO | TailPipe | int | None
     stderr: TextIO | TailPipe | int | None
 
-    if capture_outputs in ["all", "stdout"] and outputs in ["all", "stdout"]:
-        stdout = TailPipe(f"{output_prefix}stdout", buffer=sys.stdout.buffer)
-        stdout.start()
-    elif capture_outputs in ["all", "stdout"] and outputs in ["none", "stderr"]:
-        stdout = open(f"{output_prefix}stdout", "w")
-    elif capture_outputs in ["none", "stderr"] and outputs in ["all", "stdout"]:
+    if capture_outputs.has_stdout():
+        if outputs.has_stdout():
+            stdout = TailPipe(f"{output_prefix}stdout", buffer=sys.stdout.buffer)
+            stdout.start()
+        else:
+            stdout = open(f"{output_prefix}stdout", "w")
+    elif outputs.has_stdout():
         stdout = None
-    elif capture_outputs in ["none", "stderr"] and outputs in ["none", "stderr"]:
+    else:
         stdout = subprocess.DEVNULL
 
-    if capture_outputs in ["all", "stderr"] and outputs in ["all", "stderr"]:
-        stderr = TailPipe(f"{output_prefix}stderr", buffer=sys.stderr.buffer)
-        stderr.start()
-    elif capture_outputs in ["all", "stderr"] and outputs in ["none", "stdout"]:
-        stderr = open(f"{output_prefix}stderr", "w")
-    elif capture_outputs in ["none", "stdout"] and outputs in ["all", "stderr"]:
+    if capture_outputs.has_stderr():
+        if outputs.has_stderr():
+            stderr = TailPipe(f"{output_prefix}stderr", buffer=sys.stderr.buffer)
+            stderr.start()
+        else:
+            stderr = open(f"{output_prefix}stderr", "w")
+    elif outputs.has_stderr():
         stderr = None
-    elif capture_outputs in ["none", "stdout"] and outputs in ["none", "stdout"]:
+    else:
         stderr = subprocess.DEVNULL
     return stdout, stderr
 
