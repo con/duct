@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from collections import defaultdict
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 import json
 import os
@@ -31,6 +31,13 @@ class Colors:
     UNDERLINE = "\033[4m"
 
 
+@dataclass
+class SystemInfo:
+    uid: str | None
+    memory_total: int
+    cpu_total: int
+
+
 class Report:
     """Top level report"""
 
@@ -47,10 +54,10 @@ class Report:
         self._command = command
         self.arguments = arguments
         self.session_id = session_id
-        self.gpus: list | None = []
+        self.gpus: list[dict[str, str]] | None = None
         self.env: dict[str, str] | None = None
         self.number = 0
-        self.system_info: dict[str, Any] = {}  # Use more specific types if possible
+        self.system_info: SystemInfo | None = None
         self.output_prefix = output_prefix
         self.max_values: dict[str, dict[str, Any]] = defaultdict(dict)
         self.process = process
@@ -72,12 +79,12 @@ class Report:
 
     def get_system_info(self) -> None:
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
-        self.system_info["uid"] = os.environ.get("USER")
-        self.system_info["memory_total"] = os.sysconf("SC_PAGE_SIZE") * os.sysconf(
-            "SC_PHYS_PAGES"
+        uid = os.environ.get("USER")
+        memory_total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+        cpu_total = os.sysconf("SC_NPROCESSORS_CONF")
+        self.system_info = SystemInfo(
+            uid=uid, memory_total=memory_total, cpu_total=cpu_total
         )
-        self.system_info["cpu_total"] = os.sysconf("SC_NPROCESSORS_CONF")
-
         # GPU information
         if shutil.which("nvidia-smi"):
             try:
@@ -98,7 +105,8 @@ class Report:
                     for gpu in gpu_info[1:]
                 ]
             except subprocess.CalledProcessError:
-                self.gpus = ["Failed to query GPU info"]
+                # self.gpus = ["Failed to query GPU info"]
+                self.gpus = None
 
     def calculate_total_usage(
         self, sample: dict[str, dict[str, Any]]
@@ -183,7 +191,9 @@ class Report:
         return json.dumps(
             {
                 "command": self.command,
-                "system": self.system_info,
+                "system": (
+                    None if self.system_info is None else asdict(self.system_info)
+                ),
                 "env": self.env,
                 "gpu": self.gpus,
                 "duct_version": __version__,
