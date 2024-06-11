@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest import mock
 import pytest
 from utils import assert_files
-from duct import Arguments, Outputs, execute
+from duct import Arguments, Outputs, RecordTypes, execute
 
 TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 
@@ -25,7 +25,7 @@ def test_sanity_green(temp_output_dir: str) -> None:
         report_interval=60.0,
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
-        record_types="all",
+        record_types=RecordTypes.ALL,
     )
     execute(args)
     # When runtime < sample_interval, we won't have a usage.json
@@ -42,7 +42,7 @@ def test_sanity_red(temp_output_dir: str) -> None:
         report_interval=60.0,
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
-        record_types="all",
+        record_types=RecordTypes.ALL,
     )
     with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
         execute(args)
@@ -65,7 +65,7 @@ def test_outputs_full(temp_output_dir: str) -> None:
         report_interval=0.1,
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
-        record_types="all",
+        record_types=RecordTypes.ALL,
     )
     execute(args)
     expected_files = ["stdout", "stderr", "info.json", "usage.json"]
@@ -81,7 +81,7 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
         report_interval=0.1,
         capture_outputs=Outputs.NONE,
         outputs=Outputs.ALL,
-        record_types="all",
+        record_types=RecordTypes.ALL,
     )
     execute(args)
     expected_files = ["info.json", "usage.json"]
@@ -99,7 +99,7 @@ def test_outputs_capture(temp_output_dir: str) -> None:
         report_interval=0.1,
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
-        record_types="all",
+        record_types=RecordTypes.ALL,
     )
     execute(args)
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -117,7 +117,7 @@ def test_outputs_none(temp_output_dir: str) -> None:
         report_interval=0.1,
         capture_outputs=Outputs.NONE,
         outputs=Outputs.NONE,
-        record_types="all",
+        record_types=RecordTypes.ALL,
     )
     execute(args)
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -138,7 +138,7 @@ def test_exit_before_first_sample(temp_output_dir: str) -> None:
         report_interval=0.1,
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
-        record_types="all",
+        record_types=RecordTypes.ALL,
     )
     execute(args)
     expected_files = ["stdout", "stderr", "info.json"]
@@ -156,7 +156,7 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
         report_interval=0.1,
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
-        record_types="all",
+        record_types=RecordTypes.ALL,
     )
     execute(args)
     # Specifically we need to assert that usage.json gets written anyway.
