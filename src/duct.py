@@ -113,7 +113,7 @@ class Report:
 
     @staticmethod
     def update_max_resources(
-        maxes: dict[str, dict[str, Any]], sample: dict[str, Any]
+        maxes: dict[str, dict[str, Any]], sample: dict[str, dict[str, Any]]
     ) -> None:
         for pid in sample:
             if pid in maxes:
