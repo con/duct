@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections import defaultdict
 from duct import Report
 
@@ -7,27 +8,27 @@ ex2 = {"pid2": {"pcpu": 1.0}}
 ex2pids = {"pid1": {"pcpu": 0.0}, "pid2": {"pcpu": 0.0}}
 
 
-def test_update_max_resources_initial_values_one_pid():
-    maxes = defaultdict(dict)
+def test_update_max_resources_initial_values_one_pid() -> None:
+    maxes: dict[str, dict[str, float]] = defaultdict(dict)
     Report.update_max_resources(maxes, ex0)
     assert maxes == ex0
 
 
-def test_update_max_resources_max_values_one_pid():
-    maxes = defaultdict(dict)
+def test_update_max_resources_max_values_one_pid() -> None:
+    maxes: dict[str, dict[str, float]] = defaultdict(dict)
     Report.update_max_resources(maxes, ex0)
     Report.update_max_resources(maxes, ex1)
     assert maxes == ex1
 
 
-def test_update_max_resources_initial_values_two_pids():
-    maxes = defaultdict(dict)
+def test_update_max_resources_initial_values_two_pids() -> None:
+    maxes: dict[str, dict[str, float]] = defaultdict(dict)
     Report.update_max_resources(maxes, ex2pids)
     assert maxes == ex2pids
 
 
-def test_update_max_resources_max_update_values_two_pids():
-    maxes = defaultdict(dict)
+def test_update_max_resources_max_update_values_two_pids() -> None:
+    maxes: dict[str, dict[str, float]] = defaultdict(dict)
     Report.update_max_resources(maxes, ex2pids)
     Report.update_max_resources(maxes, ex1)
     Report.update_max_resources(maxes, ex2)

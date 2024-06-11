@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 import argparse
 import sys
+from typing import IO
 
 
-def cat_to_stream(path, buffer):
+def cat_to_stream(path: str, buffer: IO[bytes]) -> None:
     with open(path, "rb") as infile:
         buffer.write(infile.read())
 
