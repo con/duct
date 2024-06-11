@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest import mock
 import pytest
 from utils import assert_files
-from duct import Arguments, execute
+from duct import Arguments, Outputs, execute
 
 TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 
@@ -23,8 +23,8 @@ def test_sanity_green(temp_output_dir: str) -> None:
         output_prefix=temp_output_dir,
         sample_interval=1.0,
         report_interval=60.0,
-        capture_outputs="all",
-        outputs="all",
+        capture_outputs=Outputs.ALL,
+        outputs=Outputs.ALL,
         record_types="all",
     )
     execute(args)
@@ -40,8 +40,8 @@ def test_sanity_red(temp_output_dir: str) -> None:
         output_prefix=temp_output_dir,
         sample_interval=1.0,
         report_interval=60.0,
-        capture_outputs="all",
-        outputs="all",
+        capture_outputs=Outputs.ALL,
+        outputs=Outputs.ALL,
         record_types="all",
     )
     with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
@@ -63,8 +63,8 @@ def test_outputs_full(temp_output_dir: str) -> None:
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
-        capture_outputs="all",
-        outputs="all",
+        capture_outputs=Outputs.ALL,
+        outputs=Outputs.ALL,
         record_types="all",
     )
     execute(args)
@@ -79,8 +79,8 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
-        capture_outputs="none",
-        outputs="all",
+        capture_outputs=Outputs.NONE,
+        outputs=Outputs.ALL,
         record_types="all",
     )
     execute(args)
@@ -97,8 +97,8 @@ def test_outputs_capture(temp_output_dir: str) -> None:
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
-        capture_outputs="all",
-        outputs="none",
+        capture_outputs=Outputs.ALL,
+        outputs=Outputs.NONE,
         record_types="all",
     )
     execute(args)
@@ -115,8 +115,8 @@ def test_outputs_none(temp_output_dir: str) -> None:
         output_prefix=temp_output_dir,
         sample_interval=0.01,
         report_interval=0.1,
-        capture_outputs="none",
-        outputs="none",
+        capture_outputs=Outputs.NONE,
+        outputs=Outputs.NONE,
         record_types="all",
     )
     execute(args)
@@ -136,8 +136,8 @@ def test_exit_before_first_sample(temp_output_dir: str) -> None:
         output_prefix=temp_output_dir,
         sample_interval=0.1,
         report_interval=0.1,
-        capture_outputs="all",
-        outputs="none",
+        capture_outputs=Outputs.ALL,
+        outputs=Outputs.NONE,
         record_types="all",
     )
     execute(args)
@@ -154,8 +154,8 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
         output_prefix=temp_output_dir,
         sample_interval=0.001,
         report_interval=0.1,
-        capture_outputs="all",
-        outputs="none",
+        capture_outputs=Outputs.ALL,
+        outputs=Outputs.NONE,
         record_types="all",
     )
     execute(args)
