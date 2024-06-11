@@ -47,6 +47,21 @@ class Outputs(str, Enum):
         return self is Outputs.ALL or self is Outputs.STDERR
 
 
+class RecordTypes(str, Enum):
+    ALL = "all"
+    SYSTEM_SUMMARY = "system-summary"
+    PROCESSES_SAMPLES = "processes-samples"
+
+    def __str__(self) -> str:
+        return self.value
+
+    def has_system_summary(self) -> bool:
+        return self is RecordTypes.ALL or self is RecordTypes.SYSTEM_SUMMARY
+
+    def has_processes_samples(self) -> bool:
+        return self is RecordTypes.ALL or self is RecordTypes.PROCESSES_SAMPLES
+
+
 @dataclass
 class SystemInfo:
     uid: str | None
@@ -258,7 +273,7 @@ class Arguments:
     report_interval: float
     capture_outputs: Outputs
     outputs: Outputs
-    record_types: str
+    record_types: RecordTypes
 
     @classmethod
     def from_argv(cls) -> Arguments:
@@ -326,9 +341,9 @@ class Arguments:
         parser.add_argument(
             "-t",
             "--record-types",
-            type=str,
             default="all",
-            choices=["all", "system-summary", "processes-samples"],
+            choices=list(RecordTypes),
+            type=RecordTypes,
             help="Record system-summary, processes-samples, or all",
         )
         args = parser.parse_args()
@@ -517,7 +532,7 @@ def execute(args: Arguments) -> None:
         datetime_filesafe,
     )
     stop_event = threading.Event()
-    if args.record_types in ["all", "processes-samples"]:
+    if args.record_types.has_processes_samples():
         monitoring_args = [
             report,
             process,
@@ -532,7 +547,7 @@ def execute(args: Arguments) -> None:
     else:
         monitoring_thread = None
 
-    if args.record_types in ["all", "system-summary"]:
+    if args.record_types.has_system_summary():
         report.collect_environment()
         report.get_system_info()
         system_info_path = f"{args.output_prefix}info.json".format(
