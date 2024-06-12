@@ -229,7 +229,7 @@ class Report:
     def write_pid_samples(self) -> None:
         assert self._sample is not None
         # First time only
-        if not self._resource_stats_log_path:
+        if self._resource_stats_log_path is None:
             self._resource_stats_log_path = f"{self.output_prefix}usage.json"
             clobber_or_clear(self._resource_stats_log_path, self.clobber)
 
