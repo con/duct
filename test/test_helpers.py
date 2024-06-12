@@ -19,6 +19,29 @@ def test_ensure_directories_with_dirs(mock_mkdir: mock.MagicMock, path: str) -> 
 
 
 @mock.patch("duct.__main__.os.makedirs")
+@mock.patch("duct.__main__.glob.glob")
+def test_ensure_directories_with_conflicts(
+    mock_glob: mock.MagicMock, mock_mkdir: mock.MagicMock
+) -> None:
+    mock_path = "mock_path"
+    mock_glob.return_value = ["possibly", "conflicting", "files"]
+    with pytest.raises(FileExistsError):
+        ensure_directories(mock_path, clobber=False)
+    mock_mkdir.assert_not_called()
+
+
+@mock.patch("duct.__main__.os.makedirs")
+@mock.patch("duct.__main__.glob.glob")
+def test_ensure_directories_with_conflicts_clobber(
+    mock_glob: mock.MagicMock, mock_mkdir: mock.MagicMock
+) -> None:
+    mock_path = "mock_dir/path"
+    mock_glob.return_value = ["possibly", "conflicting", "files"]
+    ensure_directories(mock_path, clobber=True)
+    mock_mkdir.assert_called_once_with("mock_dir", exist_ok=True)
+
+
+@mock.patch("duct.__main__.os.makedirs")
 def test_ensure_directories_with_file(mock_mkdir: mock.MagicMock) -> None:
     ensure_directories("just_a_file_name")
     mock_mkdir.assert_not_called()
