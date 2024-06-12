@@ -26,6 +26,7 @@ def test_sanity_green(temp_output_dir: str) -> None:
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
         record_types=RecordTypes.ALL,
+        clobber=False,
     )
     execute(args)
     # When runtime < sample_interval, we won't have a usage.json
@@ -43,6 +44,7 @@ def test_sanity_red(temp_output_dir: str) -> None:
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
         record_types=RecordTypes.ALL,
+        clobber=False,
     )
     with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
         execute(args)
@@ -66,6 +68,7 @@ def test_outputs_full(temp_output_dir: str) -> None:
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
         record_types=RecordTypes.ALL,
+        clobber=False,
     )
     execute(args)
     expected_files = ["stdout", "stderr", "info.json", "usage.json"]
@@ -82,6 +85,7 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
         capture_outputs=Outputs.NONE,
         outputs=Outputs.ALL,
         record_types=RecordTypes.ALL,
+        clobber=False,
     )
     execute(args)
     expected_files = ["info.json", "usage.json"]
@@ -100,6 +104,7 @@ def test_outputs_capture(temp_output_dir: str) -> None:
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
         record_types=RecordTypes.ALL,
+        clobber=False,
     )
     execute(args)
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -118,6 +123,7 @@ def test_outputs_none(temp_output_dir: str) -> None:
         capture_outputs=Outputs.NONE,
         outputs=Outputs.NONE,
         record_types=RecordTypes.ALL,
+        clobber=False,
     )
     execute(args)
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -139,6 +145,7 @@ def test_exit_before_first_sample(temp_output_dir: str) -> None:
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
         record_types=RecordTypes.ALL,
+        clobber=False,
     )
     execute(args)
     expected_files = ["stdout", "stderr", "info.json"]
@@ -157,6 +164,7 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
         record_types=RecordTypes.ALL,
+        clobber=False,
     )
     execute(args)
     # Specifically we need to assert that usage.json gets written anyway.

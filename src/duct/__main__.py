@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
+import glob
 import json
 import os
 from pathlib import Path
@@ -133,6 +134,7 @@ class Report:
         output_prefix: str,
         process: subprocess.Popen,
         datetime_filesafe: str,
+        clobber: bool = False,
     ) -> None:
         self.start_time = time.time()
         self._command = command
@@ -149,6 +151,8 @@ class Report:
         self.datetime_filesafe = datetime_filesafe
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
+        self._resource_stats_log_path: str | None = None
+        self.clobber = clobber
 
     @property
     def command(self) -> str:
@@ -224,8 +228,12 @@ class Report:
 
     def write_pid_samples(self) -> None:
         assert self._sample is not None
-        resource_stats_log_path = f"{self.output_prefix}usage.json"
-        with open(resource_stats_log_path, "a") as resource_statistics_log:
+        # First time only
+        if not self._resource_stats_log_path:
+            self._resource_stats_log_path = f"{self.output_prefix}usage.json"
+            clobber_or_clear(self._resource_stats_log_path, self.clobber)
+
+        with open(self._resource_stats_log_path, "a") as resource_statistics_log:
             resource_statistics_log.write(json.dumps(self._sample.for_json()) + "\n")
 
     def print_max_values(self) -> None:
@@ -271,6 +279,7 @@ class Arguments:
     output_prefix: str
     sample_interval: float
     report_interval: float
+    clobber: bool
     capture_outputs: Outputs
     outputs: Outputs
     record_types: RecordTypes
@@ -304,6 +313,11 @@ class Arguments:
             "{datetime}, {datetime_filesafe}, and {pid}. "
             "Leading directories will be created if they do not exist. "
             "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
+        )
+        parser.add_argument(
+            "--clobber",
+            action="store_true",
+            help="Replace log files if they already exist.",
         )
         parser.add_argument(
             "--sample-interval",
@@ -356,7 +370,20 @@ class Arguments:
             capture_outputs=args.capture_outputs,
             outputs=args.outputs,
             record_types=args.record_types,
+            clobber=args.clobber,
         )
+
+
+def clobber_or_clear(path: str, clobber: bool = False) -> None:
+    """Check that the path is available, or remove conflict if clobber=True."""
+    file_path = Path(path)
+    if file_path.exists():
+        if clobber:
+            file_path.unlink()
+        else:
+            raise FileExistsError(
+                f"File {path} already exists. Use --clobber to overwrite."
+            )
 
 
 def monitor_process(
@@ -395,7 +422,6 @@ class TailPipe:
         self.thread: threading.Thread | None = None
 
     def start(self) -> None:
-        Path(self.file_path).touch()
         self.stop_event = threading.Event()
         self.infile = open(self.file_path, "rb")
         self.thread = threading.Thread(target=self._tail, daemon=True)
@@ -435,28 +461,34 @@ class TailPipe:
 
 
 def prepare_outputs(
-    capture_outputs: Outputs, outputs: Outputs, output_prefix: str
+    capture_outputs: Outputs, outputs: Outputs, output_prefix: str, clobber: bool
 ) -> tuple[TextIO | TailPipe | int | None, TextIO | TailPipe | int | None]:
     stdout: TextIO | TailPipe | int | None
     stderr: TextIO | TailPipe | int | None
 
     if capture_outputs.has_stdout():
+        stdout_path = f"{output_prefix}stdout"
+        clobber_or_clear(stdout_path, clobber)
+        Path(stdout_path).touch()  # File must exist for TailPipe to read
         if outputs.has_stdout():
-            stdout = TailPipe(f"{output_prefix}stdout", buffer=sys.stdout.buffer)
+            stdout = TailPipe(stdout_path, buffer=sys.stdout.buffer)
             stdout.start()
         else:
-            stdout = open(f"{output_prefix}stdout", "w")
+            stdout = open(stdout_path, "w")
     elif outputs.has_stdout():
         stdout = None
     else:
         stdout = subprocess.DEVNULL
 
     if capture_outputs.has_stderr():
+        stderr_path = f"{output_prefix}stderr"
+        clobber_or_clear(stderr_path, clobber)
+        Path(stderr_path).touch()
         if outputs.has_stderr():
-            stderr = TailPipe(f"{output_prefix}stderr", buffer=sys.stderr.buffer)
+            stderr = TailPipe(stderr_path, buffer=sys.stderr.buffer)
             stderr.start()
         else:
-            stderr = open(f"{output_prefix}stderr", "w")
+            stderr = open(stderr_path, "w")
     elif outputs.has_stderr():
         stderr = None
     else:
@@ -472,13 +504,24 @@ def safe_close_files(file_list: Iterable[Any]) -> None:
             pass
 
 
-def ensure_directories(path: str) -> None:
+def ensure_directories(path: str, clobber: bool = False) -> None:
+    # Enforcing no path* files is perhaps overzealous, but this helps prevent
+    # conflicts between versions, prevents probable user errors, and leaves
+    # room for plugins down the road.
+    possible_conflicts = glob.glob(path + "*")
+    if possible_conflicts and not clobber:
+        raise FileExistsError(
+            "Possibly conflicting files:\n"
+            + "\n".join(f"- {fp}" for fp in possible_conflicts)
+            + "\nUse --clobber to overrwrite conflicting files."
+        )
+
     if path.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
         os.makedirs(path, exist_ok=True)
     else:
         # Path does not end with a separator, treat the last part as a filename
         directory = os.path.dirname(path)
-        if directory:  # If there's a directory part, create it
+        if directory:
             os.makedirs(directory, exist_ok=True)
 
 
@@ -494,9 +537,9 @@ def execute(args: Arguments) -> None:
     formatted_output_prefix = args.output_prefix.format(
         datetime_filesafe=datetime_filesafe, pid=duct_pid
     )
-    ensure_directories(formatted_output_prefix)
+    ensure_directories(formatted_output_prefix, args.clobber)
     stdout, stderr = prepare_outputs(
-        args.capture_outputs, args.outputs, formatted_output_prefix
+        args.capture_outputs, args.outputs, formatted_output_prefix, args.clobber
     )
     stdout_file: TextIO | IO[bytes] | int | None
     if isinstance(stdout, TailPipe):
@@ -530,6 +573,7 @@ def execute(args: Arguments) -> None:
         formatted_output_prefix,
         process,
         datetime_filesafe,
+        args.clobber,
     )
     stop_event = threading.Event()
     if args.record_types.has_processes_samples():
@@ -553,6 +597,7 @@ def execute(args: Arguments) -> None:
         system_info_path = f"{args.output_prefix}info.json".format(
             pid=duct_pid, datetime_filesafe=datetime_filesafe
         )
+        clobber_or_clear(system_info_path, clobber=args.clobber)
         with open(system_info_path, "a") as system_logs:
             report.end_time = time.time()
             report.run_time_seconds = f"{report.end_time - report.start_time}"
