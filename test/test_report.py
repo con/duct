@@ -1,7 +1,7 @@
 from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, patch
-from duct.__main__ import ProcessStats, Report, Sample
+from duct.__main__ import ProcessStats, Report, Sample, Suffix
 
 stat0 = ProcessStats(
     pcpu=0.0, pmem=0, rss=0, vsz=0, timestamp="2024-06-11T10:09:37-04:00"
@@ -77,7 +77,7 @@ def test_write_pid_samples_set_first_run_only(
     report.write_pid_samples()
     assert report._resource_stats_log_path is not None
     # mypy says unreachable which is a lie. (_resource_stats_log_path set as side effect of write_pid_samples)
-    mock_open.assert_called_once_with(f"{temp_output_dir}usage.json", "a")  # type: ignore
+    mock_open.assert_called_once_with(f"{temp_output_dir}{Suffix.usage}", "a")  # type: ignore
     mock_clob_or_clear.reset_mock()
     report.write_pid_samples()
     mock_clob_or_clear.assert_not_called()

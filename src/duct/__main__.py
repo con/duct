@@ -2,10 +2,9 @@
 from __future__ import annotations
 import argparse
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from enum import Enum
-import glob
 import json
 import os
 from pathlib import Path
@@ -14,7 +13,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import IO, Any, TextIO
+from typing import IO, Any, Generator, TextIO
 from . import __version__
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -90,6 +89,18 @@ class ProcessStats:
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
         )
+
+
+@dataclass
+class Suffix:
+    stdout: str = "stdout"
+    stderr: str = "stderr"
+    usage: str = "usage.json"
+    info: str = "info.json"
+
+    def __iter__(self) -> Generator:
+        for each in fields(self):
+            yield getattr(self, each.name)
 
 
 @dataclass
@@ -230,7 +241,7 @@ class Report:
         assert self._sample is not None
         # First time only
         if self._resource_stats_log_path is None:
-            self._resource_stats_log_path = f"{self.output_prefix}usage.json"
+            self._resource_stats_log_path = f"{self.output_prefix}{Suffix.usage}"
             clobber_or_clear(self._resource_stats_log_path, self.clobber)
 
         with open(self._resource_stats_log_path, "a") as resource_statistics_log:
@@ -467,7 +478,7 @@ def prepare_outputs(
     stderr: TextIO | TailPipe | int | None
 
     if capture_outputs.has_stdout():
-        stdout_path = f"{output_prefix}stdout"
+        stdout_path = f"{output_prefix}{Suffix.stdout}"
         clobber_or_clear(stdout_path, clobber)
         Path(stdout_path).touch()  # File must exist for TailPipe to read
         if outputs.has_stdout():
@@ -481,7 +492,7 @@ def prepare_outputs(
         stdout = subprocess.DEVNULL
 
     if capture_outputs.has_stderr():
-        stderr_path = f"{output_prefix}stderr"
+        stderr_path = f"{output_prefix}{Suffix.stderr}"
         clobber_or_clear(stderr_path, clobber)
         Path(stderr_path).touch()
         if outputs.has_stderr():
@@ -504,23 +515,22 @@ def safe_close_files(file_list: Iterable[Any]) -> None:
             pass
 
 
-def ensure_directories(path: str, clobber: bool = False) -> None:
-    # Enforcing no path* files is perhaps overzealous, but this helps prevent
-    # conflicts between versions, prevents probable user errors, and leaves
-    # room for plugins down the road.
-    possible_conflicts = glob.glob(path + "*")
-    if possible_conflicts and not clobber:
+def ensure_directories(prefix: str, clobber: bool = False) -> None:
+    conflicts = [
+        f"{prefix}{suffix}" for suffix in Suffix() if Path(f"{prefix}{suffix}").exists()
+    ]
+    if conflicts and not clobber:
         raise FileExistsError(
-            "Possibly conflicting files:\n"
-            + "\n".join(f"- {fp}" for fp in possible_conflicts)
+            "Conflicting files:\n"
+            + "\n".join(f"- {path}" for path in conflicts)
             + "\nUse --clobber to overrwrite conflicting files."
         )
 
-    if path.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
-        os.makedirs(path, exist_ok=True)
+    if prefix.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
+        os.makedirs(prefix, exist_ok=True)
     else:
         # Path does not end with a separator, treat the last part as a filename
-        directory = os.path.dirname(path)
+        directory = os.path.dirname(prefix)
         if directory:
             os.makedirs(directory, exist_ok=True)
 
@@ -594,7 +604,7 @@ def execute(args: Arguments) -> None:
     if args.record_types.has_system_summary():
         report.collect_environment()
         report.get_system_info()
-        system_info_path = f"{args.output_prefix}info.json".format(
+        system_info_path = f"{args.output_prefix}{Suffix.info}".format(
             pid=duct_pid, datetime_filesafe=datetime_filesafe
         )
         clobber_or_clear(system_info_path, clobber=args.clobber)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pathlib
 from unittest import mock
 import pytest
 from duct.__main__ import clobber_or_clear, ensure_directories
@@ -18,27 +19,26 @@ def test_ensure_directories_with_dirs(mock_mkdir: mock.MagicMock, path: str) -> 
     mock_mkdir.assert_called_once_with(path, exist_ok=True)
 
 
+@mock.patch("duct.__main__.Path", spec=pathlib.Path)
 @mock.patch("duct.__main__.os.makedirs")
-@mock.patch("duct.__main__.glob.glob")
 def test_ensure_directories_with_conflicts(
-    mock_glob: mock.MagicMock, mock_mkdir: mock.MagicMock
+    mock_mkdir: mock.MagicMock, mock_path: mock.MagicMock
 ) -> None:
-    mock_path = "mock_path"
-    mock_glob.return_value = ["possibly", "conflicting", "files"]
+    mock_path.return_value.exists.return_value = True
     with pytest.raises(FileExistsError):
-        ensure_directories(mock_path, clobber=False)
+        ensure_directories("fakepath", clobber=False)
     mock_mkdir.assert_not_called()
 
 
+@mock.patch("duct.__main__.Path", spec=pathlib.Path)
 @mock.patch("duct.__main__.os.makedirs")
-@mock.patch("duct.__main__.glob.glob")
 def test_ensure_directories_with_conflicts_clobber(
-    mock_glob: mock.MagicMock, mock_mkdir: mock.MagicMock
+    mock_mkdir: mock.MagicMock, mock_path: mock.MagicMock
 ) -> None:
-    mock_path = "mock_dir/path"
-    mock_glob.return_value = ["possibly", "conflicting", "files"]
-    ensure_directories(mock_path, clobber=True)
-    mock_mkdir.assert_called_once_with("mock_dir", exist_ok=True)
+    mock_prefix = "fakepath/"
+    mock_path.return_value.exists.return_value = True
+    ensure_directories(mock_prefix, clobber=True)
+    mock_mkdir.assert_called_once_with(mock_prefix, exist_ok=True)
 
 
 @mock.patch("duct.__main__.os.makedirs")

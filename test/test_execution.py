@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest import mock
 from utils import assert_files
-from duct.__main__ import Arguments, Outputs, RecordTypes, execute
+from duct.__main__ import Arguments, Outputs, RecordTypes, Suffix, execute
 
 TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 
@@ -21,7 +21,7 @@ def test_sanity_green(temp_output_dir: str) -> None:
     )
     execute(args)
     # When runtime < sample_interval, we won't have a usage.json
-    expected_files = ["stdout", "stderr", "info.json"]
+    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info]
     assert_files(temp_output_dir, expected_files, exists=True)
 
 
@@ -42,10 +42,10 @@ def test_sanity_red(temp_output_dir: str) -> None:
         mock_stdout.write.assert_has_calls([mock.call("Exit Code: 1")])
 
     # We still should execute normally
-    expected_files = ["stdout", "stderr", "info.json"]
+    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info]
     assert_files(temp_output_dir, expected_files, exists=True)
     # But no polling of the already failed command
-    not_expected_files = ["usage.json"]
+    not_expected_files = [Suffix.usage]
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
@@ -62,7 +62,7 @@ def test_outputs_full(temp_output_dir: str) -> None:
         clobber=False,
     )
     execute(args)
-    expected_files = ["stdout", "stderr", "info.json", "usage.json"]
+    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info, Suffix.usage]
     assert_files(temp_output_dir, expected_files, exists=True)
 
 
@@ -79,9 +79,9 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
         clobber=False,
     )
     execute(args)
-    expected_files = ["info.json", "usage.json"]
+    expected_files = [Suffix.info, Suffix.usage]
     assert_files(temp_output_dir, expected_files, exists=True)
-    not_expected_files = ["stdout", "stderr"]
+    not_expected_files = [Suffix.stdout, Suffix.stderr]
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
@@ -100,7 +100,7 @@ def test_outputs_capture(temp_output_dir: str) -> None:
     execute(args)
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
-    expected_files = ["stdout", "stderr", "info.json", "usage.json"]
+    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info, Suffix.usage]
     assert_files(temp_output_dir, expected_files, exists=True)
 
 
@@ -119,10 +119,10 @@ def test_outputs_none(temp_output_dir: str) -> None:
     execute(args)
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
-    expected_files = ["info.json", "usage.json"]
+    expected_files = [Suffix.info, Suffix.usage]
     assert_files(temp_output_dir, expected_files, exists=True)
 
-    not_expected_files = ["stdout", "stderr"]
+    not_expected_files = [Suffix.stdout, Suffix.stderr]
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
@@ -139,9 +139,9 @@ def test_exit_before_first_sample(temp_output_dir: str) -> None:
         clobber=False,
     )
     execute(args)
-    expected_files = ["stdout", "stderr", "info.json"]
+    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info]
     assert_files(temp_output_dir, expected_files, exists=True)
-    not_expected_files = ["usage.json"]
+    not_expected_files = [Suffix.usage]
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
@@ -159,5 +159,5 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
     )
     execute(args)
     # Specifically we need to assert that usage.json gets written anyway.
-    expected_files = ["stdout", "stderr", "usage.json", "info.json"]
+    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.usage, Suffix.info]
     assert_files(temp_output_dir, expected_files, exists=True)
