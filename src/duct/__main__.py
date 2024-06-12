@@ -285,7 +285,7 @@ class Arguments:
     record_types: RecordTypes
 
     @classmethod
-    def from_argv(cls) -> Arguments:
+    def from_argv(cls) -> Arguments:  # pragma: no cover
         parser = argparse.ArgumentParser(
             description="Gathers metrics on a command and all its child processes.",
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
