@@ -18,7 +18,7 @@ A process wrapper script that monitors the execution of a command.
 ```shell
 >duct --help
 
-usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
+usage: duct [-h] [--version] [-p OUTPUT_PREFIX] [--clobber]
             [--sample-interval SAMPLE_INTERVAL]
             [--report-interval REPORT_INTERVAL] [-c {all,none,stdout,stderr}]
             [-o {all,none,stdout,stderr}]
@@ -44,6 +44,8 @@ options:
                         can also provide value via DUCT_OUTPUT_PREFIX env
                         variable. (default:
                         .duct/logs/{datetime_filesafe}-{pid}_)
+  --clobber             Replace log files if they already exist. (default:
+                        False)
   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval should be larger than
