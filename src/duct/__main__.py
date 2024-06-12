@@ -100,7 +100,51 @@ class Suffix:
 
     def __iter__(self) -> Generator:
         for each in fields(self):
-            yield getattr(self, each.name)
+            yield each.name, getattr(self, each.name)
+
+
+@dataclass
+class LogPaths:
+    stdout: str
+    stderr: str
+    usage: str
+    info: str
+
+    def __iter__(self) -> Generator:
+        for each in fields(self):
+            yield each.name, getattr(self, each.name)
+
+    @property
+    def prefix(self):
+        return self._prefix
+
+    @classmethod
+    def create(cls, output_prefix, clobber, pid):
+        datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
+        formatted_prefix = output_prefix.format(pid, datetime_filesafe)
+        create_dict = {name: f"{formatted_prefix}{suffix}" for name, suffix in Suffix()}
+        conflicts = [path for path in create_dict.values() if Path(path).exists()]
+        if conflicts and not clobber:
+            raise FileExistsError(
+                "Conflicting files:\n"
+                + "\n".join(f"- {path}" for path in conflicts)
+                + "\nUse --clobber to overrwrite conflicting files."
+            )
+        elif conflicts and clobber:
+            [Path(path).unlink() for path in conflicts]
+
+        if formatted_prefix.endswith(
+            os.sep
+        ):  # If it ends in "/" (for linux) treat as a dir
+            os.makedirs(formatted_prefix, exist_ok=True)
+        else:
+            # Path does not end with a separator, treat the last part as a filename
+            directory = os.path.dirname(formatted_prefix)
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+        new = cls(**create_dict)
+        new._prefix = formatted_prefix
+        return new
 
 
 @dataclass
@@ -142,9 +186,8 @@ class Report:
         command: str,
         arguments: list[str],
         session_id: int | None,
-        output_prefix: str,
         process: subprocess.Popen,
-        datetime_filesafe: str,
+        log_paths: LogPaths,
         clobber: bool = False,
     ) -> None:
         self.start_time = time.time()
@@ -155,14 +198,13 @@ class Report:
         self.env: dict[str, str] | None = None
         self.number = 0
         self.system_info: SystemInfo | None = None
-        self.output_prefix = output_prefix
+        self.log_paths = log_paths
         self.max_values = Sample()
         self.process = process
         self._sample: Sample | None = None
-        self.datetime_filesafe = datetime_filesafe
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
-        self._resource_stats_log_path: str | None = None
+        self._usage_file_exists: bool = False
         self.clobber = clobber
 
     @property
@@ -240,11 +282,11 @@ class Report:
     def write_pid_samples(self) -> None:
         assert self._sample is not None
         # First time only
-        if self._resource_stats_log_path is None:
-            self._resource_stats_log_path = f"{self.output_prefix}{Suffix.usage}"
-            clobber_or_clear(self._resource_stats_log_path, self.clobber)
+        if not self._usage_file_exists:
+            Path(self.log_paths.usage).touch()
+            self._usage_file_exists = True
 
-        with open(self._resource_stats_log_path, "a") as resource_statistics_log:
+        with open(self.log_paths.usage, "a") as resource_statistics_log:
             resource_statistics_log.write(json.dumps(self._sample.for_json()) + "\n")
 
     def print_max_values(self) -> None:
@@ -258,7 +300,7 @@ class Report:
             print(Colors.FAIL)
         print(f"Exit Code: {self.process.returncode}")
         print(f"{Colors.OKCYAN}Command: {self.command}")
-        print(f"Log files location: {self.output_prefix}")
+        print(f"Log files location: {self.log_paths.prefix}")
         print(f"Wall Clock Time: {self.elapsed_time:.3f} sec")
         print(
             "Memory Peak Usage:",
@@ -385,18 +427,6 @@ class Arguments:
         )
 
 
-def clobber_or_clear(path: str, clobber: bool = False) -> None:
-    """Check that the path is available, or remove conflict if clobber=True."""
-    file_path = Path(path)
-    if file_path.exists():
-        if clobber:
-            file_path.unlink()
-        else:
-            raise FileExistsError(
-                f"File {path} already exists. Use --clobber to overwrite."
-            )
-
-
 def monitor_process(
     report: Report,
     process: subprocess.Popen,
@@ -472,34 +502,32 @@ class TailPipe:
 
 
 def prepare_outputs(
-    capture_outputs: Outputs, outputs: Outputs, output_prefix: str, clobber: bool
+    capture_outputs: Outputs,
+    outputs: Outputs,
+    log_paths: LogPaths,
 ) -> tuple[TextIO | TailPipe | int | None, TextIO | TailPipe | int | None]:
     stdout: TextIO | TailPipe | int | None
     stderr: TextIO | TailPipe | int | None
 
     if capture_outputs.has_stdout():
-        stdout_path = f"{output_prefix}{Suffix.stdout}"
-        clobber_or_clear(stdout_path, clobber)
-        Path(stdout_path).touch()  # File must exist for TailPipe to read
+        Path(log_paths.stdout).touch()  # File must exist for TailPipe to read
         if outputs.has_stdout():
-            stdout = TailPipe(stdout_path, buffer=sys.stdout.buffer)
+            stdout = TailPipe(log_paths.stdout, buffer=sys.stdout.buffer)
             stdout.start()
         else:
-            stdout = open(stdout_path, "w")
+            stdout = open(log_paths.stdout, "w")
     elif outputs.has_stdout():
         stdout = None
     else:
         stdout = subprocess.DEVNULL
 
     if capture_outputs.has_stderr():
-        stderr_path = f"{output_prefix}{Suffix.stderr}"
-        clobber_or_clear(stderr_path, clobber)
-        Path(stderr_path).touch()
+        Path(log_paths.stderr).touch()  # File must exist for TailPipe to read
         if outputs.has_stderr():
-            stderr = TailPipe(stderr_path, buffer=sys.stderr.buffer)
+            stderr = TailPipe(log_paths.stderr, buffer=sys.stderr.buffer)
             stderr.start()
         else:
-            stderr = open(stderr_path, "w")
+            stderr = open(log_paths.stderr, "w")
     elif outputs.has_stderr():
         stderr = None
     else:
@@ -515,26 +543,6 @@ def safe_close_files(file_list: Iterable[Any]) -> None:
             pass
 
 
-def ensure_directories(prefix: str, clobber: bool = False) -> None:
-    conflicts = [
-        f"{prefix}{suffix}" for suffix in Suffix() if Path(f"{prefix}{suffix}").exists()
-    ]
-    if conflicts and not clobber:
-        raise FileExistsError(
-            "Conflicting files:\n"
-            + "\n".join(f"- {path}" for path in conflicts)
-            + "\nUse --clobber to overrwrite conflicting files."
-        )
-
-    if prefix.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
-        os.makedirs(prefix, exist_ok=True)
-    else:
-        # Path does not end with a separator, treat the last part as a filename
-        directory = os.path.dirname(prefix)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-
-
 def main() -> None:
     args = Arguments.from_argv()
     execute(args)
@@ -542,14 +550,10 @@ def main() -> None:
 
 def execute(args: Arguments) -> None:
     """A wrapper to execute a command, monitor and log the process details."""
-    datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
     duct_pid = os.getpid()
-    formatted_output_prefix = args.output_prefix.format(
-        datetime_filesafe=datetime_filesafe, pid=duct_pid
-    )
-    ensure_directories(formatted_output_prefix, args.clobber)
+    log_paths = LogPaths.create(args.output_prefix, pid=duct_pid, clobber=args.clobber)
     stdout, stderr = prepare_outputs(
-        args.capture_outputs, args.outputs, formatted_output_prefix, args.clobber
+        args.capture_outputs, args.outputs, log_paths, args.clobber
     )
     stdout_file: TextIO | IO[bytes] | int | None
     if isinstance(stdout, TailPipe):
@@ -564,7 +568,7 @@ def execute(args: Arguments) -> None:
 
     full_command = " ".join([str(args.command)] + args.command_args)
     print(f"{Colors.OKCYAN}duct is executing {full_command}...")
-    print(f"Log files will be written to {formatted_output_prefix}{Colors.ENDC}")
+    print(f"Log files will be written to {log_paths.prefix}{Colors.ENDC}")
     process = subprocess.Popen(
         [str(args.command)] + args.command_args,
         stdout=stdout_file,
@@ -575,14 +579,12 @@ def execute(args: Arguments) -> None:
         session_id = os.getsid(process.pid)  # Get session ID of the new process
     except ProcessLookupError:  # process has already finished
         session_id = None
-
     report = Report(
         args.command,
         args.command_args,
         session_id,
-        formatted_output_prefix,
         process,
-        datetime_filesafe,
+        log_paths,
         args.clobber,
     )
     stop_event = threading.Event()
@@ -604,11 +606,7 @@ def execute(args: Arguments) -> None:
     if args.record_types.has_system_summary():
         report.collect_environment()
         report.get_system_info()
-        system_info_path = f"{args.output_prefix}{Suffix.info}".format(
-            pid=duct_pid, datetime_filesafe=datetime_filesafe
-        )
-        clobber_or_clear(system_info_path, clobber=args.clobber)
-        with open(system_info_path, "a") as system_logs:
+        with open(log_paths.info, "a") as system_logs:
             report.end_time = time.time()
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
