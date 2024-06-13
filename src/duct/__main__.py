@@ -514,7 +514,6 @@ def prepare_outputs(
     stderr: TextIO | TailPipe | int | None
 
     if capture_outputs.has_stdout():
-        Path(log_paths.stdout).touch()  # File must exist for TailPipe to read
         if outputs.has_stdout():
             stdout = TailPipe(log_paths.stdout, buffer=sys.stdout.buffer)
             stdout.start()
@@ -526,7 +525,6 @@ def prepare_outputs(
         stdout = subprocess.DEVNULL
 
     if capture_outputs.has_stderr():
-        Path(log_paths.stderr).touch()  # File must exist for TailPipe to read
         if outputs.has_stderr():
             stderr = TailPipe(log_paths.stderr, buffer=sys.stderr.buffer)
             stderr.start()
