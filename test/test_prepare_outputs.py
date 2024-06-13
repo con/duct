@@ -2,91 +2,358 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, call, patch
 from utils import MockStream
-from duct.__main__ import Outputs, prepare_outputs
+from duct.__main__ import LogPaths, Outputs, prepare_outputs
 
 
-@patch("sys.stdout", new_callable=MockStream)
-def test_prepare_outputs_all_stdout(
-    mock_stdout: MockStream, temp_output_dir: str
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_none_output_none(
+    _mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
 ) -> None:
-    with patch("duct.__main__.TailPipe") as mock_tee_stream, patch(
-        "builtins.open", new_callable=MagicMock
-    ) as mock_open:
-        mock_tee_stream.return_value.start = MagicMock()
-        stdout, stderr = prepare_outputs(
-            Outputs.ALL, Outputs.STDOUT, temp_output_dir, clobber=True
-        )
-        mock_tee_stream.assert_called_with(
-            f"{temp_output_dir}stdout", buffer=mock_stdout.buffer
-        )
-        assert stdout == mock_tee_stream.return_value
-        assert stderr == mock_open.return_value
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.NONE, Outputs.NONE, mock_log_paths)
+    mock_tee_stream.assert_not_called()
+    mock_open.assert_not_called()
+    assert stdout == subprocess.DEVNULL
+    assert stderr == subprocess.DEVNULL
 
 
-@patch("sys.stderr", new_callable=MockStream)
-def test_prepare_outputs_all_stderr(
-    mock_stderr: MockStream, temp_output_dir: str
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_none_output_stdout(
+    _mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
 ) -> None:
-    with patch("duct.__main__.TailPipe") as mock_tee_stream, patch(
-        "builtins.open", new_callable=MagicMock
-    ) as mock_open:
-        mock_tee_stream.return_value.start = MagicMock()
-        stdout, stderr = prepare_outputs(
-            Outputs.ALL, Outputs.STDERR, temp_output_dir, clobber=True
-        )
-        mock_tee_stream.assert_called_with(
-            f"{temp_output_dir}stderr", buffer=mock_stderr.buffer
-        )
-        assert stdout == mock_open.return_value
-        assert stderr == mock_tee_stream.return_value
-
-
-def test_prepare_outputs_all_none(temp_output_dir: str) -> None:
-    with patch("builtins.open", new_callable=MagicMock) as mock_open:
-        stdout, stderr = prepare_outputs(
-            Outputs.ALL, Outputs.NONE, temp_output_dir, clobber=True
-        )
-        calls = [
-            call(f"{temp_output_dir}stdout", "w"),
-            call(f"{temp_output_dir}stderr", "w"),
-        ]
-        mock_open.assert_has_calls(calls, any_order=True)
-        assert stdout == mock_open.return_value
-        assert stderr == mock_open.return_value
-
-
-def test_prepare_outputs_none_stdout(temp_output_dir: str) -> None:
-    stdout, stderr = prepare_outputs(
-        Outputs.NONE, Outputs.STDOUT, temp_output_dir, clobber=True
-    )
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.NONE, Outputs.STDOUT, mock_log_paths)
+    mock_tee_stream.assert_not_called()
+    mock_open.assert_not_called()
     assert stdout is None
     assert stderr == subprocess.DEVNULL
 
 
-def test_prepare_outputs_none_stderr(temp_output_dir: str) -> None:
-    stdout, stderr = prepare_outputs(
-        Outputs.NONE, Outputs.STDERR, temp_output_dir, clobber=True
-    )
-    assert stderr is None
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_none_output_stderr(
+    _mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.NONE, Outputs.STDERR, mock_log_paths)
+    mock_tee_stream.assert_not_called()
+    mock_open.assert_not_called()
     assert stdout == subprocess.DEVNULL
+    assert stderr is None
 
 
-@patch("sys.stderr", new_callable=MockStream)
-@patch("sys.stdout", new_callable=MockStream)
-def test_prepare_outputs_all_all(
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_none_output_all(
+    _mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.NONE, Outputs.ALL, mock_log_paths)
+    mock_tee_stream.assert_not_called()
+    mock_open.assert_not_called()
+    assert stdout is None
+    assert stderr is None
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_stdout_output_none(
+    _mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.STDOUT, Outputs.NONE, mock_log_paths)
+    mock_tee_stream.assert_not_called()
+    mock_open.assert_called_once_with(mock_log_paths.stdout, "w")
+    assert stdout == mock_open.return_value
+    assert stderr == subprocess.DEVNULL
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_stdout_output_stdout(
+    mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.STDOUT, Outputs.STDOUT, mock_log_paths)
+    mock_tee_stream.assert_called_once_with(
+        mock_log_paths.stdout, buffer=mock_stdout.buffer
+    )
+    mock_open.assert_not_called()
+    assert stdout == mock_tee_stream.return_value
+    assert stderr == subprocess.DEVNULL
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_stdout_output_stderr(
+    _mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.STDOUT, Outputs.STDERR, mock_log_paths)
+    mock_open.assert_called_once_with(mock_log_paths.stdout, "w")
+    mock_tee_stream.assert_not_called()
+    assert stdout == mock_open.return_value
+    assert stderr is None
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_stdout_output_all(
+    mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.STDOUT, Outputs.ALL, mock_log_paths)
+    mock_tee_stream.assert_called_once_with(
+        mock_log_paths.stdout, buffer=mock_stdout.buffer
+    )
+    mock_open.assert_not_called()
+    assert stdout == mock_tee_stream.return_value
+    assert stderr is None
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_stderr_output_none(
+    _mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.STDERR, Outputs.NONE, mock_log_paths)
+    mock_tee_stream.assert_not_called()
+    mock_open.assert_called_once_with(mock_log_paths.stderr, "w")
+    assert stdout == subprocess.DEVNULL
+    assert stderr == mock_open.return_value
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_stderr_output_stdout(
+    _mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.STDERR, Outputs.STDOUT, mock_log_paths)
+    mock_tee_stream.assert_not_called()
+    mock_open.assert_called_once_with(mock_log_paths.stderr, "w")
+    assert stdout is None
+    assert stderr == mock_open.return_value
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_stderr_output_stderr(
+    _mock_stdout: MockStream,
+    mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.STDERR, Outputs.STDERR, mock_log_paths)
+    mock_tee_stream.assert_called_once_with(
+        mock_log_paths.stderr, buffer=mock_stderr.buffer
+    )
+    mock_open.assert_not_called()
+    assert stdout == subprocess.DEVNULL
+    assert stderr == mock_tee_stream.return_value
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_stderr_output_all(
+    _mock_stdout: MockStream,
+    mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.STDERR, Outputs.ALL, mock_log_paths)
+    mock_tee_stream.assert_called_once_with(
+        mock_log_paths.stderr, buffer=mock_stderr.buffer
+    )
+    mock_open.assert_not_called()
+    assert stdout is None
+    assert stderr == mock_tee_stream.return_value
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_all_output_none(
+    _mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.ALL, Outputs.NONE, mock_log_paths)
+    mock_tee_stream.assert_not_called()
+    mock_open.assert_has_calls(
+        [call(mock_log_paths.stdout, "w"), call(mock_log_paths.stderr, "w")]
+    )
+    assert stdout == mock_open.return_value
+    assert stderr == mock_open.return_value
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_all_output_stdout(
+    mock_stdout: MockStream,
+    _mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.ALL, Outputs.STDOUT, mock_log_paths)
+    mock_tee_stream.assert_called_with(mock_log_paths.stdout, buffer=mock_stdout.buffer)
+    mock_open.assert_called_once_with(mock_log_paths.stderr, "w")
+    assert stdout == mock_tee_stream.return_value
+    assert stderr == mock_open.return_value
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_all_output_stderr(
+    _mock_stdout: MockStream,
+    mock_stderr: MockStream,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
+) -> None:
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.ALL, Outputs.STDERR, mock_log_paths)
+    mock_tee_stream.assert_called_once_with(
+        mock_log_paths.stderr, buffer=mock_stderr.buffer
+    )
+    mock_open.assert_called_once_with(mock_log_paths.stdout, "w")
+    assert stdout == mock_open.return_value
+    assert stderr == mock_tee_stream.return_value
+
+
+@patch("builtins.open", new_callable=MagicMock)
+@patch("duct.__main__.TailPipe")
+@patch("duct.__main__.LogPaths")
+@patch("duct.__main__.sys.stderr", new_callable=MockStream)
+@patch("duct.__main__.sys.stdout", new_callable=MockStream)
+def test_prepare_outputs_capture_all_output_all(
     mock_stdout: MockStream,
     mock_stderr: MockStream,
-    temp_output_dir: str,
+    mock_LogPaths: LogPaths,
+    mock_tee_stream: MagicMock,
+    mock_open: MagicMock,
 ) -> None:
-    with patch("duct.__main__.TailPipe") as mock_tee_stream:
-        mock_tee_stream.return_value.start = MagicMock()
-        stdout, stderr = prepare_outputs(
-            Outputs.ALL, Outputs.ALL, temp_output_dir, clobber=True
-        )
-        assert stdout == mock_tee_stream.return_value
-        assert stderr == mock_tee_stream.return_value
-        calls = [
-            call(f"{temp_output_dir}stdout", buffer=mock_stdout.buffer),
-            call(f"{temp_output_dir}stderr", buffer=mock_stderr.buffer),
-        ]
-        mock_tee_stream.assert_has_calls(calls, any_order=True)
+    mock_log_paths = mock_LogPaths.create()
+    mock_tee_stream.return_value.start = MagicMock()
+    stdout, stderr = prepare_outputs(Outputs.ALL, Outputs.ALL, mock_log_paths)
+    mock_tee_stream.assert_has_calls(
+        [
+            call(mock_log_paths.stdout, buffer=mock_stdout.buffer),
+            call(mock_log_paths.stderr, buffer=mock_stderr.buffer),
+        ],
+        any_order=True,
+    )
+    assert stdout == mock_tee_stream.return_value
+    assert stderr == mock_tee_stream.return_value
+    mock_open.assert_not_called()
