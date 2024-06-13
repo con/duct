@@ -122,7 +122,7 @@ class LogPaths:
         return self._prefix  # type: ignore
 
     @classmethod
-    def create(cls, output_prefix: str, pid: int) -> LogPaths:
+    def create(cls, output_prefix: str, pid: None | int = None) -> LogPaths:
         datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
         formatted_prefix = output_prefix.format(
             pid=pid, datetime_filesafe=datetime_filesafe
