@@ -114,16 +114,26 @@ class LogPaths:
         for each in fields(self):
             yield each.name, getattr(self, each.name)
 
+    def __post_init__(self) -> None:
+        self._prefix = ""
+
     @property
-    def prefix(self):
-        return self._prefix
+    def prefix(self) -> str:
+        return self._prefix  # type: ignore
 
     @classmethod
-    def create(cls, output_prefix, clobber, pid):
+    def create(cls, output_prefix: str, pid: int) -> LogPaths:
         datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
-        formatted_prefix = output_prefix.format(pid, datetime_filesafe)
-        create_dict = {name: f"{formatted_prefix}{suffix}" for name, suffix in Suffix()}
-        conflicts = [path for path in create_dict.values() if Path(path).exists()]
+        formatted_prefix = output_prefix.format(
+            pid=pid, datetime_filesafe=datetime_filesafe
+        )
+        args_dict = {name: f"{formatted_prefix}{suffix}" for name, suffix in Suffix()}
+        new = cls(**args_dict)
+        new._prefix = formatted_prefix
+        return new
+
+    def prepare_paths(self, clobber: bool) -> None:
+        conflicts = [path for path in asdict(self).values() if Path(path).exists()]
         if conflicts and not clobber:
             raise FileExistsError(
                 "Conflicting files:\n"
@@ -131,20 +141,18 @@ class LogPaths:
                 + "\nUse --clobber to overrwrite conflicting files."
             )
         elif conflicts and clobber:
-            [Path(path).unlink() for path in conflicts]
+            for path in conflicts:
+                Path(path).unlink()
 
-        if formatted_prefix.endswith(
-            os.sep
-        ):  # If it ends in "/" (for linux) treat as a dir
-            os.makedirs(formatted_prefix, exist_ok=True)
+        if self.prefix.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
+            os.makedirs(self.prefix, exist_ok=True)
         else:
             # Path does not end with a separator, treat the last part as a filename
-            directory = os.path.dirname(formatted_prefix)
+            directory = os.path.dirname(self.prefix)
             if directory:
                 os.makedirs(directory, exist_ok=True)
-        new = cls(**create_dict)
-        new._prefix = formatted_prefix
-        return new
+        for path in asdict(self).values():
+            Path(path).touch()
 
 
 @dataclass
@@ -281,10 +289,6 @@ class Report:
 
     def write_pid_samples(self) -> None:
         assert self._sample is not None
-        # First time only
-        if not self._usage_file_exists:
-            Path(self.log_paths.usage).touch()
-            self._usage_file_exists = True
 
         with open(self.log_paths.usage, "a") as resource_statistics_log:
             resource_statistics_log.write(json.dumps(self._sample.for_json()) + "\n")
@@ -550,11 +554,9 @@ def main() -> None:
 
 def execute(args: Arguments) -> None:
     """A wrapper to execute a command, monitor and log the process details."""
-    duct_pid = os.getpid()
-    log_paths = LogPaths.create(args.output_prefix, pid=duct_pid, clobber=args.clobber)
-    stdout, stderr = prepare_outputs(
-        args.capture_outputs, args.outputs, log_paths, args.clobber
-    )
+    log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
+    log_paths.prepare_paths(args.clobber)
+    stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)
     stdout_file: TextIO | IO[bytes] | int | None
     if isinstance(stdout, TailPipe):
         stdout_file = open(stdout.file_path, "wb")
