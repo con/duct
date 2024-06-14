@@ -48,7 +48,9 @@ def test_log_paths_pid_prefix() -> None:
 
 @patch("duct.__main__.os.makedirs")
 @patch("duct.__main__.Path", spec=pathlib.Path)
-def test_prepare_file_paths_available(mock_path, mock_mkdir) -> None:
+def test_prepare_file_paths_available(
+    mock_path: MagicMock, mock_mkdir: MagicMock
+) -> None:
     mock_path.return_value.exists.return_value = False
     prefix = "prefix_"
     log_paths = LogPaths.create(prefix)
@@ -70,7 +72,9 @@ def test_prepare_file_paths_available(mock_path, mock_mkdir) -> None:
 )
 @patch("duct.__main__.os.makedirs")
 @patch("duct.__main__.Path", spec=pathlib.Path)
-def test_prepare_dir_paths_available(mock_path, mock_mkdir, path) -> None:
+def test_prepare_dir_paths_available(
+    mock_path: MagicMock, mock_mkdir: MagicMock, path: str
+) -> None:
     mock_path.return_value.exists.return_value = False
     log_paths = LogPaths.create(path)
     log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
@@ -80,7 +84,9 @@ def test_prepare_dir_paths_available(mock_path, mock_mkdir, path) -> None:
 
 @patch("duct.__main__.os.makedirs")
 @patch("duct.__main__.Path", spec=pathlib.Path)
-def test_prepare_dir_paths_not_available_no_clobber(mock_path, mock_mkdir) -> None:
+def test_prepare_dir_paths_not_available_no_clobber(
+    mock_path: MagicMock, mock_mkdir: MagicMock
+) -> None:
     mock_path.return_value.exists.return_value = True
     log_paths = LogPaths.create("doesntmatter")
     with pytest.raises(FileExistsError):
@@ -91,7 +97,9 @@ def test_prepare_dir_paths_not_available_no_clobber(mock_path, mock_mkdir) -> No
 
 @patch("duct.__main__.os.makedirs")
 @patch("duct.__main__.Path", spec=pathlib.Path)
-def test_prepare_dir_paths_not_available_clobber(mock_path, mock_mkdir) -> None:
+def test_prepare_dir_paths_not_available_clobber(
+    mock_path: MagicMock, mock_mkdir: MagicMock
+) -> None:
     mock_path.return_value.exists.return_value = True
     log_paths = LogPaths.create("file_prefix_")
     log_paths.prepare_paths(clobber=True, capture_outputs=Outputs.ALL)
@@ -113,7 +121,7 @@ def test_prepare_dir_paths_not_available_clobber(mock_path, mock_mkdir) -> None:
 @patch("duct.__main__.os.makedirs")
 @patch("duct.__main__.Path", spec=pathlib.Path)
 def test_prefix_with_filepart_and_directory_part(
-    mock_path: MagicMock, mock_mkdir: MagicMock, path
+    mock_path: MagicMock, mock_mkdir: MagicMock, path: str
 ) -> None:
     mock_path.return_value.exists.return_value = False
     log_paths = LogPaths.create(path)
