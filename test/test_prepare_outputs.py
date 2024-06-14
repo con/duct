@@ -17,7 +17,7 @@ def test_prepare_outputs_capture_none_output_none(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.NONE, Outputs.NONE, mock_log_paths)
     mock_tee_stream.assert_not_called()
@@ -38,7 +38,7 @@ def test_prepare_outputs_capture_none_output_stdout(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.NONE, Outputs.STDOUT, mock_log_paths)
     mock_tee_stream.assert_not_called()
@@ -59,7 +59,7 @@ def test_prepare_outputs_capture_none_output_stderr(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.NONE, Outputs.STDERR, mock_log_paths)
     mock_tee_stream.assert_not_called()
@@ -80,7 +80,7 @@ def test_prepare_outputs_capture_none_output_all(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.NONE, Outputs.ALL, mock_log_paths)
     mock_tee_stream.assert_not_called()
@@ -101,7 +101,7 @@ def test_prepare_outputs_capture_stdout_output_none(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.STDOUT, Outputs.NONE, mock_log_paths)
     mock_tee_stream.assert_not_called()
@@ -122,7 +122,7 @@ def test_prepare_outputs_capture_stdout_output_stdout(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.STDOUT, Outputs.STDOUT, mock_log_paths)
     mock_tee_stream.assert_called_once_with(
@@ -145,7 +145,7 @@ def test_prepare_outputs_capture_stdout_output_stderr(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.STDOUT, Outputs.STDERR, mock_log_paths)
     mock_open.assert_called_once_with(mock_log_paths.stdout, "w")
@@ -166,7 +166,7 @@ def test_prepare_outputs_capture_stdout_output_all(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.STDOUT, Outputs.ALL, mock_log_paths)
     mock_tee_stream.assert_called_once_with(
@@ -189,7 +189,7 @@ def test_prepare_outputs_capture_stderr_output_none(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.STDERR, Outputs.NONE, mock_log_paths)
     mock_tee_stream.assert_not_called()
@@ -210,7 +210,7 @@ def test_prepare_outputs_capture_stderr_output_stdout(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.STDERR, Outputs.STDOUT, mock_log_paths)
     mock_tee_stream.assert_not_called()
@@ -231,7 +231,7 @@ def test_prepare_outputs_capture_stderr_output_stderr(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.STDERR, Outputs.STDERR, mock_log_paths)
     mock_tee_stream.assert_called_once_with(
@@ -254,7 +254,7 @@ def test_prepare_outputs_capture_stderr_output_all(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.STDERR, Outputs.ALL, mock_log_paths)
     mock_tee_stream.assert_called_once_with(
@@ -277,7 +277,7 @@ def test_prepare_outputs_capture_all_output_none(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.ALL, Outputs.NONE, mock_log_paths)
     mock_tee_stream.assert_not_called()
@@ -300,7 +300,7 @@ def test_prepare_outputs_capture_all_output_stdout(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.ALL, Outputs.STDOUT, mock_log_paths)
     mock_tee_stream.assert_called_with(mock_log_paths.stdout, buffer=mock_stdout.buffer)
@@ -321,7 +321,7 @@ def test_prepare_outputs_capture_all_output_stderr(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.ALL, Outputs.STDERR, mock_log_paths)
     mock_tee_stream.assert_called_once_with(
@@ -344,7 +344,7 @@ def test_prepare_outputs_capture_all_output_all(
     mock_tee_stream: MagicMock,
     mock_open: MagicMock,
 ) -> None:
-    mock_log_paths = mock_LogPaths.create()
+    mock_log_paths = mock_LogPaths.create("mock_prefix")
     mock_tee_stream.return_value.start = MagicMock()
     stdout, stderr = prepare_outputs(Outputs.ALL, Outputs.ALL, mock_log_paths)
     mock_tee_stream.assert_has_calls(
