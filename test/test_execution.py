@@ -20,9 +20,9 @@ def test_sanity_green(temp_output_dir: str) -> None:
         clobber=False,
     )
     execute(args)
-    # When runtime < sample_interval, we won't have a usage.json
-    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info]
+    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info, Suffix.usage]
     assert_files(temp_output_dir, expected_files, exists=True)
+    # TODO check usagefile empty
 
 
 def test_sanity_red(temp_output_dir: str) -> None:
@@ -42,11 +42,8 @@ def test_sanity_red(temp_output_dir: str) -> None:
         mock_stdout.write.assert_has_calls([mock.call("Exit Code: 1")])
 
     # We still should execute normally
-    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info]
+    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info, Suffix.usage]
     assert_files(temp_output_dir, expected_files, exists=True)
-    # But no polling of the already failed command
-    not_expected_files = [Suffix.usage]
-    assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
 def test_outputs_full(temp_output_dir: str) -> None:
@@ -139,10 +136,9 @@ def test_exit_before_first_sample(temp_output_dir: str) -> None:
         clobber=False,
     )
     execute(args)
-    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info]
+    expected_files = [Suffix.stdout, Suffix.stderr, Suffix.info, Suffix.usage]
     assert_files(temp_output_dir, expected_files, exists=True)
-    not_expected_files = [Suffix.usage]
-    assert_files(temp_output_dir, not_expected_files, exists=False)
+    # TODO check usagefile
 
 
 def test_run_less_than_report_interval(temp_output_dir: str) -> None:

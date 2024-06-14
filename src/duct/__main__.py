@@ -132,7 +132,7 @@ class LogPaths:
         new._prefix = formatted_prefix
         return new
 
-    def prepare_paths(self, clobber: bool) -> None:
+    def prepare_paths(self, clobber: bool, capture_outputs: Outputs | None) -> None:
         conflicts = [path for path in asdict(self).values() if Path(path).exists()]
         if conflicts and not clobber:
             raise FileExistsError(
@@ -151,8 +151,9 @@ class LogPaths:
             directory = os.path.dirname(self.prefix)
             if directory:
                 os.makedirs(directory, exist_ok=True)
-        for path in asdict(self).values():
-            Path(path).touch()
+        for path_name, path in self:
+            if path_name in capture_outputs or capture_outputs == Outputs.ALL:
+                Path(path).touch()
 
 
 @dataclass
@@ -553,7 +554,7 @@ def main() -> None:
 def execute(args: Arguments) -> None:
     """A wrapper to execute a command, monitor and log the process details."""
     log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
-    log_paths.prepare_paths(args.clobber)
+    log_paths.prepare_paths(args.clobber, args.capture_outputs)
     stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)
     stdout_file: TextIO | IO[bytes] | int | None
     if isinstance(stdout, TailPipe):
