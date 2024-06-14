@@ -132,7 +132,7 @@ class LogPaths:
         new._prefix = formatted_prefix
         return new
 
-    def prepare_paths(self, clobber: bool, capture_outputs: Outputs | None) -> None:
+    def prepare_paths(self, clobber: bool, capture_outputs: Outputs) -> None:
         conflicts = [path for path in asdict(self).values() if Path(path).exists()]
         if conflicts and not clobber:
             raise FileExistsError(
