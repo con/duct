@@ -115,16 +115,11 @@ class LogPaths:
         formatted_prefix = output_prefix.format(
             pid=pid, datetime_filesafe=datetime_filesafe
         )
-
-        stdout = f"{formatted_prefix}{SUFFIXES['stdout']}"
-        stderr = f"{formatted_prefix}{SUFFIXES['stderr']}"
-        usage = f"{formatted_prefix}{SUFFIXES['usage']}"
-        info = f"{formatted_prefix}{SUFFIXES['info']}"
         return cls(
-            stdout=stdout,
-            stderr=stderr,
-            usage=usage,
-            info=info,
+            stdout=f"{formatted_prefix}{SUFFIXES['stdout']}",
+            stderr=f"{formatted_prefix}{SUFFIXES['stderr']}",
+            usage=f"{formatted_prefix}{SUFFIXES['usage']}",
+            info=f"{formatted_prefix}{SUFFIXES['info']}",
             prefix=formatted_prefix,
         )
 
