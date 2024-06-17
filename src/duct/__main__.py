@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse
 from collections.abc import Generator, Iterable
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 import json
@@ -17,6 +17,10 @@ from typing import IO, Any, TextIO
 from . import __version__
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
+STDOUT_SUFFIX = "stdout"
+STDERR_SUFFIX = "stderr"
+USAGE_SUFFIX = "usage.json"
+INFO_SUFFIX = "info.json"
 
 
 class Colors:
@@ -92,34 +96,17 @@ class ProcessStats:
 
 
 @dataclass
-class Suffix:
-    stdout: str = "stdout"
-    stderr: str = "stderr"
-    usage: str = "usage.json"
-    info: str = "info.json"
-
-    def __iter__(self) -> Generator:
-        for each in fields(self):
-            yield each.name, getattr(self, each.name)
-
-
-@dataclass
 class LogPaths:
     stdout: str
     stderr: str
     usage: str
     info: str
+    prefix: str
 
     def __iter__(self) -> Generator:
-        for each in fields(self):
-            yield each.name, getattr(self, each.name)
-
-    def __post_init__(self) -> None:
-        self._prefix = ""
-
-    @property
-    def prefix(self) -> str:
-        return self._prefix  # type: ignore
+        for name, path in asdict(self).items():
+            if name != "prefix":
+                yield name, path
 
     @classmethod
     def create(cls, output_prefix: str, pid: None | int = None) -> LogPaths:
@@ -127,13 +114,21 @@ class LogPaths:
         formatted_prefix = output_prefix.format(
             pid=pid, datetime_filesafe=datetime_filesafe
         )
-        args_dict = {name: f"{formatted_prefix}{suffix}" for name, suffix in Suffix()}
-        new = cls(**args_dict)
-        new._prefix = formatted_prefix
-        return new
+
+        stdout = f"{formatted_prefix}{STDOUT_SUFFIX}"
+        stderr = f"{formatted_prefix}{STDERR_SUFFIX}"
+        usage = f"{formatted_prefix}{USAGE_SUFFIX}"
+        info = f"{formatted_prefix}{INFO_SUFFIX}"
+        return cls(
+            stdout=stdout,
+            stderr=stderr,
+            usage=usage,
+            info=info,
+            prefix=formatted_prefix,
+        )
 
     def prepare_paths(self, clobber: bool, capture_outputs: Outputs) -> None:
-        conflicts = [path for path in asdict(self).values() if Path(path).exists()]
+        conflicts = [path for _name, path in self if Path(path).exists()]
         if conflicts and not clobber:
             raise FileExistsError(
                 "Conflicting files:\n"
