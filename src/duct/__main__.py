@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from enum import Enum
@@ -13,7 +13,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import IO, Any, Generator, TextIO
+from typing import IO, Any, TextIO
 from . import __version__
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
