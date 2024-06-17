@@ -16,11 +16,6 @@ from typing import IO, Any, TextIO
 from . import __version__
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
-STDOUT_SUFFIX = "stdout"
-STDERR_SUFFIX = "stderr"
-USAGE_SUFFIX = "usage.json"
-INFO_SUFFIX = "info.json"
-
 SUFFIXES = {
     "stdout": "stdout",
     "stderr": "stderr",
@@ -215,7 +210,6 @@ class Report:
         self._sample: Sample | None = None
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
-        self._usage_file_exists: bool = False
         self.clobber = clobber
 
     @property
