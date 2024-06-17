@@ -7,7 +7,6 @@ from datetime import datetime
 from enum import Enum
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import sys
@@ -49,6 +48,12 @@ class Outputs(str, Enum):
 
     def has_stderr(self) -> bool:
         return self is Outputs.ALL or self is Outputs.STDERR
+
+    def has(self, stream_name: str) -> bool:
+        if stream_name == self.STDOUT:
+            return self.has_stdout()
+        if stream_name == self.STDERR:
+            return self.has_stderr()
 
 
 class RecordTypes(str, Enum):
@@ -129,16 +134,12 @@ class LogPaths:
 
     def prepare_paths(self, clobber: bool, capture_outputs: Outputs) -> None:
         conflicts = [path for _name, path in self if os.path.exists(path)]
-        if conflicts:
-            if clobber:
-                for path in conflicts:
-                    os.remove(path)
-            else:
-                raise FileExistsError(
-                    "Conflicting files:\n"
-                    + "\n".join(f"- {path}" for path in conflicts)
-                    + "\nUse --clobber to overrwrite conflicting files."
-                )
+        if conflicts and not clobber:
+            raise FileExistsError(
+                "Conflicting files:\n"
+                + "\n".join(f"- {path}" for path in conflicts)
+                + "\nUse --clobber to overrwrite conflicting files."
+            )
 
         if self.prefix.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
             os.makedirs(self.prefix, exist_ok=True)
@@ -148,8 +149,8 @@ class LogPaths:
             if directory:
                 os.makedirs(directory, exist_ok=True)
         for path_name, path in self:
-            if path_name in capture_outputs or capture_outputs == Outputs.ALL:
-                Path(path).touch()
+            if capture_outputs.has(path_name):
+                open(path, "w").close()
 
 
 @dataclass
