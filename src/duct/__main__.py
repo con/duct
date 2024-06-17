@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse
-from collections.abc import Generator, Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -109,7 +109,7 @@ class LogPaths:
     info: str
     prefix: str
 
-    def __iter__(self) -> Generator:
+    def __iter__(self) -> Iterator[tuple[str, str]]:
         for name, path in asdict(self).items():
             if name != "prefix":
                 yield name, path
