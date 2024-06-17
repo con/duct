@@ -286,7 +286,6 @@ class Report:
 
     def write_pid_samples(self) -> None:
         assert self._sample is not None
-
         with open(self.log_paths.usage, "a") as resource_statistics_log:
             resource_statistics_log.write(json.dumps(self._sample.for_json()) + "\n")
 
