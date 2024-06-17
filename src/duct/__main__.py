@@ -21,6 +21,13 @@ STDERR_SUFFIX = "stderr"
 USAGE_SUFFIX = "usage.json"
 INFO_SUFFIX = "info.json"
 
+SUFFIXES = {
+    "stdout": "stdout",
+    "stderr": "stderr",
+    "usage": "usage.json",
+    "info": "info.json",
+}
+
 
 class Colors:
     HEADER = "\033[95m"
@@ -48,12 +55,6 @@ class Outputs(str, Enum):
 
     def has_stderr(self) -> bool:
         return self is Outputs.ALL or self is Outputs.STDERR
-
-    def has(self, stream_name: str) -> bool:
-        if stream_name == self.STDOUT:
-            return self.has_stdout()
-        if stream_name == self.STDERR:
-            return self.has_stderr()
 
 
 class RecordTypes(str, Enum):
@@ -120,10 +121,10 @@ class LogPaths:
             pid=pid, datetime_filesafe=datetime_filesafe
         )
 
-        stdout = f"{formatted_prefix}{STDOUT_SUFFIX}"
-        stderr = f"{formatted_prefix}{STDERR_SUFFIX}"
-        usage = f"{formatted_prefix}{USAGE_SUFFIX}"
-        info = f"{formatted_prefix}{INFO_SUFFIX}"
+        stdout = f"{formatted_prefix}{SUFFIXES['stdout']}"
+        stderr = f"{formatted_prefix}{SUFFIXES['stderr']}"
+        usage = f"{formatted_prefix}{SUFFIXES['usage']}"
+        info = f"{formatted_prefix}{SUFFIXES['info']}"
         return cls(
             stdout=stdout,
             stderr=stderr,
@@ -148,9 +149,13 @@ class LogPaths:
             directory = os.path.dirname(self.prefix)
             if directory:
                 os.makedirs(directory, exist_ok=True)
-        for path_name, path in self:
-            if capture_outputs.has(path_name):
-                open(path, "w").close()
+        for name, path in self:
+            if name == SUFFIXES["stdout"] and not capture_outputs.has_stdout():
+                continue
+            elif name == SUFFIXES["stderr"] and not capture_outputs.has_stderr():
+                continue
+            # usage and info should always be created
+            open(path, "w").close()
 
 
 @dataclass

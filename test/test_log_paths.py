@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import asdict
 import os
-import pathlib
 import re
 from unittest.mock import MagicMock, call, patch
 import pytest
@@ -21,22 +20,6 @@ def test_log_paths_pid_prefix() -> None:
     assert log_paths.prefix == prefix.format(pid=123456)
 
 
-@patch("duct.__main__.os.makedirs")
-@patch("duct.__main__.Path", spec=pathlib.Path)
-def test_prepare_file_paths_available(
-    mock_path: MagicMock, mock_mkdir: MagicMock
-) -> None:
-    mock_path.return_value.exists.return_value = False
-    prefix = "prefix_"
-    log_paths = LogPaths.create(prefix)
-    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
-    mock_path.return_value.unlink.assert_not_called()
-    mock_mkdir.assert_not_called()
-    expected_calls = [call(each) for each in asdict(log_paths).values()]
-    mock_path.assert_has_calls(expected_calls, any_order=True)
-    assert mock_path.return_value.touch.call_count == len(asdict(log_paths))
-
-
 @pytest.mark.parametrize(
     "path",
     [
@@ -46,43 +29,15 @@ def test_prepare_file_paths_available(
     ],
 )
 @patch("duct.__main__.os.makedirs")
-@patch("duct.__main__.Path", spec=pathlib.Path)
+@patch("duct.__main__.os.path.exists")
+@patch("builtins.open")
 def test_prepare_dir_paths_available(
-    mock_path: MagicMock, mock_mkdir: MagicMock, path: str
+    _mock_open: MagicMock, mock_exists: MagicMock, mock_mkdir: MagicMock, path: str
 ) -> None:
-    mock_path.return_value.exists.return_value = False
+    mock_exists.return_value = False
     log_paths = LogPaths.create(path)
     log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
-    mock_path.return_value.unlink.assert_not_called()
     mock_mkdir.assert_called_once_with(path, exist_ok=True)
-
-
-@patch("duct.__main__.os.makedirs")
-@patch("duct.__main__.Path", spec=pathlib.Path)
-def test_prepare_dir_paths_not_available_no_clobber(
-    mock_path: MagicMock, mock_mkdir: MagicMock
-) -> None:
-    mock_path.return_value.exists.return_value = True
-    log_paths = LogPaths.create("doesntmatter")
-    with pytest.raises(FileExistsError):
-        log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
-    mock_path.return_value.unlink.assert_not_called()
-    mock_mkdir.assert_not_called()
-
-
-@patch("duct.__main__.os.makedirs")
-@patch("duct.__main__.Path", spec=pathlib.Path)
-def test_prepare_dir_paths_not_available_clobber(
-    mock_path: MagicMock, mock_mkdir: MagicMock
-) -> None:
-    mock_path.return_value.exists.return_value = True
-    log_paths = LogPaths.create("file_prefix_")
-    log_paths.prepare_paths(clobber=True, capture_outputs=Outputs.ALL)
-    expected_calls = [call(path) for _name, path in log_paths]
-    mock_path.assert_has_calls(expected_calls, any_order=True)
-    assert mock_path.return_value.unlink.call_count == len(asdict(log_paths))
-    assert mock_path.return_value.touch.call_count == len(asdict(log_paths))
-    mock_mkdir.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -93,15 +48,106 @@ def test_prepare_dir_paths_not_available_clobber(
         "/abs/path/pre_",
     ],
 )
+@patch("duct.__main__.os.path.exists")
 @patch("duct.__main__.os.makedirs")
-@patch("duct.__main__.Path", spec=pathlib.Path)
+@patch("builtins.open")
 def test_prefix_with_filepart_and_directory_part(
-    mock_path: MagicMock, mock_mkdir: MagicMock, path: str
+    mock_open: MagicMock, mock_mkdir: MagicMock, mock_exists: MagicMock, path: str
 ) -> None:
-    mock_path.return_value.exists.return_value = False
+    mock_exists.return_value = False
     log_paths = LogPaths.create(path)
     log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
     mock_mkdir.assert_called_once_with(os.path.dirname(path), exist_ok=True)
-    expected_calls = [call(each) for each in asdict(log_paths).values()]
-    mock_path.assert_has_calls(expected_calls, any_order=True)
-    assert mock_path.return_value.touch.call_count == len(asdict(log_paths))
+    expected_calls = [call(each, "w") for _name, each in log_paths]
+    mock_open.assert_has_calls(expected_calls, any_order=True)
+
+
+@patch("duct.__main__.os.path.exists")
+@patch("duct.__main__.os.makedirs")
+@patch("builtins.open")
+def test_prefix_with_filepart_only(
+    mock_open: MagicMock, mock_mkdir: MagicMock, mock_exists: MagicMock
+) -> None:
+    mock_exists.return_value = False
+    log_paths = LogPaths.create("filepartonly")
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
+    mock_mkdir.assert_not_called()
+    expected_calls = [call(each, "w") for _name, each in log_paths]
+    mock_open.assert_has_calls(expected_calls, any_order=True)
+
+
+@patch("duct.__main__.os.path.exists")
+@patch("duct.__main__.os.makedirs")
+@patch("builtins.open")
+def test_prepare_file_paths_available_all(
+    mock_open: MagicMock, _mock_mkdir: MagicMock, mock_exists: MagicMock
+) -> None:
+    mock_exists.return_value = False
+    prefix = "prefix_"
+    log_paths = LogPaths.create(prefix)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
+    expected_calls = [call(each, "w") for _name, each in log_paths]
+    mock_open.assert_has_calls(expected_calls, any_order=True)
+
+
+@patch("duct.__main__.os.path.exists")
+@patch("duct.__main__.os.makedirs")
+@patch("builtins.open")
+def test_prepare_file_paths_available_stdout(
+    mock_open: MagicMock, _mock_mkdir: MagicMock, mock_exists: MagicMock
+) -> None:
+    mock_exists.return_value = False
+    prefix = "prefix_"
+    log_paths = LogPaths.create(prefix)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.STDOUT)
+    expected_calls = [
+        call(each, "w") for name, each in log_paths if name != Outputs.STDERR
+    ]
+    mock_open.assert_has_calls(expected_calls, any_order=True)
+
+
+@patch("duct.__main__.os.path.exists")
+@patch("duct.__main__.os.makedirs")
+@patch("builtins.open")
+def test_prepare_file_paths_available_stderr(
+    mock_open: MagicMock, _mock_mkdir: MagicMock, mock_exists: MagicMock
+) -> None:
+    mock_exists.return_value = False
+    prefix = "prefix_"
+    log_paths = LogPaths.create(prefix)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.STDERR)
+    expected_calls = [
+        call(each, "w") for name, each in log_paths if name != Outputs.STDOUT
+    ]
+    mock_open.assert_has_calls(expected_calls, any_order=True)
+
+
+@patch("duct.__main__.os.path.exists")
+@patch("duct.__main__.os.makedirs")
+@patch("builtins.open")
+def test_prepare_file_paths_available_no_streams(
+    mock_open: MagicMock, _mock_mkdir: MagicMock, mock_exists: MagicMock
+) -> None:
+    mock_exists.return_value = False
+    prefix = "prefix_"
+    log_paths = LogPaths.create(prefix)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.NONE)
+    streams = [Outputs.STDOUT, Outputs.STDERR]
+    expected_calls = [
+        call(each, "w") for name, each in log_paths if name not in streams
+    ]
+    mock_open.assert_has_calls(expected_calls, any_order=True)
+
+
+@patch("duct.__main__.os.makedirs")
+@patch("duct.__main__.os.path.exists")
+@patch("builtins.open")
+def test_prepare_paths_not_available_no_clobber(
+    mock_open: MagicMock, mock_exists: MagicMock, mock_mkdir: MagicMock
+) -> None:
+    mock_exists.return_value = True
+    log_paths = LogPaths.create("doesntmatter")
+    with pytest.raises(FileExistsError):
+        log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
+    mock_mkdir.assert_not_called()
+    mock_open.assert_not_called()
