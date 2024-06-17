@@ -128,16 +128,17 @@ class LogPaths:
         )
 
     def prepare_paths(self, clobber: bool, capture_outputs: Outputs) -> None:
-        conflicts = [path for _name, path in self if Path(path).exists()]
-        if conflicts and not clobber:
-            raise FileExistsError(
-                "Conflicting files:\n"
-                + "\n".join(f"- {path}" for path in conflicts)
-                + "\nUse --clobber to overrwrite conflicting files."
-            )
-        elif conflicts and clobber:
-            for path in conflicts:
-                Path(path).unlink()
+        conflicts = [path for _name, path in self if os.path.exists(path)]
+        if conflicts:
+            if clobber:
+                for path in conflicts:
+                    os.remove(path)
+            else:
+                raise FileExistsError(
+                    "Conflicting files:\n"
+                    + "\n".join(f"- {path}" for path in conflicts)
+                    + "\nUse --clobber to overrwrite conflicting files."
+                )
 
         if self.prefix.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
             os.makedirs(self.prefix, exist_ok=True)
