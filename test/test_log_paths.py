@@ -23,8 +23,6 @@ def test_log_paths_iter() -> None:
     assert "_prefix" not in asdict(log_paths)
     assert "prefix" not in asdict(log_paths)
     assert log_paths.prefix == test_prefix
-
-    # One for each of the Suffixes
     assert asdict(log_paths).keys() == asdict(Suffix()).keys()
 
 
