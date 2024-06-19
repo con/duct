@@ -48,9 +48,10 @@ options:
                         False)
   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
-                        running process. Sample interval should be larger than
-                        the runtime of the process or `duct` may underreport
-                        the number of processes started. (default: 1.0)
+                        running process. Sample interval must be less than or
+                        equal to Report interval, and achieves the best
+                        results when sample is significantly less than the
+                        runtime of the process. (default: 1.0)
   --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
                         Interval in seconds at which to report aggregated
                         data. (default: 60.0)
