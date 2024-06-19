@@ -380,7 +380,7 @@ class Arguments:
             type=float,
             default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
             help="Interval in seconds between status checks of the running process. "
-            "Sample interval must be less than or equal to Report interval, and achieves the "
+            "Sample interval must be less than or equal to report interval, and it achieves the "
             "best results when sample is significantly less than the runtime of the process.",
         )
         parser.add_argument(

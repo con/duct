@@ -49,7 +49,7 @@ options:
   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval must be less than or
-                        equal to Report interval, and achieves the best
+                        equal to report interval, and it achieves the best
                         results when sample is significantly less than the
                         runtime of the process. (default: 1.0)
   --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
