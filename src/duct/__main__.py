@@ -210,6 +210,7 @@ class Report:
         self.system_info: SystemInfo | None = None
         self.log_paths = log_paths
         self.max_values = Sample()
+        self.averages: dict[str, int | float] = {}
         self.process = process
         self.samples: list[Sample] = []
         self.end_time: float | None = None
@@ -289,8 +290,8 @@ class Report:
         return sample
 
     def aggregate_samples(self) -> dict:
-        average_rss: int = 0
-        average_vsz: int = 0
+        average_rss: float = 0.0
+        average_vsz: float = 0.0
         average_pmem: float = 0.0
         average_pcpu: float = 0.0
         maxes = Sample()
@@ -304,13 +305,21 @@ class Report:
         if not divisor:
             return maxes
         averages = {
-            "rss": round(average_rss / divisor),
-            "vsz": round(average_vsz / divisor),
+            "rss": round(average_rss / divisor, 3),
+            "vsz": round(average_vsz / divisor, 3),
             "pmem": round(average_pmem / divisor, 3),
             "pcpu": round(average_pcpu / divisor, 3),
         }
         maxes.averages = averages
         return maxes
+
+    def update_averages(self, averages: dict[str, int | float]) -> None:
+        if not self.averages:
+            self.averages = averages
+        else:
+            for key, value in averages.items():
+                prev_average = self.averages[key]
+                self.averages[key] = prev_average + (value - prev_average) / self.number
 
     def write_subreport(self, sample) -> None:
         with open(self.log_paths.usage, "a") as resource_statistics_log:
@@ -330,12 +339,36 @@ class Report:
         print(f"Log files location: {self.log_paths.prefix}")
         print(f"Wall Clock Time: {self.elapsed_time:.3f} sec")
         print(
-            "Memory Peak Usage:",
+            "Memory Peak Usage (RSS):",
+            f"{self.max_values.total_rss} KiB" if self.max_values.stats else "unknown%",
+        )
+        print(
+            "Memory Average Usage (RSS):",
+            f"{self.averages.get('rss'):.3f} KiB" if self.averages else "unknown%",
+        )
+        print(
+            "Virtual Memory Peak Usage (VSZ):",
+            f"{self.max_values.total_vsz} KiB" if self.max_values.stats else "unknown%",
+        )
+        print(
+            "Virtual Memory Average Usage (VSZ):",
+            f"{self.averages.get('vsz'):.3f} KiB" if self.averages else "unknown%",
+        )
+        print(
+            "Memory Peak Percentage:",
             f"{self.max_values.total_pmem}%" if self.max_values.stats else "unknown%",
+        )
+        print(
+            "Memory Average Percentage:",
+            f"{self.averages.get('pmem'):.3f}%" if self.averages else "unknown%",
         )
         print(
             "CPU Peak Usage:",
             f"{self.max_values.total_pcpu}%" if self.max_values.stats else "unknown%",
+        )
+        print(
+            "Average CPU Usage:",
+            f"{self.averages.get('pcpu'):.3f}%" if self.averages else "unknown%",
         )
         print(f"{Colors.ENDC}")
 
@@ -472,6 +505,7 @@ def monitor_process(
             if report.elapsed_time >= report.number * report_interval:
                 aggregated_sample = report.aggregate_samples()
                 report.write_subreport(aggregated_sample)
+                report.update_averages(aggregated_sample.averages)
                 report.max_values = report.max_values.max(aggregated_sample)
                 report.samples = []  # Reset samples
                 report.number += 1
