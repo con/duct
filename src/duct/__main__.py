@@ -301,6 +301,8 @@ class Report:
             average_pmem += sample.total_pmem
             average_pcpu += sample.total_pcpu
         divisor = float(len(self.samples))
+        if not divisor:
+            return maxes
         averages = {
             "rss": round(average_rss / divisor),
             "vsz": round(average_vsz / divisor),
