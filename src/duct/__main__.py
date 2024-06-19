@@ -78,8 +78,8 @@ class SystemInfo:
 class ProcessStats:
     pcpu: float  # %CPU
     pmem: float  # %MEM
-    rss: int  # Memory Resident Set Size
-    vsz: int  # Virtual Memory size
+    rss: int  # Memory Resident Set Size in KiB
+    vsz: int  # Virtual Memory size in KiB
     timestamp: str
 
     def max(self, other: ProcessStats) -> ProcessStats:
@@ -147,10 +147,14 @@ class LogPaths:
 @dataclass
 class Sample:
     stats: dict[int, ProcessStats] = field(default_factory=dict)
+    total_rss: int = 0
+    total_vsz: int = 0
     total_pmem: float = 0.0
     total_pcpu: float = 0.0
 
     def add(self, pid: int, stats: ProcessStats) -> None:
+        self.total_rss += stats.rss
+        self.total_vsz += stats.vsz
         self.total_pmem += stats.pmem
         self.total_pcpu += stats.pcpu
         self.stats[pid] = stats
@@ -167,11 +171,18 @@ class Sample:
                 output.add(pid, other.stats[pid])
         output.total_pmem = max(self.total_pmem, other.total_pmem)
         output.total_pcpu = max(self.total_pcpu, other.total_pcpu)
+        output.total_rss = max(self.total_rss, other.total_rss)
+        output.total_vsz = max(self.total_vsz, other.total_vsz)
         return output
 
     def for_json(self) -> dict[str, Any]:
         d = {str(pid): asdict(stats) for pid, stats in self.stats.items()}
-        d["totals"] = {"pmem": self.total_pmem, "pcpu": self.total_pcpu}
+        d["totals"] = {
+            "pmem": self.total_pmem,
+            "pcpu": self.total_pcpu,
+            "rss_kb": self.total_rss,
+            "vsz_kb": self.total_vsz,
+        }
         return d
 
 
