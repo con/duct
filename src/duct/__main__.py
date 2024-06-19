@@ -332,6 +332,13 @@ class Arguments:
     outputs: Outputs
     record_types: RecordTypes
 
+    def __post_init__(self) -> None:
+        if self.report_interval < self.sample_interval:
+            raise argparse.ArgumentError(
+                None,
+                "--report-interval must be greater than or equal to --sample-interval.",
+            )
+
     @classmethod
     def from_argv(cls) -> Arguments:  # pragma: no cover
         parser = argparse.ArgumentParser(
@@ -373,8 +380,8 @@ class Arguments:
             type=float,
             default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
             help="Interval in seconds between status checks of the running process. "
-            "Sample interval should be larger than the runtime of the process or `duct` may "
-            "underreport the number of processes started.",
+            "Sample interval must be less than or equal to Report interval, and achieves the "
+            "best results when sample is significantly less than the runtime of the process.",
         )
         parser.add_argument(
             "--report-interval",
