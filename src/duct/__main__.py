@@ -337,6 +337,7 @@ class Report:
             "CPU Peak Usage:",
             f"{self.max_values.total_pcpu}%" if self.max_values.stats else "unknown%",
         )
+        print(f"{Colors.ENDC}")
 
     def dump_json(self) -> str:
         return json.dumps(
