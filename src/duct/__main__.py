@@ -289,7 +289,7 @@ class Report:
             pass
         return sample
 
-    def aggregate_samples(self) -> dict:
+    def aggregate_samples(self) -> Sample:
         average_rss: float = 0.0
         average_vsz: float = 0.0
         average_pmem: float = 0.0
@@ -321,7 +321,7 @@ class Report:
                 prev_average = self.averages[key]
                 self.averages[key] = prev_average + (value - prev_average) / self.number
 
-    def write_subreport(self, sample) -> None:
+    def write_subreport(self, sample: Sample) -> None:
         with open(self.log_paths.usage, "a") as resource_statistics_log:
             resource_statistics_log.write(json.dumps(sample.for_json()) + "\n")
 
