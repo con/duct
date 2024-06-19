@@ -145,9 +145,34 @@ class LogPaths:
 
 
 @dataclass
+class Averages:
+    rss: float = 0.0
+    vsz: float = 0.0
+    pmem: float = 0.0
+    pcpu: float = 0.0
+    num_samples: int = field(default=1, metadata={"exclude": True})
+
+    def update(self: Averages, other: Averages) -> None:
+        self.num_samples = self.num_samples + 1
+        self.rss += (other.rss - self.rss) / self.num_samples
+        self.vsz += (other.vsz - self.vsz) / self.num_samples
+        self.pmem += (other.pmem - self.pmem) / self.num_samples
+        self.pcpu += (other.pcpu - self.pcpu) / self.num_samples
+
+    @classmethod
+    def from_sample(cls, sample: Sample) -> Averages:
+        cls(
+            rss=sample.total_rss,
+            vsz=sample.total_vsz,
+            pmem=sample.total_pmem,
+            pcpu=sample.total_pcpu,
+        )
+
+
+@dataclass
 class Sample:
     stats: dict[int, ProcessStats] = field(default_factory=dict)
-    averages: dict[str, float] = field(default_factory=dict)
+    averages: Averages = field(default_factory=Averages)
     total_rss: int = 0
     total_vsz: int = 0
     total_pmem: float = 0.0
@@ -184,7 +209,7 @@ class Sample:
             "rss_kb": self.total_rss,
             "vsz_kb": self.total_vsz,
         }
-        d["averages"] = self.averages
+        d["averages"] = asdict(self.averages)
         return d
 
 
@@ -210,9 +235,9 @@ class Report:
         self.system_info: SystemInfo | None = None
         self.log_paths = log_paths
         self.max_values = Sample()
-        self.averages: dict[str, int | float] = {}
+        self.averages: Averages | None = None
         self.process = process
-        self.samples: list[Sample] = []
+        self.current_sample: Sample | None = None
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
         self.clobber = clobber
@@ -289,41 +314,12 @@ class Report:
             pass
         return sample
 
-    def aggregate_samples(self) -> Sample:
-        average_rss: float = 0.0
-        average_vsz: float = 0.0
-        average_pmem: float = 0.0
-        average_pcpu: float = 0.0
-        maxes = Sample()
-        for sample in self.samples:
-            maxes = maxes.max(sample)
-            average_rss += sample.total_rss
-            average_vsz += sample.total_vsz
-            average_pmem += sample.total_pmem
-            average_pcpu += sample.total_pcpu
-        divisor = float(len(self.samples))
-        if not divisor:
-            return maxes
-        averages = {
-            "rss": round(average_rss / divisor, 3),
-            "vsz": round(average_vsz / divisor, 3),
-            "pmem": round(average_pmem / divisor, 3),
-            "pcpu": round(average_pcpu / divisor, 3),
-        }
-        maxes.averages = averages
-        return maxes
-
-    def update_averages(self, averages: dict[str, int | float]) -> None:
-        if not self.averages:
-            self.averages = averages
-        else:
-            for key, value in averages.items():
-                prev_average = self.averages[key]
-                self.averages[key] = prev_average + (value - prev_average) / self.number
-
-    def write_subreport(self, sample: Sample) -> None:
+    def write_subreport(self) -> None:
+        assert self.current_sample is not None
         with open(self.log_paths.usage, "a") as resource_statistics_log:
-            resource_statistics_log.write(json.dumps(sample.for_json()) + "\n")
+            resource_statistics_log.write(
+                json.dumps(self.current_sample.for_json()) + "\n"
+            )
 
     def print_max_values(self) -> None:
         for pid, maxes in self.max_values.stats.items():
@@ -344,7 +340,7 @@ class Report:
         )
         print(
             "Memory Average Usage (RSS):",
-            f"{self.averages.get('rss'):.3f} KiB" if self.averages else "unknown%",
+            f"{self.averages.rss:.3f} KiB" if self.averages else "unknown%",
         )
         print(
             "Virtual Memory Peak Usage (VSZ):",
@@ -352,7 +348,7 @@ class Report:
         )
         print(
             "Virtual Memory Average Usage (VSZ):",
-            f"{self.averages.get('vsz'):.3f} KiB" if self.averages else "unknown%",
+            f"{self.averages.vsz:.3f} KiB" if self.averages else "unknown%",
         )
         print(
             "Memory Peak Percentage:",
@@ -360,7 +356,7 @@ class Report:
         )
         print(
             "Memory Average Percentage:",
-            f"{self.averages.get('pmem'):.3f}%" if self.averages else "unknown%",
+            f"{self.averages.pmem:.3f}%" if self.averages else "unknown%",
         )
         print(
             "CPU Peak Usage:",
@@ -368,7 +364,7 @@ class Report:
         )
         print(
             "Average CPU Usage:",
-            f"{self.averages.get('pcpu'):.3f}%" if self.averages else "unknown%",
+            f"{self.averages.pcpu:.3f}%" if self.averages else "unknown%",
         )
         print(f"{Colors.ENDC}")
 
@@ -508,13 +504,21 @@ def monitor_process(
                 break
             # print(f"Resource stats log path: {resource_stats_log_path}")
             sample = report.collect_sample()
-            report.samples.append(sample)
+            if report.current_sample is None:
+                report.current_sample = sample
+                sample.averages = Averages.from_sample(sample)
+            else:
+                report.current_sample.averages.update(sample.averages)
+
+            if report.averages is None:
+                report.averages = report.current_sample.averages
+            else:
+                report.averages.update(sample.averages)
+
             if report.elapsed_time >= report.number * report_interval:
-                aggregated_sample = report.aggregate_samples()
-                report.write_subreport(aggregated_sample)
-                report.update_averages(aggregated_sample.averages)
-                report.max_values = report.max_values.max(aggregated_sample)
-                report.samples = []  # Reset samples
+                report.write_subreport()
+                report.max_values = report.max_values.max(sample)
+                report.current_sample = None
                 report.number += 1
 
 
@@ -682,10 +686,10 @@ def execute(args: Arguments) -> None:
         monitoring_thread.join()
 
     # If we have any extra samples that haven't been written yet, do it now
-    if report.samples is not None:
-        aggregated_sample = report.aggregate_samples()
-        report.write_subreport(aggregated_sample)
-        report.max_values = report.max_values.max(aggregated_sample)
+    if report.current_sample is not None:
+        report.max_values = report.max_values.max(report.current_sample)
+        report.write_subreport()
+
     report.process = process
     report.finalize()
     safe_close_files([stdout_file, stdout, stderr_file, stderr])
