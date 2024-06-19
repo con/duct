@@ -147,12 +147,13 @@ class LogPaths:
 @dataclass
 class Sample:
     stats: dict[int, ProcessStats] = field(default_factory=dict)
+    averages: dict[str, float] = field(default_factory=dict)
     total_rss: int = 0
     total_vsz: int = 0
     total_pmem: float = 0.0
     total_pcpu: float = 0.0
 
-    def add(self, pid: int, stats: ProcessStats) -> None:
+    def add_pid(self, pid: int, stats: ProcessStats) -> None:
         self.total_rss += stats.rss
         self.total_vsz += stats.vsz
         self.total_pmem += stats.pmem
@@ -164,11 +165,11 @@ class Sample:
         for pid in self.stats.keys() | other.stats.keys():
             if (mine := self.stats.get(pid)) is not None:
                 if (theirs := other.stats.get(pid)) is not None:
-                    output.add(pid, mine.max(theirs))
+                    output.add_pid(pid, mine.max(theirs))
                 else:
-                    output.add(pid, mine)
+                    output.add_pid(pid, mine)
             else:
-                output.add(pid, other.stats[pid])
+                output.add_pid(pid, other.stats[pid])
         output.total_pmem = max(self.total_pmem, other.total_pmem)
         output.total_pcpu = max(self.total_pcpu, other.total_pcpu)
         output.total_rss = max(self.total_rss, other.total_rss)
@@ -183,6 +184,7 @@ class Sample:
             "rss_kb": self.total_rss,
             "vsz_kb": self.total_vsz,
         }
+        d["averages"] = self.averages
         return d
 
 
@@ -209,7 +211,7 @@ class Report:
         self.log_paths = log_paths
         self.max_values = Sample()
         self.process = process
-        self._sample: Sample | None = None
+        self.samples: list[Sample] = []
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
         self.clobber = clobber
@@ -272,7 +274,7 @@ class Report:
             for line in output.splitlines()[1:]:
                 if line:
                     pid, pcpu, pmem, rss, vsz, etime, cmd = line.split(maxsplit=6)
-                    sample.add(
+                    sample.add_pid(
                         int(pid),
                         ProcessStats(
                             pcpu=float(pcpu),
@@ -286,10 +288,31 @@ class Report:
             pass
         return sample
 
-    def write_pid_samples(self) -> None:
-        assert self._sample is not None
+    def aggregate_samples(self) -> dict:
+        average_rss: int = 0
+        average_vsz: int = 0
+        average_pmem: float = 0.0
+        average_pcpu: float = 0.0
+        maxes = Sample()
+        for sample in self.samples:
+            maxes = maxes.max(sample)
+            average_rss += sample.total_rss
+            average_vsz += sample.total_vsz
+            average_pmem += sample.total_pmem
+            average_pcpu += sample.total_pcpu
+        divisor = float(len(self.samples))
+        averages = {
+            "rss": round(average_rss / divisor),
+            "vsz": round(average_vsz / divisor),
+            "pmem": round(average_pmem / divisor, 3),
+            "pcpu": round(average_pcpu / divisor, 3),
+        }
+        maxes.averages = averages
+        return maxes
+
+    def write_subreport(self, sample) -> None:
         with open(self.log_paths.usage, "a") as resource_statistics_log:
-            resource_statistics_log.write(json.dumps(self._sample.for_json()) + "\n")
+            resource_statistics_log.write(json.dumps(sample.for_json()) + "\n")
 
     def print_max_values(self) -> None:
         for pid, maxes in self.max_values.stats.items():
@@ -449,13 +472,12 @@ def monitor_process(
                 break
             # print(f"Resource stats log path: {resource_stats_log_path}")
             sample = report.collect_sample()
-            report._sample = (
-                report._sample.max(sample) if report._sample is not None else sample
-            )
+            report.samples.append(sample)
             if report.elapsed_time >= report.number * report_interval:
-                report.write_pid_samples()
-                report.max_values = report.max_values.max(report._sample)
-                report._sample = None  # Reset sample
+                aggregated_sample = report.aggregate_samples()
+                report.write_subreport(aggregated_sample)
+                report.max_values = report.max_values.max(aggregated_sample)
+                report.samples = []  # Reset samples
                 report.number += 1
 
 
@@ -623,9 +645,10 @@ def execute(args: Arguments) -> None:
         monitoring_thread.join()
 
     # If we have any extra samples that haven't been written yet, do it now
-    if report._sample is not None:
-        report.max_values = report.max_values.max(report._sample)
-        report.write_pid_samples()
+    if report.samples is not None:
+        aggregated_sample = report.aggregate_samples()
+        report.write_subreport(aggregated_sample)
+        report.max_values = report.max_values.max(aggregated_sample)
     report.process = process
     report.finalize()
     safe_close_files([stdout_file, stdout, stderr_file, stderr])
