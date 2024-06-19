@@ -76,14 +76,10 @@ class SystemInfo:
 
 @dataclass
 class ProcessStats:
-    # %CPU
-    pcpu: float
-    # %MEM
-    pmem: float
-    # Memory Resident Set Size
-    rss: int
-    # Virtual Memory size
-    vsz: int
+    pcpu: float  # %CPU
+    pmem: float  # %MEM
+    rss: int  # Memory Resident Set Size
+    vsz: int  # Virtual Memory size
     timestamp: str
 
     def max(self, other: ProcessStats) -> ProcessStats:
