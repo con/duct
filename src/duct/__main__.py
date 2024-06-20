@@ -150,7 +150,7 @@ class Averages:
     vsz: float = 0.0
     pmem: float = 0.0
     pcpu: float = 0.0
-    num_samples: int = field(default=0, metadata={"exclude": True})
+    num_samples: int = 0
 
     def update(self: Averages, other: Sample) -> None:
         self.num_samples = self.num_samples + 1
