@@ -519,23 +519,22 @@ def monitor_process(
     stop_event: threading.Event,
 ) -> None:
     while not stop_event.wait(timeout=sample_interval):
-        while True:
-            if process.poll() is not None:  # the passthrough command has finished
-                break
-            sample = report.collect_sample()
-            # Report averages should be updated prior to sample aggregation
-            report.averages.update(sample)
-            if report.current_sample is None:
-                sample.averages = Averages.from_sample(sample)
-                report.current_sample = sample
-            else:
-                assert report.current_sample.averages is not None
-                report.current_sample.averages.update(sample)
-            if report.elapsed_time >= report.number * report_interval:
-                report.write_subreport()
-                report.max_values = report.max_values.max(sample)
-                report.current_sample = None
-                report.number += 1
+        if process.poll() is not None:  # the passthrough command has finished
+            break
+        sample = report.collect_sample()
+        # Report averages should be updated prior to sample aggregation
+        report.averages.update(sample)
+        if report.current_sample is None:
+            sample.averages = Averages.from_sample(sample)
+            report.current_sample = sample
+        else:
+            assert report.current_sample.averages is not None
+            report.current_sample.averages.update(sample)
+        if report.elapsed_time >= report.number * report_interval:
+            report.write_subreport()
+            report.max_values = report.max_values.max(sample)
+            report.current_sample = None
+            report.number += 1
 
 
 class TailPipe:
