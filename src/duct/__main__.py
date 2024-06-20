@@ -153,7 +153,7 @@ class Averages:
     num_samples: int = 0
 
     def update(self: Averages, other: Sample) -> None:
-        self.num_samples = self.num_samples + 1
+        self.num_samples += 1
         self.rss += (other.total_rss - self.rss) / self.num_samples
         self.vsz += (other.total_vsz - self.vsz) / self.num_samples
         self.pmem += (other.total_pmem - self.pmem) / self.num_samples
