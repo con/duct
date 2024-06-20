@@ -150,7 +150,7 @@ class Averages:
     vsz: float = 0.0
     pmem: float = 0.0
     pcpu: float = 0.0
-    num_samples: int = field(default=1, metadata={"exclude": True})
+    num_samples: int = field(default=0, metadata={"exclude": True})
 
     def update(self: Averages, other: Sample) -> None:
         self.num_samples = self.num_samples + 1
@@ -166,6 +166,7 @@ class Averages:
             vsz=sample.total_vsz,
             pmem=sample.total_pmem,
             pcpu=sample.total_pcpu,
+            num_samples=1,
         )
 
 
@@ -209,7 +210,7 @@ class Sample:
             "rss_kb": self.total_rss,
             "vsz_kb": self.total_vsz,
         }
-        if self.averages is not None:
+        if self.averages.num_samples >= 1:
             d["averages"] = asdict(self.averages)
         return d
 
@@ -236,7 +237,7 @@ class Report:
         self.system_info: SystemInfo | None = None
         self.log_paths = log_paths
         self.max_values = Sample()
-        self.averages: Averages | None = None
+        self.averages: Averages = Averages()
         self.process = process
         self.current_sample: Sample | None = None
         self.end_time: float | None = None
@@ -337,19 +338,27 @@ class Report:
         print(f"Wall Clock Time: {self.elapsed_time:.3f} sec")
         print(
             "Memory Peak Usage (RSS):",
-            f"{self.max_values.total_rss} KiB" if self.max_values.stats else "unknown%",
+            f"{self.max_values.total_rss} KiB" if self.max_values.stats else "unknown",
         )
         print(
             "Memory Average Usage (RSS):",
-            f"{self.averages.rss:.3f} KiB" if self.averages else "unknown%",
+            (
+                f"{self.averages.rss:.3f} KiB"
+                if self.averages.num_samples >= 1
+                else "unknown"
+            ),
         )
         print(
             "Virtual Memory Peak Usage (VSZ):",
-            f"{self.max_values.total_vsz} KiB" if self.max_values.stats else "unknown%",
+            f"{self.max_values.total_vsz} KiB" if self.max_values.stats else "unknown",
         )
         print(
             "Virtual Memory Average Usage (VSZ):",
-            f"{self.averages.vsz:.3f} KiB" if self.averages else "unknown%",
+            (
+                f"{self.averages.vsz:.3f} KiB"
+                if self.averages.num_samples >= 1
+                else "unknown"
+            ),
         )
         print(
             "Memory Peak Percentage:",
@@ -357,7 +366,11 @@ class Report:
         )
         print(
             "Memory Average Percentage:",
-            f"{self.averages.pmem:.3f}%" if self.averages else "unknown%",
+            (
+                f"{self.averages.pmem:.3f}%"
+                if self.averages.num_samples >= 1
+                else "unknown%"
+            ),
         )
         print(
             "CPU Peak Usage:",
@@ -365,9 +378,15 @@ class Report:
         )
         print(
             "Average CPU Usage:",
-            f"{self.averages.pcpu:.3f}%" if self.averages else "unknown%",
+            (
+                f"{self.averages.pcpu:.3f}%"
+                if self.averages.num_samples >= 1
+                else "unknown%"
+            ),
         )
-        print(f"{Colors.ENDC}")
+        print(f"{Colors.ENDC}Samples Collected: {self.averages.num_samples}")
+        print(f"Reports Written: {self.number}")
+        print()
 
     def dump_json(self) -> str:
         return json.dumps(
@@ -503,20 +522,15 @@ def monitor_process(
         while True:
             if process.poll() is not None:  # the passthrough command has finished
                 break
-            # print(f"Resource stats log path: {resource_stats_log_path}")
             sample = report.collect_sample()
+            # Report averages should be updated prior to sample aggregation
+            report.averages.update(sample)
             if report.current_sample is None:
                 sample.averages = Averages.from_sample(sample)
                 report.current_sample = sample
             else:
                 assert report.current_sample.averages is not None
                 report.current_sample.averages.update(sample)
-
-            if report.averages is None:
-                report.averages = report.current_sample.averages
-            else:
-                report.averages.update(sample)
-
             if report.elapsed_time >= report.number * report_interval:
                 report.write_subreport()
                 report.max_values = report.max_values.max(sample)
