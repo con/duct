@@ -152,16 +152,16 @@ class Averages:
     pcpu: float = 0.0
     num_samples: int = field(default=1, metadata={"exclude": True})
 
-    def update(self: Averages, other: Averages) -> None:
+    def update(self: Averages, other: Sample) -> None:
         self.num_samples = self.num_samples + 1
-        self.rss += (other.rss - self.rss) / self.num_samples
-        self.vsz += (other.vsz - self.vsz) / self.num_samples
-        self.pmem += (other.pmem - self.pmem) / self.num_samples
-        self.pcpu += (other.pcpu - self.pcpu) / self.num_samples
+        self.rss += (other.total_rss - self.rss) / self.num_samples
+        self.vsz += (other.total_vsz - self.vsz) / self.num_samples
+        self.pmem += (other.total_pmem - self.pmem) / self.num_samples
+        self.pcpu += (other.total_pcpu - self.pcpu) / self.num_samples
 
     @classmethod
     def from_sample(cls, sample: Sample) -> Averages:
-        cls(
+        return cls(
             rss=sample.total_rss,
             vsz=sample.total_vsz,
             pmem=sample.total_pmem,
@@ -209,7 +209,8 @@ class Sample:
             "rss_kb": self.total_rss,
             "vsz_kb": self.total_vsz,
         }
-        d["averages"] = asdict(self.averages)
+        if self.averages is not None:
+            d["averages"] = asdict(self.averages)
         return d
 
 
@@ -505,15 +506,16 @@ def monitor_process(
             # print(f"Resource stats log path: {resource_stats_log_path}")
             sample = report.collect_sample()
             if report.current_sample is None:
-                report.current_sample = sample
                 sample.averages = Averages.from_sample(sample)
+                report.current_sample = sample
             else:
-                report.current_sample.averages.update(sample.averages)
+                assert report.current_sample.averages is not None
+                report.current_sample.averages.update(sample)
 
             if report.averages is None:
                 report.averages = report.current_sample.averages
             else:
-                report.averages.update(sample.averages)
+                report.averages.update(sample)
 
             if report.elapsed_time >= report.number * report_interval:
                 report.write_subreport()
