@@ -24,18 +24,6 @@ SUFFIXES = {
 }
 
 
-class Colors:
-    HEADER = "\033[95m"
-    OKBLUE = "\033[94m"
-    OKCYAN = "\033[96m"
-    OKGREEN = "\033[92m"
-    WARNING = "\033[93m"
-    FAIL = "\033[91m"
-    ENDC = "\033[0m"  # Reset to default color
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
-
-
 class Outputs(str, Enum):
     ALL = "all"
     NONE = "none"
@@ -328,12 +316,8 @@ class Report:
             print(f"PID {pid} Maximum Values: {asdict(maxes)}")
 
     def finalize(self) -> None:
-        if not self.process.returncode:
-            print(Colors.OKGREEN)
-        else:
-            print(Colors.FAIL)
         print(f"Exit Code: {self.process.returncode}")
-        print(f"{Colors.OKCYAN}Command: {self.command}")
+        print(f"Command: {self.command}")
         print(f"Log files location: {self.log_paths.prefix}")
         print(f"Wall Clock Time: {self.elapsed_time:.3f} sec")
         print(
@@ -384,9 +368,8 @@ class Report:
                 else "unknown%"
             ),
         )
-        print(f"{Colors.ENDC}Samples Collected: {self.averages.num_samples}")
+        print(f"Samples Collected: {self.averages.num_samples}")
         print(f"Reports Written: {self.number}")
-        print()
 
     def dump_json(self) -> str:
         return json.dumps(
@@ -650,8 +633,8 @@ def execute(args: Arguments) -> None:
         stderr_file = stderr
 
     full_command = " ".join([str(args.command)] + args.command_args)
-    print(f"{Colors.OKCYAN}duct is executing {full_command}...")
-    print(f"Log files will be written to {log_paths.prefix}{Colors.ENDC}")
+    print(f"duct is executing {full_command}...")
+    print(f"Log files will be written to {log_paths.prefix}")
     process = subprocess.Popen(
         [str(args.command)] + args.command_args,
         stdout=stdout_file,
