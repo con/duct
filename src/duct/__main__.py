@@ -413,6 +413,7 @@ class Arguments:
     outputs: Outputs
     record_types: RecordTypes
     summary_format: str
+    quiet: bool
 
     def __post_init__(self) -> None:
         if self.report_interval < self.sample_interval:
@@ -462,6 +463,12 @@ class Arguments:
             "--clobber",
             action="store_true",
             help="Replace log files if they already exist.",
+        )
+        parser.add_argument(
+            "-q",
+            "--quiet",
+            action="store_true",
+            help="Suppresses the duct output when set.",
         )
         parser.add_argument(
             "--sample-interval",
@@ -516,6 +523,7 @@ class Arguments:
             record_types=args.record_types,
             summary_format=args.summary_format,
             clobber=args.clobber,
+            quiet=args.quiet,
         )
 
 
@@ -658,8 +666,9 @@ def execute(args: Arguments) -> None:
         stderr_file = stderr
 
     full_command = " ".join([str(args.command)] + args.command_args)
-    print(f"duct is executing {full_command}...")
-    print(f"Log files will be written to {log_paths.prefix}")
+    if not args.quiet:
+        print(f"duct is executing {full_command}...")
+        print(f"Log files will be written to {log_paths.prefix}")
     process = subprocess.Popen(
         [str(args.command)] + args.command_args,
         stdout=stdout_file,
@@ -715,7 +724,8 @@ def execute(args: Arguments) -> None:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
             system_logs.write(report.dump_json())
-    report.print_summary()
+    if not args.quiet:
+        report.print_summary()
     safe_close_files([stdout_file, stdout, stderr_file, stderr])
 
 
