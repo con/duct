@@ -2,7 +2,14 @@ from __future__ import annotations
 from pathlib import Path
 from unittest import mock
 from utils import assert_files
-from duct.__main__ import SUFFIXES, Arguments, Outputs, RecordTypes, execute
+from duct.__main__ import (
+    EXECUTION_SUMMARY_FORMAT,
+    SUFFIXES,
+    Arguments,
+    Outputs,
+    RecordTypes,
+    execute,
+)
 
 TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 
@@ -18,6 +25,8 @@ def test_sanity_green(temp_output_dir: str) -> None:
         outputs=Outputs.ALL,
         record_types=RecordTypes.ALL,
         clobber=False,
+        summary_format="",
+        quiet=False,
     )
     execute(args)
     expected_files = [
@@ -41,10 +50,13 @@ def test_sanity_red(temp_output_dir: str) -> None:
         outputs=Outputs.ALL,
         record_types=RecordTypes.ALL,
         clobber=False,
+        summary_format=EXECUTION_SUMMARY_FORMAT,
+        quiet=False,
     )
     with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
         execute(args)
-        mock_stdout.write.assert_has_calls([mock.call("Exit Code: 1")])
+        call_args = [call.args for call in mock_stdout.write.call_args_list]
+        assert any("Exit Code: 1" in call_arg[0] for call_arg in call_args)
 
     # We still should execute normally
     expected_files = [
@@ -67,6 +79,8 @@ def test_outputs_full(temp_output_dir: str) -> None:
         outputs=Outputs.ALL,
         record_types=RecordTypes.ALL,
         clobber=False,
+        summary_format="",
+        quiet=False,
     )
     execute(args)
     expected_files = [
@@ -89,6 +103,8 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
         outputs=Outputs.ALL,
         record_types=RecordTypes.ALL,
         clobber=False,
+        summary_format="",
+        quiet=False,
     )
     execute(args)
     expected_files = [SUFFIXES["info"], SUFFIXES["usage"]]
@@ -108,6 +124,8 @@ def test_outputs_capture(temp_output_dir: str) -> None:
         outputs=Outputs.NONE,
         record_types=RecordTypes.ALL,
         clobber=False,
+        summary_format="",
+        quiet=False,
     )
     execute(args)
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -132,6 +150,8 @@ def test_outputs_none(temp_output_dir: str) -> None:
         outputs=Outputs.NONE,
         record_types=RecordTypes.ALL,
         clobber=False,
+        summary_format="",
+        quiet=False,
     )
     execute(args)
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -154,6 +174,8 @@ def test_exit_before_first_sample(temp_output_dir: str) -> None:
         outputs=Outputs.NONE,
         record_types=RecordTypes.ALL,
         clobber=False,
+        summary_format="",
+        quiet=False,
     )
     execute(args)
     expected_files = [
@@ -177,6 +199,8 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
         outputs=Outputs.NONE,
         record_types=RecordTypes.ALL,
         clobber=False,
+        summary_format="",
+        quiet=False,
     )
     execute(args)
     # Specifically we need to assert that usage.json gets written anyway.
