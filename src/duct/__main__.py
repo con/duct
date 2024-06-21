@@ -333,8 +333,9 @@ class Report:
         for pid, maxes in self.max_values.stats.items():
             print(f"PID {pid} Maximum Values: {asdict(maxes)}")
 
-    def generate_execution_summary(self) -> None:
-        self.execution_summary = {
+    @property
+    def execution_summary(self) -> dict[str, any]:
+        return {
             "exit_code": self.process.returncode,
             "command": self.command,
             "logs_prefix": self.log_paths.prefix,
@@ -715,7 +716,6 @@ def execute(args: Arguments) -> None:
         report.write_subreport()
 
     report.process = process
-    report.generate_execution_summary()
     if args.record_types.has_system_summary():
         report.collect_environment()
         report.get_system_info()
