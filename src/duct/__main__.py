@@ -399,7 +399,7 @@ class Report:
         )
 
     def print_summary(self) -> None:
-        print(self.summary_format.format(**self.execution_summary))
+        print(self.summary_format.format_map(self.execution_summary))
 
 
 @dataclass
@@ -457,9 +457,8 @@ class Arguments:
             "--summary-format",
             type=str,
             default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
-            help="File string format to be used when printing the summary following execution.",
+            help="Output template to use when printing the summary following execution.",
         )
-
         parser.add_argument(
             "--clobber",
             action="store_true",
@@ -469,7 +468,7 @@ class Arguments:
             "-q",
             "--quiet",
             action="store_true",
-            help="Suppresses the duct output when set.",
+            help="Suppress duct output.",
         )
         parser.add_argument(
             "--sample-interval",
