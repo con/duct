@@ -669,15 +669,6 @@ def execute(args: Arguments) -> None:
     else:
         monitoring_thread = None
 
-    if args.record_types.has_system_summary():
-        report.collect_environment()
-        report.get_system_info()
-        with open(log_paths.info, "a") as system_logs:
-            report.end_time = time.time()
-            report.run_time_seconds = f"{report.end_time - report.start_time}"
-            report.get_system_info()
-            system_logs.write(report.dump_json())
-
     process.wait()
     stop_event.set()
     if monitoring_thread is not None:
@@ -690,6 +681,15 @@ def execute(args: Arguments) -> None:
 
     report.process = process
     report.finalize()
+    if args.record_types.has_system_summary():
+        report.collect_environment()
+        report.get_system_info()
+        with open(log_paths.info, "a") as system_logs:
+            report.end_time = time.time()
+            report.run_time_seconds = f"{report.end_time - report.start_time}"
+            report.get_system_info()
+            system_logs.write(report.dump_json())
+
     safe_close_files([stdout_file, stdout, stderr_file, stderr])
 
 
