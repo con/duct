@@ -5,6 +5,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
+from functools import cached_property
 import json
 import os
 import shutil
@@ -333,8 +334,8 @@ class Report:
         for pid, maxes in self.max_values.stats.items():
             print(f"PID {pid} Maximum Values: {asdict(maxes)}")
 
-    @property
-    def execution_summary(self) -> dict[str, any]:
+    @cached_property
+    def execution_summary(self) -> dict[str, Any]:
         return {
             "exit_code": self.process.returncode,
             "command": self.command,
