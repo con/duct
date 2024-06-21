@@ -46,13 +46,13 @@ options:
                         variable. (default:
                         .duct/logs/{datetime_filesafe}-{pid}_)
   --summary-format SUMMARY_FORMAT
-                        File string format to be used when printing the
-                        summary following execution. (default: Exit Code:
-                        {exit_code} Command: {command} Log files location:
-                        {logs_prefix} Wall Clock Time: {wall_clock_time} sec
-                        Memory Peak Usage (RSS): {peak_rss} Memory Average
-                        Usage (RSS): {average_rss} Virtual Memory Peak Usage
-                        (VSZ): {peak_vsz} Virtual Memory Average Usage (VSZ):
+                        Output template to use when printing the summary
+                        following execution. (default: Exit Code: {exit_code}
+                        Command: {command} Log files location: {logs_prefix}
+                        Wall Clock Time: {wall_clock_time} sec Memory Peak
+                        Usage (RSS): {peak_rss} Memory Average Usage (RSS):
+                        {average_rss} Virtual Memory Peak Usage (VSZ):
+                        {peak_vsz} Virtual Memory Average Usage (VSZ):
                         {average_vsz} Memory Peak Percentage: {peak_pmem}
                         Memory Average Percentage: {average_pmem} CPU Peak
                         Usage: {peak_pcpu} Average CPU Usage: {average_pcpu}
@@ -60,7 +60,7 @@ options:
                         {num_reports} )
   --clobber             Replace log files if they already exist. (default:
                         False)
-  -q, --quiet           Suppresses the duct output when set. (default: False)
+  -q, --quiet           Suppress duct output. (default: False)
   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval must be less than or
