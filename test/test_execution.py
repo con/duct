@@ -163,6 +163,25 @@ def test_outputs_none(temp_output_dir: str) -> None:
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
+def test_outputs_none_quiet(temp_output_dir: str) -> None:
+    args = Arguments(
+        command=TEST_SCRIPT,
+        command_args=["--duration", "1"],
+        output_prefix=temp_output_dir,
+        sample_interval=0.01,
+        report_interval=0.1,
+        capture_outputs=Outputs.NONE,
+        outputs=Outputs.NONE,
+        record_types=RecordTypes.ALL,
+        clobber=False,
+        summary_format="",
+        quiet=True,
+    )
+    with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
+        execute(args)
+        mock_stdout.write.assert_not_called()
+
+
 def test_exit_before_first_sample(temp_output_dir: str) -> None:
     args = Arguments(
         command="ls",
