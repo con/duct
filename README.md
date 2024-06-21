@@ -18,7 +18,8 @@ A process wrapper script that monitors the execution of a command.
 ```shell
 >duct --help
 
-usage: duct [-h] [--version] [-p OUTPUT_PREFIX] [--clobber]
+usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
+            [--summary-format SUMMARY_FORMAT] [--clobber] [-q]
             [--sample-interval SAMPLE_INTERVAL]
             [--report-interval REPORT_INTERVAL] [-c {all,none,stdout,stderr}]
             [-o {all,none,stdout,stderr}]
@@ -44,8 +45,22 @@ options:
                         can also provide value via DUCT_OUTPUT_PREFIX env
                         variable. (default:
                         .duct/logs/{datetime_filesafe}-{pid}_)
+  --summary-format SUMMARY_FORMAT
+                        File string format to be used when printing the
+                        summary following execution. (default: Exit Code:
+                        {exit_code} Command: {command} Log files location:
+                        {logs_prefix} Wall Clock Time: {wall_clock_time} sec
+                        Memory Peak Usage (RSS): {peak_rss} Memory Average
+                        Usage (RSS): {average_rss} Virtual Memory Peak Usage
+                        (VSZ): {peak_vsz} Virtual Memory Average Usage (VSZ):
+                        {average_vsz} Memory Peak Percentage: {peak_pmem}
+                        Memory Average Percentage: {average_pmem} CPU Peak
+                        Usage: {peak_pcpu} Average CPU Usage: {average_pcpu}
+                        Samples Collected: {num_samples} Reports Written:
+                        {num_reports} )
   --clobber             Replace log files if they already exist. (default:
                         False)
+  -q, --quiet           Suppresses the duct output when set. (default: False)
   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval must be less than or
