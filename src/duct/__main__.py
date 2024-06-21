@@ -22,6 +22,22 @@ SUFFIXES = {
     "usage": "usage.json",
     "info": "info.json",
 }
+EXECUTION_SUMMARY_FORMAT = (
+    "Exit Code: {exit_code}\n"
+    "Command: {command}\n"
+    "Log files location: {logs_prefix}\n"
+    "Wall Clock Time: {wall_clock_time} sec\n"
+    "Memory Peak Usage (RSS): {peak_rss}\n"
+    "Memory Average Usage (RSS): {average_rss}\n"
+    "Virtual Memory Peak Usage (VSZ): {peak_vsz}\n"
+    "Virtual Memory Average Usage (VSZ): {average_vsz}\n"
+    "Memory Peak Percentage: {peak_pmem}\n"
+    "Memory Average Percentage: {average_pmem}\n"
+    "CPU Peak Usage: {peak_pcpu}\n"
+    "Average CPU Usage: {average_pcpu}\n"
+    "Samples Collected: {num_samples}\n"
+    "Reports Written: {num_reports}\n"
+)
 
 
 class Outputs(str, Enum):
@@ -213,6 +229,7 @@ class Report:
         session_id: int | None,
         process: subprocess.Popen,
         log_paths: LogPaths,
+        summary_format: str,
         clobber: bool = False,
     ) -> None:
         self.start_time = time.time()
@@ -230,6 +247,7 @@ class Report:
         self.current_sample: Sample | None = None
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
+        self.summary_format: str = summary_format
         self.clobber = clobber
 
     @property
@@ -315,61 +333,55 @@ class Report:
         for pid, maxes in self.max_values.stats.items():
             print(f"PID {pid} Maximum Values: {asdict(maxes)}")
 
-    def finalize(self) -> None:
-        print(f"Exit Code: {self.process.returncode}")
-        print(f"Command: {self.command}")
-        print(f"Log files location: {self.log_paths.prefix}")
-        print(f"Wall Clock Time: {self.elapsed_time:.3f} sec")
-        print(
-            "Memory Peak Usage (RSS):",
-            f"{self.max_values.total_rss} KiB" if self.max_values.stats else "unknown",
-        )
-        print(
-            "Memory Average Usage (RSS):",
-            (
+    def generate_execution_summary(self) -> dict:
+        self.execution_summary = {
+            "exit_code": self.process.returncode,
+            "command": self.command,
+            "logs_prefix": self.log_paths.prefix,
+            "wall_clock_time": f"{self.elapsed_time:.3f} sec",
+            "peak_rss": (
+                f"{self.max_values.total_rss} KiB"
+                if self.max_values.stats
+                else "unknown"
+            ),
+            "average_rss": (
                 f"{self.averages.rss:.3f} KiB"
                 if self.averages.num_samples >= 1
                 else "unknown"
             ),
-        )
-        print(
-            "Virtual Memory Peak Usage (VSZ):",
-            f"{self.max_values.total_vsz} KiB" if self.max_values.stats else "unknown",
-        )
-        print(
-            "Virtual Memory Average Usage (VSZ):",
-            (
+            "peak_vsz": (
+                f"{self.max_values.total_vsz} KiB"
+                if self.max_values.stats
+                else "unknown"
+            ),
+            "average_vsz": (
                 f"{self.averages.vsz:.3f} KiB"
                 if self.averages.num_samples >= 1
                 else "unknown"
             ),
-        )
-        print(
-            "Memory Peak Percentage:",
-            f"{self.max_values.total_pmem}%" if self.max_values.stats else "unknown%",
-        )
-        print(
-            "Memory Average Percentage:",
-            (
+            "peak_pmem": (
+                f"{self.max_values.total_pmem}%"
+                if self.max_values.stats
+                else "unknown%"
+            ),
+            "average_pmem": (
                 f"{self.averages.pmem:.3f}%"
                 if self.averages.num_samples >= 1
                 else "unknown%"
             ),
-        )
-        print(
-            "CPU Peak Usage:",
-            f"{self.max_values.total_pcpu}%" if self.max_values.stats else "unknown%",
-        )
-        print(
-            "Average CPU Usage:",
-            (
+            "peak_pcpu": (
+                f"{self.max_values.total_pcpu}%"
+                if self.max_values.stats
+                else "unknown%"
+            ),
+            "average_pcpu": (
                 f"{self.averages.pcpu:.3f}%"
                 if self.averages.num_samples >= 1
                 else "unknown%"
             ),
-        )
-        print(f"Samples Collected: {self.averages.num_samples}")
-        print(f"Reports Written: {self.number}")
+            "num_samples": self.averages.num_samples,
+            "num_reports": self.number,
+        }
 
     def dump_json(self) -> str:
         return json.dumps(
@@ -381,8 +393,12 @@ class Report:
                 "env": self.env,
                 "gpu": self.gpus,
                 "duct_version": __version__,
+                "execution_summary": self.execution_summary,
             }
         )
+
+    def print_summary(self) -> None:
+        print(self.summary_format.format(**self.execution_summary))
 
 
 @dataclass
@@ -396,6 +412,7 @@ class Arguments:
     capture_outputs: Outputs
     outputs: Outputs
     record_types: RecordTypes
+    summary_format: str
 
     def __post_init__(self) -> None:
         if self.report_interval < self.sample_interval:
@@ -434,6 +451,13 @@ class Arguments:
             "Leading directories will be created if they do not exist. "
             "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
         )
+        parser.add_argument(
+            "--summary-format",
+            type=str,
+            default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
+            help="File string format to be used when printing the summary following execution.",
+        )
+
         parser.add_argument(
             "--clobber",
             action="store_true",
@@ -490,6 +514,7 @@ class Arguments:
             capture_outputs=args.capture_outputs,
             outputs=args.outputs,
             record_types=args.record_types,
+            summary_format=args.summary_format,
             clobber=args.clobber,
         )
 
@@ -651,6 +676,7 @@ def execute(args: Arguments) -> None:
         session_id,
         process,
         log_paths,
+        args.summary_format,
         args.clobber,
     )
     stop_event = threading.Event()
@@ -680,7 +706,7 @@ def execute(args: Arguments) -> None:
         report.write_subreport()
 
     report.process = process
-    report.finalize()
+    report.generate_execution_summary()
     if args.record_types.has_system_summary():
         report.collect_environment()
         report.get_system_info()
@@ -689,7 +715,7 @@ def execute(args: Arguments) -> None:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
             system_logs.write(report.dump_json())
-
+    report.print_summary()
     safe_close_files([stdout_file, stdout, stderr_file, stderr])
 
 
