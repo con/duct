@@ -333,7 +333,7 @@ class Report:
         for pid, maxes in self.max_values.stats.items():
             print(f"PID {pid} Maximum Values: {asdict(maxes)}")
 
-    def generate_execution_summary(self) -> dict:
+    def generate_execution_summary(self) -> None:
         self.execution_summary = {
             "exit_code": self.process.returncode,
             "command": self.command,
