@@ -183,6 +183,7 @@ class Sample:
     total_vsz: int = 0
     total_pmem: float = 0.0
     total_pcpu: float = 0.0
+    timestamp: str = ""  # TS of last sample collected
 
     def add_pid(self, pid: int, stats: ProcessStats) -> None:
         self.total_rss += stats.rss
@@ -190,6 +191,7 @@ class Sample:
         self.total_pmem += stats.pmem
         self.total_pcpu += stats.pcpu
         self.stats[pid] = stats
+        self.timestamp = max(self.timestamp, stats.timestamp)
 
     def max(self: Sample, other: Sample) -> Sample:
         output = Sample()
@@ -208,15 +210,18 @@ class Sample:
         return output
 
     def for_json(self) -> dict[str, Any]:
-        d = {str(pid): asdict(stats) for pid, stats in self.stats.items()}
-        d["totals"] = {
-            "pmem": self.total_pmem,
-            "pcpu": self.total_pcpu,
-            "rss_kb": self.total_rss,
-            "vsz_kb": self.total_vsz,
+        d = {
+            "timestamp": self.timestamp,
+            "num_samples": self.averages.num_samples,
+            "processes": {str(pid): asdict(stats) for pid, stats in self.stats.items()},
+            "totals": {
+                "pmem": self.total_pmem,
+                "pcpu": self.total_pcpu,
+                "rss_kb": self.total_rss,
+                "vsz_kb": self.total_vsz,
+            },
+            "averages": asdict(self.averages) if self.averages.num_samples >= 1 else {},
         }
-        if self.averages.num_samples >= 1:
-            d["averages"] = asdict(self.averages)
         return d
 
 
