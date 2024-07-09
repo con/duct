@@ -2,7 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest import mock
 from utils import assert_files
-from duct.__main__ import (
+from con_duct.__main__ import (
     EXECUTION_SUMMARY_FORMAT,
     SUFFIXES,
     Arguments,

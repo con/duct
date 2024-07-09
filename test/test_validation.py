@@ -1,6 +1,6 @@
 import argparse
 import pytest
-from duct.__main__ import Arguments, Outputs, RecordTypes
+from con_duct.__main__ import Arguments, Outputs, RecordTypes
 
 
 def test_sample_less_than_report_interval() -> None:
