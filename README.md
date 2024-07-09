@@ -1,6 +1,11 @@
 # duct
 
 [![codecov](https://codecov.io/gh/con/duct/graph/badge.svg?token=JrPazw0Vn4)](https://codecov.io/gh/con/duct)
+[![PyPI version](https://badge.fury.io/py/con-duct.svg)](https://badge.fury.io/py/con-duct)
+
+## Installation 
+
+    pip install con-duct
 
 ## Quickstart
 
