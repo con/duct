@@ -3,9 +3,9 @@ name: Auto-release on PR merge
 
 on:
   # ATM, this is the closest trigger to a PR merging
-  # push:
-  #   branches:
-  #     - main
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
