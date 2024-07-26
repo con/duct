@@ -54,7 +54,9 @@ def test_average_no_samples() -> None:
     assert averages.num_samples == 0
     sample = Sample()
     sample.averages = averages
-    assert "averages" not in sample.for_json()
+    serialized = sample.for_json()
+    assert "averages" in serialized
+    assert not serialized["averages"]
 
 
 def test_averages_one_sample() -> None:
