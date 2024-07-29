@@ -12,7 +12,7 @@
                 "afterRelease": "python -m build && twine upload dist/*"
             }
         ]
-    ]
+    ],
     "labels": [
       { "releaseType": "major", "name": "semver-major" },
       { "releaseType": "minor", "name": "semver-minor" },
