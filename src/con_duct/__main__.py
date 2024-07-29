@@ -214,7 +214,7 @@ class Sample:
             "timestamp": self.timestamp,
             "num_samples": self.averages.num_samples,
             "processes": {str(pid): asdict(stats) for pid, stats in self.stats.items()},
-            "totals": {
+            "totals": {  # total of all processes during this sample
                 "pmem": self.total_pmem,
                 "pcpu": self.total_pcpu,
                 "rss_kb": self.total_rss,
