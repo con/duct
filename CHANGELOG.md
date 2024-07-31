@@ -1,3 +1,15 @@
+# v0.1.1 (Wed Jul 31 2024)
+
+#### 🐛 Bug Fix
+
+- SC_PAGESIZE should work on macOS and Linux [#115](https://github.com/con/duct/pull/115) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.1.0 (Mon Jul 29 2024)
 
 #### 🚀 Enhancement
