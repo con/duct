@@ -270,7 +270,7 @@ class Report:
     def get_system_info(self) -> None:
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
         uid = os.environ.get("USER")
-        memory_total = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+        memory_total = os.sysconf("SC_PAGESIZE") * os.sysconf("SC_PHYS_PAGES")
         cpu_total = os.sysconf("SC_NPROCESSORS_CONF")
         self.system_info = SystemInfo(
             uid=uid, memory_total=memory_total, cpu_total=cpu_total
