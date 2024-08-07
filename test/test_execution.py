@@ -28,7 +28,7 @@ def test_sanity_green(temp_output_dir: str) -> None:
         summary_format="",
         quiet=False,
     )
-    execute(args)
+    assert execute(args) == 0
     expected_files = [
         SUFFIXES["stdout"],
         SUFFIXES["stderr"],
@@ -54,7 +54,7 @@ def test_sanity_red(temp_output_dir: str) -> None:
         quiet=False,
     )
     with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
-        execute(args)
+        assert execute(args) == 1
         call_args = [call.args for call in mock_stdout.write.call_args_list]
         assert any("Exit Code: 1" in call_arg[0] for call_arg in call_args)
 
@@ -82,7 +82,7 @@ def test_outputs_full(temp_output_dir: str) -> None:
         summary_format="",
         quiet=False,
     )
-    execute(args)
+    assert execute(args) == 0
     expected_files = [
         SUFFIXES["stdout"],
         SUFFIXES["stderr"],
@@ -106,7 +106,7 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
         summary_format="",
         quiet=False,
     )
-    execute(args)
+    assert execute(args) == 0
     expected_files = [SUFFIXES["info"], SUFFIXES["usage"]]
     assert_files(temp_output_dir, expected_files, exists=True)
     not_expected_files = [SUFFIXES["stdout"], SUFFIXES["stderr"]]
@@ -127,7 +127,7 @@ def test_outputs_capture(temp_output_dir: str) -> None:
         summary_format="",
         quiet=False,
     )
-    execute(args)
+    assert execute(args) == 0
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
     expected_files = [
@@ -153,7 +153,7 @@ def test_outputs_none(temp_output_dir: str) -> None:
         summary_format="",
         quiet=False,
     )
-    execute(args)
+    assert execute(args) == 0
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
     expected_files = [SUFFIXES["info"], SUFFIXES["usage"]]
@@ -178,7 +178,7 @@ def test_outputs_none_quiet(temp_output_dir: str) -> None:
         quiet=True,
     )
     with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
-        execute(args)
+        assert execute(args) == 0
         mock_stdout.write.assert_not_called()
 
 
@@ -196,7 +196,7 @@ def test_exit_before_first_sample(temp_output_dir: str) -> None:
         summary_format="",
         quiet=False,
     )
-    execute(args)
+    assert execute(args) == 0
     expected_files = [
         SUFFIXES["stdout"],
         SUFFIXES["stderr"],
@@ -221,7 +221,7 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
         summary_format="",
         quiet=False,
     )
-    execute(args)
+    assert execute(args) == 0
     # Specifically we need to assert that usage.json gets written anyway.
     expected_files = [
         SUFFIXES["stdout"],
