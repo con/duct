@@ -652,11 +652,14 @@ def safe_close_files(file_list: Iterable[Any]) -> None:
 
 def main() -> None:
     args = Arguments.from_argv()
-    execute(args)
+    sys.exit(execute(args))
 
 
-def execute(args: Arguments) -> None:
-    """A wrapper to execute a command, monitor and log the process details."""
+def execute(args: Arguments) -> int:
+    """A wrapper to execute a command, monitor and log the process details.
+
+    Returns exit code of the executed process.
+    """
     log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
     log_paths.prepare_paths(args.clobber, args.capture_outputs)
     stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)
@@ -732,6 +735,8 @@ def execute(args: Arguments) -> None:
     if not args.quiet:
         report.print_summary()
     safe_close_files([stdout_file, stdout, stderr_file, stderr])
+
+    return report.process.returncode
 
 
 if __name__ == "__main__":
