@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from unittest import mock
+import pytest
 from utils import assert_files
 from con_duct.__main__ import (
     EXECUTION_SUMMARY_FORMAT,
@@ -39,10 +40,11 @@ def test_sanity_green(temp_output_dir: str) -> None:
     # TODO check usagefile empty
 
 
-def test_sanity_red(temp_output_dir: str) -> None:
+@pytest.mark.parametrize("exit_code", [0, 1, 2, 128])
+def test_sanity_red(exit_code: int, temp_output_dir: str) -> None:
     args = Arguments(
-        command="false",
-        command_args=[],
+        command="sh",
+        command_args=["-c", f"exit {exit_code}"],
         output_prefix=temp_output_dir,
         sample_interval=1.0,
         report_interval=60.0,
@@ -54,9 +56,9 @@ def test_sanity_red(temp_output_dir: str) -> None:
         quiet=False,
     )
     with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
-        assert execute(args) == 1
+        assert execute(args) == exit_code
         call_args = [call.args for call in mock_stdout.write.call_args_list]
-        assert any("Exit Code: 1" in call_arg[0] for call_arg in call_args)
+        assert any(f"Exit Code: {exit_code}" in call_arg[0] for call_arg in call_args)
 
     # We still should execute normally
     expected_files = [
