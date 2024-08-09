@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 from typing import IO, Any, TextIO
-from . import __version__
+from . import __schema_version__, __version__
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
@@ -400,6 +400,7 @@ class Report:
                 "env": self.env,
                 "gpu": self.gpus,
                 "duct_version": __version__,
+                "duct_schema_version": __schema_version__,
                 "execution_summary": self.execution_summary,
             }
         )
