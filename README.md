@@ -55,14 +55,14 @@ options:
                         following execution. (default: Exit Code: {exit_code}
                         Command: {command} Log files location: {logs_prefix}
                         Wall Clock Time: {wall_clock_time} sec Memory Peak
-                        Usage (RSS) KiB: {peak_rss_kib} Memory Average Usage
-                        (RSS) KiB: {average_rss_kib} Virtual Memory Peak Usage
-                        (VSZ) KiB: {peak_vsz_kib} Virtual Memory Average Usage
-                        (VSZ) KiB: {average_vsz_kib} Memory Peak Percentage:
-                        {peak_pmem} Memory Average Percentage: {average_pmem}
-                        CPU Peak Usage: {peak_pcpu} Average CPU Usage:
-                        {average_pcpu} Samples Collected: {num_samples}
-                        Reports Written: {num_reports} )
+                        Usage (RSS): {peak_rss} Memory Average Usage (RSS):
+                        {average_rss} Virtual Memory Peak Usage (VSZ):
+                        {peak_vsz} Virtual Memory Average Usage (VSZ):
+                        {average_vsz} Memory Peak Percentage: {peak_pmem}
+                        Memory Average Percentage: {average_pmem} CPU Peak
+                        Usage: {peak_pcpu} Average CPU Usage: {average_pcpu}
+                        Samples Collected: {num_samples} Reports Written:
+                        {num_reports} )
   --clobber             Replace log files if they already exist. (default:
                         False)
   -q, --quiet           Suppress duct output. (default: False)
