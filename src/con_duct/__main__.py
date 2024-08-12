@@ -28,10 +28,10 @@ EXECUTION_SUMMARY_FORMAT = (
     "Command: {command}\n"
     "Log files location: {logs_prefix}\n"
     "Wall Clock Time: {wall_clock_time} sec\n"
-    "Memory Peak Usage (RSS) KiB: {peak_rss_kib}\n"
-    "Memory Average Usage (RSS) KiB: {average_rss_kib}\n"
-    "Virtual Memory Peak Usage (VSZ) KiB: {peak_vsz_kib}\n"
-    "Virtual Memory Average Usage (VSZ) KiB: {average_vsz_kib}\n"
+    "Memory Peak Usage (RSS): {peak_rss}\n"
+    "Memory Average Usage (RSS): {average_rss}\n"
+    "Virtual Memory Peak Usage (VSZ): {peak_vsz}\n"
+    "Virtual Memory Average Usage (VSZ): {average_vsz}\n"
     "Memory Peak Percentage: {peak_pmem}\n"
     "Memory Average Percentage: {average_pmem}\n"
     "CPU Peak Usage: {peak_pcpu}\n"
@@ -319,8 +319,8 @@ class Report:
                         ProcessStats(
                             pcpu=float(pcpu),
                             pmem=float(pmem),
-                            rss=int(rss),
-                            vsz=int(vsz),
+                            rss=int(rss) * 1024,
+                            vsz=int(vsz) * 1024,
                             timestamp=datetime.now().astimezone().isoformat(),
                         ),
                     )
@@ -346,45 +346,45 @@ class Report:
             "command": self.command,
             "logs_prefix": self.log_paths.prefix,
             "wall_clock_time": f"{self.elapsed_time:.3f}",
-            "peak_rss_kib": (
+            "peak_rss": (
                 f"{self.max_values.total_rss}"
                 if self.max_values.stats
                 else "unknown"
             ),
-            "average_rss_kib": (
-                f"{self.averages.rss:.3f}"
+            "average_rss": (
+                f"{int(self.averages.rss)}"
                 if self.averages.num_samples >= 1
                 else "unknown"
             ),
-            "peak_vsz_kib": (
+            "peak_vsz": (
                 f"{self.max_values.total_vsz}"
                 if self.max_values.stats
                 else "unknown"
             ),
-            "average_vsz_kib": (
-                f"{self.averages.vsz:.3f}"
+            "average_vsz": (
+                f"{int(self.averages.vsz)}"
                 if self.averages.num_samples >= 1
                 else "unknown"
             ),
             "peak_pmem": (
-                f"{self.max_values.total_pmem}%"
+                f"{self.max_values.total_pmem}"
                 if self.max_values.stats
-                else "unknown%"
+                else "unknown"
             ),
             "average_pmem": (
                 f"{self.averages.pmem:.3f}"
                 if self.averages.num_samples >= 1
-                else "unknown%"
+                else "unknown"
             ),
             "peak_pcpu": (
                 f"{self.max_values.total_pcpu}"
                 if self.max_values.stats
-                else "unknown%"
+                else "unknown"
             ),
             "average_pcpu": (
                 f"{self.averages.pcpu:.3f}"
                 if self.averages.num_samples >= 1
-                else "unknown%"
+                else "unknown"
             ),
             "num_samples": self.averages.num_samples,
             "num_reports": self.number,
