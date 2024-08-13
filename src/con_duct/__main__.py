@@ -83,8 +83,8 @@ class SystemInfo:
 class ProcessStats:
     pcpu: float  # %CPU
     pmem: float  # %MEM
-    rss: int  # Memory Resident Set Size in KiB
-    vsz: int  # Virtual Memory size in KiB
+    rss: int  # Memory Resident Set Size in Bytes
+    vsz: int  # Virtual Memory size in Bytes
     timestamp: str
 
     def max(self, other: ProcessStats) -> ProcessStats:
