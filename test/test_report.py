@@ -1,4 +1,6 @@
 from __future__ import annotations
+from datetime import datetime
+import pytest
 from con_duct.__main__ import Averages, ProcessStats, Sample
 
 stat0 = ProcessStats(
@@ -89,3 +91,36 @@ def test_averages_three_samples() -> None:
     averages.update(sample2)
     averages.update(sample2)
     assert averages.pcpu == (stat0.pcpu + (2 * stat1.pcpu)) / 3
+
+
+def test_process_stats_green() -> None:
+    # Assert does not raise
+    ProcessStats(
+        pcpu=1.0,
+        pmem=1.1,
+        rss=1024,
+        vsz=1025,
+        timestamp=datetime.now().astimezone().isoformat(),
+    )
+
+
+def test_process_stats_handle_ints() -> None:
+    # Assert does not raise
+    ProcessStats(
+        pcpu=1,
+        pmem=1,
+        rss=1024,
+        vsz=1025,
+        timestamp=datetime.now().astimezone().isoformat(),
+    )
+
+
+def test_process_stats_incorrect_type() -> None:
+    with pytest.raises(TypeError):
+        ProcessStats(
+            pcpu="oopsie",  # type: ignore[arg-type]
+            pmem=1.1,
+            rss=1024,
+            vsz=1025,
+            timestamp=datetime.now().astimezone().isoformat(),
+        )

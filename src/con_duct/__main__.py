@@ -96,6 +96,21 @@ class ProcessStats:
             timestamp=max(self.timestamp, other.timestamp),
         )
 
+    def __post_init__(self) -> None:
+        self._validate()
+
+    def _validate(self) -> None:
+        if not isinstance(self.pcpu, (float, int)):
+            raise TypeError(f"Expected 'pcpu' to be of type 'float' or 'int', got {type(self.pcpu).__name__}")
+        if not isinstance(self.pmem, (float, int)):
+            raise TypeError(f"Expected 'pmem' to be of type 'float' or 'int', got {type(self.pmem).__name__}")
+        if not isinstance(self.rss, int):
+            raise TypeError(f"Expected 'rss' to be of type 'int', got {type(self.rss).__name__}")
+        if not isinstance(self.vsz, int):
+            raise TypeError(f"Expected 'vsz' to be of type 'int', got {type(self.vsz).__name__}")
+        if not isinstance(self.timestamp, str):
+            raise TypeError(f"Expected 'timestamp' to be of type 'str', got {type(self.timestamp).__name__}")
+
 
 @dataclass
 class LogPaths:
