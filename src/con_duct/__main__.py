@@ -232,8 +232,8 @@ class Sample:
             "totals": {  # total of all processes during this sample
                 "pmem": self.total_pmem,
                 "pcpu": self.total_pcpu,
-                "rss_kb": self.total_rss,
-                "vsz_kb": self.total_vsz,
+                "rss": self.total_rss,
+                "vsz": self.total_vsz,
             },
             "averages": asdict(self.averages) if self.averages.num_samples >= 1 else {},
         }
