@@ -173,6 +173,7 @@ class Averages:
     num_samples: int = 0
 
     def update(self: Averages, other: Sample) -> None:
+        self._assert_num(other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu)
         self.num_samples += 1
         self.rss += (other.total_rss - self.rss) / self.num_samples
         self.vsz += (other.total_vsz - self.vsz) / self.num_samples
@@ -181,6 +182,7 @@ class Averages:
 
     @classmethod
     def from_sample(cls, sample: Sample) -> Averages:
+        cls._assert_num(sample.total_rss, sample.total_vsz, sample.total_pmem, sample.total_pcpu)
         return cls(
             rss=sample.total_rss,
             vsz=sample.total_vsz,
@@ -188,6 +190,11 @@ class Averages:
             pcpu=sample.total_pcpu,
             num_samples=1,
         )
+
+    @staticmethod
+    def _assert_num(*values: Any) -> None:
+        for value in values:
+            assert isinstance(value, (float, int))
 
 
 @dataclass
