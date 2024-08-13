@@ -367,44 +367,44 @@ class Report:
             "exit_code": self.process.returncode,
             "command": self.command,
             "logs_prefix": self.log_paths.prefix,
-            "wall_clock_time": f"{self.elapsed_time:.3f}",
+            "wall_clock_time": self.elapsed_time,
             "peak_rss": (
-                f"{self.max_values.total_rss}"
+                self.max_values.total_rss
                 if self.max_values.stats
                 else "unknown"
             ),
             "average_rss": (
-                f"{int(self.averages.rss)}"
+                self.averages.rss
                 if self.averages.num_samples >= 1
                 else "unknown"
             ),
             "peak_vsz": (
-                f"{self.max_values.total_vsz}"
+                self.max_values.total_vsz
                 if self.max_values.stats
                 else "unknown"
             ),
             "average_vsz": (
-                f"{int(self.averages.vsz)}"
+                self.averages.vsz
                 if self.averages.num_samples >= 1
                 else "unknown"
             ),
             "peak_pmem": (
-                f"{self.max_values.total_pmem}"
+                self.max_values.total_pmem
                 if self.max_values.stats
                 else "unknown"
             ),
             "average_pmem": (
-                f"{self.averages.pmem:.3f}"
+                self.averages.pmem
                 if self.averages.num_samples >= 1
                 else "unknown"
             ),
             "peak_pcpu": (
-                f"{self.max_values.total_pcpu}"
+                self.max_values.total_pcpu
                 if self.max_values.stats
                 else "unknown"
             ),
             "average_pcpu": (
-                f"{self.averages.pcpu:.3f}"
+                self.averages.pcpu
                 if self.averages.num_samples >= 1
                 else "unknown"
             ),
