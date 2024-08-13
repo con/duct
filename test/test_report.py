@@ -159,6 +159,17 @@ def test_process_stats_incorrect_vsz_type() -> None:
         )
 
 
+def test_process_stats_incorrect_ts_type() -> None:
+    with pytest.raises(TypeError):
+        ProcessStats(
+            pcpu=1.1,
+            pmem=1.0,
+            rss=1025,
+            vsz=1024,
+            timestamp=1  # type: ignore[arg-type]
+        )
+
+
 def test_averages_assert_num_green() -> None:
     # Assert does not raise
     Averages._assert_num(0, 1, 1.0, 0.1)
