@@ -166,7 +166,7 @@ def test_process_stats_incorrect_ts_type() -> None:
             pmem=1.0,
             rss=1025,
             vsz=1024,
-            timestamp=1  # type: ignore[arg-type]
+            timestamp=1,  # type: ignore[arg-type]
         )
 
 
