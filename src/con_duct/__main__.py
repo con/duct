@@ -41,6 +41,11 @@ EXECUTION_SUMMARY_FORMAT = (
 )
 
 
+def assert_num(*values: Any) -> None:
+    for value in values:
+        assert isinstance(value, (float, int))
+
+
 class Outputs(str, Enum):
     ALL = "all"
     NONE = "none"
@@ -100,18 +105,7 @@ class ProcessStats:
         self._validate()
 
     def _validate(self) -> None:
-        for fname, types in (
-            ("pcpu", (float, int)),
-            ("pmem", (float, int)),
-            ("rss", (int,)),
-            ("vsz", (int,)),
-            ("timestamp", (str,)),
-        ):
-            value = getattr(self, fname)
-            if not isinstance(value, types):
-                expected_types = " or ".join(map(repr, types))
-                msg = f"Expected '{fname}' to be of type {expected_types}, got {type(value).__name__}"
-                raise TypeError(msg)
+        assert_num(self.pcpu, self.pmem, self.rss, self.vsz)
 
 
 @dataclass
@@ -175,7 +169,7 @@ class Averages:
     num_samples: int = 0
 
     def update(self: Averages, other: Sample) -> None:
-        self._assert_num(
+        assert_num(
             other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu
         )
         self.num_samples += 1
@@ -186,7 +180,7 @@ class Averages:
 
     @classmethod
     def from_sample(cls, sample: Sample) -> Averages:
-        cls._assert_num(
+        assert_num(
             sample.total_rss, sample.total_vsz, sample.total_pmem, sample.total_pcpu
         )
         return cls(
@@ -196,11 +190,6 @@ class Averages:
             pcpu=sample.total_pcpu,
             num_samples=1,
         )
-
-    @staticmethod
-    def _assert_num(*values: Any) -> None:
-        for value in values:
-            assert isinstance(value, (float, int))
 
 
 @dataclass
