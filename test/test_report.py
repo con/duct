@@ -115,13 +115,46 @@ def test_process_stats_handle_ints() -> None:
     )
 
 
-def test_process_stats_incorrect_type() -> None:
+def test_process_stats_incorrect_pcpu_type() -> None:
     with pytest.raises(TypeError):
         ProcessStats(
             pcpu="oopsie",  # type: ignore[arg-type]
             pmem=1.1,
             rss=1024,
             vsz=1025,
+            timestamp=datetime.now().astimezone().isoformat(),
+        )
+
+
+def test_process_stats_incorrect_pmem_type() -> None:
+    with pytest.raises(TypeError):
+        ProcessStats(
+            pcpu=1.1,
+            pmem="oopsie",  # type: ignore[arg-type]
+            rss=1024,
+            vsz=1025,
+            timestamp=datetime.now().astimezone().isoformat(),
+        )
+
+
+def test_process_stats_incorrect_rss_type() -> None:
+    with pytest.raises(TypeError):
+        ProcessStats(
+            pcpu=1.1,
+            pmem=1.0,
+            rss="oopsie",  # type: ignore[arg-type]
+            vsz=1025,
+            timestamp=datetime.now().astimezone().isoformat(),
+        )
+
+
+def test_process_stats_incorrect_vsz_type() -> None:
+    with pytest.raises(TypeError):
+        ProcessStats(
+            pcpu=1.1,
+            pmem=1.0,
+            rss=1025,
+            vsz="oopsie",  # type: ignore[arg-type]
             timestamp=datetime.now().astimezone().isoformat(),
         )
 
