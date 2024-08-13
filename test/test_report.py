@@ -124,3 +124,13 @@ def test_process_stats_incorrect_type() -> None:
             vsz=1025,
             timestamp=datetime.now().astimezone().isoformat(),
         )
+
+
+def test_averages_assert_num_green() -> None:
+    # Assert does not raise
+    Averages._assert_num(0, 1, 1.0, 0.1)
+
+
+def test_averages_assert_num_invalid() -> None:
+    with pytest.raises(AssertionError):
+        Averages._assert_num("oops")  # type: ignore[arg-type]
