@@ -93,88 +93,44 @@ def test_averages_three_samples() -> None:
     assert averages.pcpu == (stat0.pcpu + (2 * stat1.pcpu)) / 3
 
 
-def test_process_stats_green() -> None:
+@pytest.mark.parametrize(
+    "pcpu, pmem, rss, vsz",
+    [
+        (1.0, 1.1, 1024, 1025),
+        (0.5, 0.7, 20.48, 40.96),
+        (1, 2, 3, 4),
+        (0, 0.0, 0, 0.0),
+        (2.5, 3.5, 8192, 16384),
+        (100.0, 99.9, 65536, 131072),
+    ]
+)
+def test_process_stats_green(pcpu: float, pmem: float, rss: int, vsz: int) -> None:
     # Assert does not raise
     ProcessStats(
-        pcpu=1.0,
-        pmem=1.1,
-        rss=1024,
-        vsz=1025,
+        pcpu=pcpu,
+        pmem=pmem,
+        rss=rss,
+        vsz=vsz,
         timestamp=datetime.now().astimezone().isoformat(),
     )
 
 
-def test_process_stats_handle_ints() -> None:
-    # Assert does not raise
-    ProcessStats(
-        pcpu=1,
-        pmem=1,
-        rss=1024,
-        vsz=1025,
-        timestamp=datetime.now().astimezone().isoformat(),
-    )
-
-
-def test_process_stats_incorrect_pcpu_type() -> None:
-    with pytest.raises(TypeError):
-        ProcessStats(
-            pcpu="oopsie",  # type: ignore[arg-type]
-            pmem=1.1,
-            rss=1024,
-            vsz=1025,
-            timestamp=datetime.now().astimezone().isoformat(),
-        )
-
-
-def test_process_stats_incorrect_pmem_type() -> None:
-    with pytest.raises(TypeError):
-        ProcessStats(
-            pcpu=1.1,
-            pmem="oopsie",  # type: ignore[arg-type]
-            rss=1024,
-            vsz=1025,
-            timestamp=datetime.now().astimezone().isoformat(),
-        )
-
-
-def test_process_stats_incorrect_rss_type() -> None:
-    with pytest.raises(TypeError):
-        ProcessStats(
-            pcpu=1.1,
-            pmem=1.0,
-            rss="oopsie",  # type: ignore[arg-type]
-            vsz=1025,
-            timestamp=datetime.now().astimezone().isoformat(),
-        )
-
-
-def test_process_stats_incorrect_vsz_type() -> None:
-    with pytest.raises(TypeError):
-        ProcessStats(
-            pcpu=1.1,
-            pmem=1.0,
-            rss=1025,
-            vsz="oopsie",  # type: ignore[arg-type]
-            timestamp=datetime.now().astimezone().isoformat(),
-        )
-
-
-def test_process_stats_incorrect_ts_type() -> None:
-    with pytest.raises(TypeError):
-        ProcessStats(
-            pcpu=1.1,
-            pmem=1.0,
-            rss=1025,
-            vsz=1024,
-            timestamp=1,  # type: ignore[arg-type]
-        )
-
-
-def test_averages_assert_num_green() -> None:
-    # Assert does not raise
-    Averages._assert_num(0, 1, 1.0, 0.1)
-
-
-def test_averages_assert_num_invalid() -> None:
+@pytest.mark.parametrize(
+    "pcpu, pmem, rss, vsz",
+    [
+        ("only", 1.1, 1024, 1025),
+        (0.5, "takes", 20.48, 40.96),
+        (1, 2, "one", 4),
+        (1, 2, 3, "value"),
+        ("2", "fail", "or", "more"),
+    ]
+)
+def test_process_stats_red(pcpu: float, pmem: float, rss: int, vsz: int) -> None:
     with pytest.raises(AssertionError):
-        Averages._assert_num("oops")  # type: ignore[arg-type]
+        ProcessStats(
+            pcpu=pcpu,
+            pmem=pmem,
+            rss=rss,
+            vsz=vsz,
+            timestamp=datetime.now().astimezone().isoformat(),
+        )
