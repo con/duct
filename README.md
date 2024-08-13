@@ -54,14 +54,15 @@ options:
                         Output template to use when printing the summary
                         following execution. (default: Exit Code: {exit_code}
                         Command: {command} Log files location: {logs_prefix}
-                        Wall Clock Time: {wall_clock_time} sec Memory Peak
-                        Usage (RSS): {peak_rss} Memory Average Usage (RSS):
-                        {average_rss} Virtual Memory Peak Usage (VSZ):
-                        {peak_vsz} Virtual Memory Average Usage (VSZ):
-                        {average_vsz} Memory Peak Percentage: {peak_pmem}
-                        Memory Average Percentage: {average_pmem} CPU Peak
-                        Usage: {peak_pcpu} Average CPU Usage: {average_pcpu}
-                        Samples Collected: {num_samples} Reports Written:
+                        Wall Clock Time: {wall_clock_time:.3f} sec Memory Peak
+                        Usage (RSS): {peak_rss} bytes Memory Average Usage
+                        (RSS): {average_rss:.0f} bytes Virtual Memory Peak
+                        Usage (VSZ): {peak_vsz} bytes Virtual Memory Average
+                        Usage (VSZ): {average_vsz:.0f} bytes Memory Peak
+                        Percentage: {peak_pmem:.3f} Memory Average Percentage:
+                        {average_pmem:.3f} CPU Peak Usage: {peak_pcpu:.3f}
+                        Average CPU Usage: {average_pcpu:.3f} Samples
+                        Collected: {num_samples} Reports Written:
                         {num_reports} )
   --clobber             Replace log files if they already exist. (default:
                         False)
