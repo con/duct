@@ -100,7 +100,13 @@ class ProcessStats:
         self._validate()
 
     def _validate(self) -> None:
-        for fname, types in (("pcpu", (float, int)), ("pmem", (float, int)), ("rss", (int,)), ("vsz", (int,)), ("timestamp", (str,))):
+        for fname, types in (
+            ("pcpu", (float, int)),
+            ("pmem", (float, int)),
+            ("rss", (int,)),
+            ("vsz", (int,)),
+            ("timestamp", (str,)),
+        ):
             value = getattr(self, fname)
             if not isinstance(value, types):
                 msg = f"Expected '{fname}' to be of type {' or '.join(map(repr, types))}, got {type(value).__name__}"
@@ -168,7 +174,9 @@ class Averages:
     num_samples: int = 0
 
     def update(self: Averages, other: Sample) -> None:
-        self._assert_num(other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu)
+        self._assert_num(
+            other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu
+        )
         self.num_samples += 1
         self.rss += (other.total_rss - self.rss) / self.num_samples
         self.vsz += (other.total_vsz - self.vsz) / self.num_samples
@@ -177,7 +185,9 @@ class Averages:
 
     @classmethod
     def from_sample(cls, sample: Sample) -> Averages:
-        cls._assert_num(sample.total_rss, sample.total_vsz, sample.total_pmem, sample.total_pcpu)
+        cls._assert_num(
+            sample.total_rss, sample.total_vsz, sample.total_pmem, sample.total_pcpu
+        )
         return cls(
             rss=sample.total_rss,
             vsz=sample.total_vsz,
@@ -364,44 +374,28 @@ class Report:
             "logs_prefix": self.log_paths.prefix,
             "wall_clock_time": self.elapsed_time,
             "peak_rss": (
-                self.max_values.total_rss
-                if self.max_values.stats
-                else "unknown"
+                self.max_values.total_rss if self.max_values.stats else "unknown"
             ),
             "average_rss": (
-                self.averages.rss
-                if self.averages.num_samples >= 1
-                else "unknown"
+                self.averages.rss if self.averages.num_samples >= 1 else "unknown"
             ),
             "peak_vsz": (
-                self.max_values.total_vsz
-                if self.max_values.stats
-                else "unknown"
+                self.max_values.total_vsz if self.max_values.stats else "unknown"
             ),
             "average_vsz": (
-                self.averages.vsz
-                if self.averages.num_samples >= 1
-                else "unknown"
+                self.averages.vsz if self.averages.num_samples >= 1 else "unknown"
             ),
             "peak_pmem": (
-                self.max_values.total_pmem
-                if self.max_values.stats
-                else "unknown"
+                self.max_values.total_pmem if self.max_values.stats else "unknown"
             ),
             "average_pmem": (
-                self.averages.pmem
-                if self.averages.num_samples >= 1
-                else "unknown"
+                self.averages.pmem if self.averages.num_samples >= 1 else "unknown"
             ),
             "peak_pcpu": (
-                self.max_values.total_pcpu
-                if self.max_values.stats
-                else "unknown"
+                self.max_values.total_pcpu if self.max_values.stats else "unknown"
             ),
             "average_pcpu": (
-                self.averages.pcpu
-                if self.averages.num_samples >= 1
-                else "unknown"
+                self.averages.pcpu if self.averages.num_samples >= 1 else "unknown"
             ),
             "num_samples": self.averages.num_samples,
             "num_reports": self.number,
