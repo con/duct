@@ -109,7 +109,8 @@ class ProcessStats:
         ):
             value = getattr(self, fname)
             if not isinstance(value, types):
-                msg = f"Expected '{fname}' to be of type {' or '.join(map(repr, types))}, got {type(value).__name__}"
+                expected_types = " or ".join(map(repr, types))
+                msg = f"Expected '{fname}' to be of type {expected_types}, got {type(value).__name__}"
                 raise TypeError(msg)
 
 
