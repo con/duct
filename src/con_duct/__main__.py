@@ -100,10 +100,10 @@ class ProcessStats:
         self._validate()
 
     def _validate(self) -> None:
-        for fname, types in (("pcpu", (float, int)), ("pmem", (float, int)), ("rss", int), ("vsz", int), ("timestamp", str)):
+        for fname, types in (("pcpu", (float, int)), ("pmem", (float, int)), ("rss", (int)), ("vsz", (int)), ("timestamp", (str))):
             value = getattr(self, fname)
             if not isinstance(value, types):
-                msg = f"Expected '{fname}' to be of type {' or '.join(map(repr(types)))}, got {type(value).__name__}"
+                msg = f"Expected '{fname}' to be of type {' or '.join(map(repr, types))}, got {type(value).__name__}"
                 raise TypeError(msg)
 
 
