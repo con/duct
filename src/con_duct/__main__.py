@@ -13,7 +13,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import IO, Any, TextIO
+from typing import Any, IO, Optional, TextIO
 from . import __version__
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -39,6 +39,12 @@ EXECUTION_SUMMARY_FORMAT = (
     "Samples Collected: {num_samples}\n"
     "Reports Written: {num_reports}\n"
 )
+
+
+class ExecutionSummary(dict[str, Any]):
+    def __getitem__(self, key: str) -> Optional[str]:
+        value = super().__getitem__(key)
+        return "unknown" if value is None else value
 
 
 def assert_num(*values: Any) -> None:
@@ -162,19 +168,34 @@ class LogPaths:
 
 @dataclass
 class Averages:
-    rss: float = 0.0
-    vsz: float = 0.0
-    pmem: float = 0.0
-    pcpu: float = 0.0
+    rss: Optional[float] = None
+    vsz: Optional[float] = None
+    pmem: Optional[float] = None
+    pcpu: Optional[float] = None
     num_samples: int = 0
 
     def update(self: Averages, other: Sample) -> None:
         assert_num(other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu)
-        self.num_samples += 1
-        self.rss += (other.total_rss - self.rss) / self.num_samples
-        self.vsz += (other.total_vsz - self.vsz) / self.num_samples
-        self.pmem += (other.total_pmem - self.pmem) / self.num_samples
-        self.pcpu += (other.total_pcpu - self.pcpu) / self.num_samples
+        if not self.num_samples:
+            self.num_samples += 1
+            self.rss = other.total_rss
+            self.vsz = other.total_vsz
+            self.pmem = other.total_pmem
+            self.pcpu = other.total_pcpu
+        else:
+            assert self.rss is not None
+            assert self.vsz is not None
+            assert self.pmem is not None
+            assert self.pcpu is not None
+            assert other.total_rss is not None
+            assert other.total_vsz is not None
+            assert other.total_pmem is not None
+            assert other.total_pcpu is not None
+            self.num_samples += 1
+            self.rss += (other.total_rss - self.rss) / self.num_samples
+            self.vsz += (other.total_vsz - self.vsz) / self.num_samples
+            self.pmem += (other.total_pmem - self.pmem) / self.num_samples
+            self.pcpu += (other.total_pcpu - self.pcpu) / self.num_samples
 
     @classmethod
     def from_sample(cls, sample: Sample) -> Averages:
@@ -194,17 +215,17 @@ class Averages:
 class Sample:
     stats: dict[int, ProcessStats] = field(default_factory=dict)
     averages: Averages = field(default_factory=Averages)
-    total_rss: int = 0
-    total_vsz: int = 0
-    total_pmem: float = 0.0
-    total_pcpu: float = 0.0
+    total_rss: Optional[int] = None
+    total_vsz: Optional[int] = None
+    total_pmem: Optional[float] = None
+    total_pcpu: Optional[float] = None
     timestamp: str = ""  # TS of last sample collected
 
     def add_pid(self, pid: int, stats: ProcessStats) -> None:
-        self.total_rss += stats.rss
-        self.total_vsz += stats.vsz
-        self.total_pmem += stats.pmem
-        self.total_pcpu += stats.pcpu
+        self.total_rss = self.total_rss or 0 + stats.rss
+        self.total_vsz = self.total_vsz or 0 + stats.vsz
+        self.total_pmem = self.total_vsz or 0 + stats.pmem
+        self.total_pcpu = self.total_pcpu or 0 + stats.pcpu
         self.stats[pid] = stats
         self.timestamp = max(self.timestamp, stats.timestamp)
 
@@ -218,10 +239,14 @@ class Sample:
                     output.add_pid(pid, mine)
             else:
                 output.add_pid(pid, other.stats[pid])
-        output.total_pmem = max(self.total_pmem, other.total_pmem)
-        output.total_pcpu = max(self.total_pcpu, other.total_pcpu)
-        output.total_rss = max(self.total_rss, other.total_rss)
-        output.total_vsz = max(self.total_vsz, other.total_vsz)
+        assert other.total_pmem is not None
+        assert other.total_pcpu is not None
+        assert other.total_rss is not None
+        assert other.total_vsz is not None
+        output.total_pmem = max(self.total_pmem or 0, other.total_pmem)
+        output.total_pcpu = max(self.total_pcpu or 0, other.total_pcpu)
+        output.total_rss = max(self.total_rss or 0, other.total_rss)
+        output.total_vsz = max(self.total_vsz or 0, other.total_vsz)
         return output
 
     def for_json(self) -> dict[str, Any]:
@@ -312,7 +337,7 @@ class Report:
             except subprocess.CalledProcessError:
                 self.gpus = None
 
-    def collect_sample(self) -> Sample:
+    def collect_sample(self) -> Optional[Sample]:
         assert self.session_id is not None
         sample = Sample()
         try:
@@ -341,8 +366,8 @@ class Report:
                             timestamp=datetime.now().astimezone().isoformat(),
                         ),
                     )
-        except subprocess.CalledProcessError:
-            pass
+        except subprocess.CalledProcessError:  # when session_id has no processes
+            return None
         return sample
 
     def write_subreport(self) -> None:
@@ -359,30 +384,14 @@ class Report:
             "command": self.command,
             "logs_prefix": self.log_paths.prefix,
             "wall_clock_time": self.elapsed_time,
-            "peak_rss": (
-                self.max_values.total_rss if self.max_values.stats else "unknown"
-            ),
-            "average_rss": (
-                self.averages.rss if self.averages.num_samples >= 1 else "unknown"
-            ),
-            "peak_vsz": (
-                self.max_values.total_vsz if self.max_values.stats else "unknown"
-            ),
-            "average_vsz": (
-                self.averages.vsz if self.averages.num_samples >= 1 else "unknown"
-            ),
-            "peak_pmem": (
-                self.max_values.total_pmem if self.max_values.stats else "unknown"
-            ),
-            "average_pmem": (
-                self.averages.pmem if self.averages.num_samples >= 1 else "unknown"
-            ),
-            "peak_pcpu": (
-                self.max_values.total_pcpu if self.max_values.stats else "unknown"
-            ),
-            "average_pcpu": (
-                self.averages.pcpu if self.averages.num_samples >= 1 else "unknown"
-            ),
+            "peak_rss": self.max_values.total_rss,
+            "average_rss": self.averages.rss,
+            "peak_vsz": self.max_values.total_vsz,
+            "average_vsz": self.averages.vsz,
+            "peak_pmem": self.max_values.total_pmem,
+            "average_pmem": self.averages.pmem,
+            "peak_pcpu": self.max_values.total_pcpu,
+            "average_pcpu": self.averages.pcpu,
             "num_samples": self.averages.num_samples,
             "num_reports": self.number,
         }
@@ -403,7 +412,7 @@ class Report:
 
     @cached_property
     def execution_summary_formatted(self) -> str:
-        return self.summary_format.format_map(self.execution_summary)
+        return {k: "unknown" if v is None else v for k, v in self.execution_summary.items()}
 
 
 @dataclass
@@ -543,6 +552,8 @@ def monitor_process(
             break
         sample = report.collect_sample()
         # Report averages should be updated prior to sample aggregation
+        if sample is None:  # passthrough has probably finished before sample could be collected
+            continue
         report.averages.update(sample)
         if report.current_sample is None:
             sample.averages = Averages.from_sample(sample)
