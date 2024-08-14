@@ -65,7 +65,7 @@ options:
                         Reports Written: {num_reports} )
   --clobber             Replace log files if they already exist. (default:
                         False)
-  -q, --quiet           Suppress duct output. (default: False)
+  -q, --quiet           Suppress duct output (to stderr). (default: False)
   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval must be less than or
