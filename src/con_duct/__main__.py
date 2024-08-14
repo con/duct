@@ -41,12 +41,6 @@ EXECUTION_SUMMARY_FORMAT = (
 )
 
 
-class ExecutionSummary(dict[str, Any]):
-    def __getitem__(self, key: str) -> Optional[str]:
-        value = super().__getitem__(key)
-        return "unknown" if value is None else value
-
-
 def assert_num(*values: Any) -> None:
     for value in values:
         assert isinstance(value, (float, int))
