@@ -1,7 +1,14 @@
 from __future__ import annotations
 from datetime import datetime
+from unittest import mock
 import pytest
-from con_duct.__main__ import Averages, ProcessStats, Sample
+from con_duct.__main__ import (
+    EXECUTION_SUMMARY_FORMAT,
+    Averages,
+    ProcessStats,
+    Report,
+    Sample,
+)
 
 stat0 = ProcessStats(
     pcpu=0.0, pmem=0, rss=0, vsz=0, timestamp="2024-06-11T10:09:37-04:00"
@@ -102,7 +109,7 @@ def test_averages_three_samples() -> None:
         (0, 0.0, 0, 0.0),
         (2.5, 3.5, 8192, 16384),
         (100.0, 99.9, 65536, 131072),
-    ]
+    ],
 )
 def test_process_stats_green(pcpu: float, pmem: float, rss: int, vsz: int) -> None:
     # Assert does not raise
@@ -123,7 +130,7 @@ def test_process_stats_green(pcpu: float, pmem: float, rss: int, vsz: int) -> No
         (1, 2, "one", 4),
         (1, 2, 3, "value"),
         ("2", "fail", "or", "more"),
-    ]
+    ],
 )
 def test_process_stats_red(pcpu: float, pmem: float, rss: int, vsz: int) -> None:
     with pytest.raises(AssertionError):
@@ -134,3 +141,18 @@ def test_process_stats_red(pcpu: float, pmem: float, rss: int, vsz: int) -> None
             vsz=vsz,
             timestamp=datetime.now().astimezone().isoformat(),
         )
+
+
+@mock.patch("con_duct.__main__.LogPaths")
+@mock.patch("con_duct.__main__.subprocess.Popen")
+def test_execution_summary_formatted(
+    mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock
+) -> None:
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report(
+        "_cmd", [], None, mock_popen, mock_log_paths, EXECUTION_SUMMARY_FORMAT, False
+    )
+
+    output = report.execution_summary_formatted
+    assert "None" not in output
+    assert "unknown" in output
