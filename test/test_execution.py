@@ -55,9 +55,9 @@ def test_sanity_red(exit_code: int, temp_output_dir: str) -> None:
         summary_format=EXECUTION_SUMMARY_FORMAT,
         quiet=False,
     )
-    with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
+    with mock.patch("sys.stderr", new_callable=mock.MagicMock) as mock_stderr:
         assert execute(args) == exit_code
-        call_args = [call.args for call in mock_stdout.write.call_args_list]
+        call_args = [call.args for call in mock_stderr.write.call_args_list]
         assert any(f"Exit Code: {exit_code}" in call_arg[0] for call_arg in call_args)
 
     # We still should execute normally
@@ -179,9 +179,9 @@ def test_outputs_none_quiet(temp_output_dir: str) -> None:
         summary_format="",
         quiet=True,
     )
-    with mock.patch("sys.stdout", new_callable=mock.MagicMock) as mock_stdout:
+    with mock.patch("sys.stderr", new_callable=mock.MagicMock) as mock_stderr:
         assert execute(args) == 0
-        mock_stdout.write.assert_not_called()
+        mock_stderr.write.assert_not_called()
 
 
 def test_exit_before_first_sample(temp_output_dir: str) -> None:

@@ -169,9 +169,7 @@ class Averages:
     num_samples: int = 0
 
     def update(self: Averages, other: Sample) -> None:
-        assert_num(
-            other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu
-        )
+        assert_num(other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu)
         self.num_samples += 1
         self.rss += (other.total_rss - self.rss) / self.num_samples
         self.vsz += (other.total_vsz - self.vsz) / self.num_samples
@@ -330,7 +328,9 @@ class Report:
             )
             for line in output.splitlines()[1:]:
                 if line:
-                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, cmd = line.split(maxsplit=6)
+                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, cmd = line.split(
+                        maxsplit=6
+                    )
                     sample.add_pid(
                         int(pid),
                         ProcessStats(
@@ -401,8 +401,9 @@ class Report:
             }
         )
 
-    def print_summary(self) -> None:
-        print(self.summary_format.format_map(self.execution_summary))
+    @cached_property
+    def execution_summary_formatted(self) -> str:
+        return self.summary_format.format_map(self.execution_summary)
 
 
 @dataclass
@@ -471,7 +472,7 @@ class Arguments:
             "-q",
             "--quiet",
             action="store_true",
-            help="Suppress duct output.",
+            help="Suppress duct output (to stderr).",
         )
         parser.add_argument(
             "--sample-interval",
@@ -647,6 +648,10 @@ def safe_close_files(file_list: Iterable[Any]) -> None:
             pass
 
 
+def duct_print(msg: str) -> None:
+    print(msg, file=sys.stderr)
+
+
 def main() -> None:
     args = Arguments.from_argv()
     sys.exit(execute(args))
@@ -673,8 +678,8 @@ def execute(args: Arguments) -> int:
 
     full_command = " ".join([str(args.command)] + args.command_args)
     if not args.quiet:
-        print(f"duct is executing {full_command}...")
-        print(f"Log files will be written to {log_paths.prefix}")
+        duct_print(f"duct is executing {full_command}...")
+        duct_print(f"Log files will be written to {log_paths.prefix}")
     process = subprocess.Popen(
         [str(args.command)] + args.command_args,
         stdout=stdout_file,
@@ -730,7 +735,7 @@ def execute(args: Arguments) -> int:
             report.get_system_info()
             system_logs.write(report.dump_json())
     if not args.quiet:
-        report.print_summary()
+        duct_print(report.execution_summary_formatted)
     safe_close_files([stdout_file, stdout, stderr_file, stderr])
 
     return report.process.returncode
