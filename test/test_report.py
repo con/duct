@@ -1,7 +1,8 @@
 from __future__ import annotations
 from datetime import datetime
 import pytest
-from con_duct.__main__ import Averages, ProcessStats, Sample
+from unittest import mock
+from con_duct.__main__ import Averages, EXECUTION_SUMMARY_FORMAT, ProcessStats, Report, Sample
 
 stat0 = ProcessStats(
     pcpu=0.0, pmem=0, rss=0, vsz=0, timestamp="2024-06-11T10:09:37-04:00"
@@ -134,3 +135,18 @@ def test_process_stats_red(pcpu: float, pmem: float, rss: int, vsz: int) -> None
             vsz=vsz,
             timestamp=datetime.now().astimezone().isoformat(),
         )
+
+
+@mock.patch("con_duct.__main__.LogPaths")
+@mock.patch("con_duct.__main__.subprocess.Popen")
+def test_print_summary(mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock) -> None:
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report('_cmd', [], None, mock_popen, mock_log_paths, EXECUTION_SUMMARY_FORMAT, False)
+
+    with mock.patch("builtins.print", new_callable=mock.MagicMock) as mock_print:
+        report.print_summary()
+
+    mock_print.assert_called_once()
+    assert len(mock_print.call_args_list[0].args) == 1
+    assert "None" not in mock_print.call_args_list[0].args[0]
+    assert "unknown" in mock_print.call_args_list[0].args[0]
