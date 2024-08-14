@@ -352,10 +352,6 @@ class Report:
                 json.dumps(self.current_sample.for_json()) + "\n"
             )
 
-    def print_max_values(self) -> None:
-        for pid, maxes in self.max_values.stats.items():
-            print(f"PID {pid} Maximum Values: {asdict(maxes)}")
-
     @cached_property
     def execution_summary(self) -> dict[str, Any]:
         return {
