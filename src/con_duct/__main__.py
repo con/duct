@@ -13,7 +13,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Any, IO, Optional, TextIO
+from typing import IO, Any, Optional, TextIO
 from . import __version__
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -406,7 +406,10 @@ class Report:
 
     @cached_property
     def execution_summary_formatted(self) -> str:
-        return {k: "unknown" if v is None else v for k, v in self.execution_summary.items()}
+        human_readable = {
+            k: "unknown" if v is None else v for k, v in self.execution_summary.items()
+        }
+        return self.summary_format.format_map(human_readable)
 
 
 @dataclass
@@ -546,7 +549,9 @@ def monitor_process(
             break
         sample = report.collect_sample()
         # Report averages should be updated prior to sample aggregation
-        if sample is None:  # passthrough has probably finished before sample could be collected
+        if (
+            sample is None
+        ):  # passthrough has probably finished before sample could be collected
             continue
         report.averages.update(sample)
         if report.current_sample is None:
