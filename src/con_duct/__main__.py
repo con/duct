@@ -330,14 +330,14 @@ class Report:
             )
             for line in output.splitlines()[1:]:
                 if line:
-                    pid, pcpu, pmem, rss, vsz, etime, cmd = line.split(maxsplit=6)
+                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, cmd = line.split(maxsplit=6)
                     sample.add_pid(
                         int(pid),
                         ProcessStats(
                             pcpu=float(pcpu),
                             pmem=float(pmem),
-                            rss=int(rss) * 1024,
-                            vsz=int(vsz) * 1024,
+                            rss=int(rss_kib) * 1024,
+                            vsz=int(vsz_kib) * 1024,
                             timestamp=datetime.now().astimezone().isoformat(),
                         ),
                     )
