@@ -7,6 +7,7 @@ from enum import Enum
 from functools import cached_property
 import json
 import logging
+import math
 import os
 import shutil
 import subprocess
@@ -272,6 +273,7 @@ class Report:
         log_paths: LogPaths,
         summary_format: str,
         clobber: bool = False,
+        process: subprocess.Popen | None = None,
     ) -> None:
         self._command = command
         self.arguments = arguments
@@ -280,7 +282,7 @@ class Report:
         self.clobber = clobber
         # Defaults to be set later
         self.start_time = None
-        self.process: subprocess.Popen | None = None
+        self.process = process
         self.session_id: int | None = None
         self.gpus: list[dict[str, str]] | None = None
         self.env: dict[str, str] | None = None
@@ -302,9 +304,14 @@ class Report:
         return time.time() - self.start_time
 
     @property
-    def wall_clock_time(self) -> float:
-        assert self.start_time
-        assert self.end_time
+    def wall_clock_time(self) -> Optional[float]:
+        if self.start_time is None:
+            return math.nan
+        if self.end_time is None:
+            # if no end_time -- must be still ongoing
+            # Cannot happen ATM but could in "library mode" later
+            return time.time() - self.start_time
+        # we reached the end
         return self.end_time - self.start_time
 
     def collect_environment(self) -> None:
@@ -383,10 +390,12 @@ class Report:
 
     @cached_property
     def execution_summary(self) -> dict[str, Any]:
+        # prepare the base, but enrich if we did get process
+        # running
         return {
-            "exit_code": self.process.returncode,
+            "exit_code": self.process.returncode if self.process else None,
             "command": self.command,
-            "logs_prefix": self.log_paths.prefix,
+            "logs_prefix": self.log_paths.prefix if self.log_paths else "",
             "wall_clock_time": self.wall_clock_time,
             "peak_rss": self.max_values.total_rss,
             "average_rss": self.averages.rss,
