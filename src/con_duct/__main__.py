@@ -4,7 +4,6 @@ from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from functools import cached_property
 import json
 import logging
 import math
@@ -388,7 +387,7 @@ class Report:
                 json.dumps(self.current_sample.for_json()) + "\n"
             )
 
-    @cached_property
+    @property
     def execution_summary(self) -> dict[str, Any]:
         # prepare the base, but enrich if we did get process
         # running
@@ -423,7 +422,7 @@ class Report:
             }
         )
 
-    @cached_property
+    @property
     def execution_summary_formatted(self) -> str:
         human_readable = {
             k: "unknown" if v is None else v for k, v in self.execution_summary.items()
