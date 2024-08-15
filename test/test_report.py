@@ -149,10 +149,14 @@ def test_execution_summary_formatted(
     mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock
 ) -> None:
     mock_log_paths.prefix = "mock_prefix"
-    report = Report(
-        "_cmd", [], None, mock_popen, mock_log_paths, EXECUTION_SUMMARY_FORMAT, False
-    )
+    report = Report("_cmd", [], None, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    # It should not crash and it would render even where no wallclock time yet
+    assert "wall clock time: nan" in report.execution_summary_formatted.lower()
 
+    # Test with process
+    report.process = mock_popen
     output = report.execution_summary_formatted
     assert "None" not in output
     assert "unknown" in output
+    # Process did not finish, we didn't set start_time, so remains nan but there
+    assert "wall clock time: nan" in report.execution_summary_formatted.lower()
