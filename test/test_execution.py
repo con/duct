@@ -27,7 +27,7 @@ def test_sanity_green(temp_output_dir: str) -> None:
         record_types=RecordTypes.ALL,
         clobber=False,
         summary_format="",
-        quiet=False,
+        log_level="INFO",
     )
     assert execute(args) == 0
     expected_files = [
@@ -53,7 +53,7 @@ def test_sanity_red(exit_code: int, temp_output_dir: str) -> None:
         record_types=RecordTypes.ALL,
         clobber=False,
         summary_format=EXECUTION_SUMMARY_FORMAT,
-        quiet=False,
+        log_level="INFO",
     )
     with mock.patch("sys.stderr", new_callable=mock.MagicMock) as mock_stderr:
         assert execute(args) == exit_code
@@ -82,7 +82,7 @@ def test_outputs_full(temp_output_dir: str) -> None:
         record_types=RecordTypes.ALL,
         clobber=False,
         summary_format="",
-        quiet=False,
+        log_level="INFO",
     )
     assert execute(args) == 0
     expected_files = [
@@ -106,7 +106,7 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
         record_types=RecordTypes.ALL,
         clobber=False,
         summary_format="",
-        quiet=False,
+        log_level="INFO",
     )
     assert execute(args) == 0
     expected_files = [SUFFIXES["info"], SUFFIXES["usage"]]
@@ -127,7 +127,7 @@ def test_outputs_capture(temp_output_dir: str) -> None:
         record_types=RecordTypes.ALL,
         clobber=False,
         summary_format="",
-        quiet=False,
+        log_level="INFO",
     )
     assert execute(args) == 0
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -153,7 +153,7 @@ def test_outputs_none(temp_output_dir: str) -> None:
         record_types=RecordTypes.ALL,
         clobber=False,
         summary_format="",
-        quiet=False,
+        log_level="INFO",
     )
     assert execute(args) == 0
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -177,7 +177,7 @@ def test_outputs_none_quiet(temp_output_dir: str) -> None:
         record_types=RecordTypes.ALL,
         clobber=False,
         summary_format="",
-        quiet=True,
+        log_level="ERROR",
     )
     with mock.patch("sys.stderr", new_callable=mock.MagicMock) as mock_stderr:
         assert execute(args) == 0
@@ -196,7 +196,7 @@ def test_exit_before_first_sample(temp_output_dir: str) -> None:
         record_types=RecordTypes.ALL,
         clobber=False,
         summary_format="",
-        quiet=False,
+        log_level="INFO",
     )
     assert execute(args) == 0
     expected_files = [
@@ -221,7 +221,7 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
         record_types=RecordTypes.ALL,
         clobber=False,
         summary_format="",
-        quiet=False,
+        log_level="INFO",
     )
     assert execute(args) == 0
     # Specifically we need to assert that usage.json gets written anyway.
