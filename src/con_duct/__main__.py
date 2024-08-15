@@ -269,29 +269,28 @@ class Report:
         self,
         command: str,
         arguments: list[str],
-        session_id: int | None,
-        process: subprocess.Popen,
         log_paths: LogPaths,
         summary_format: str,
         clobber: bool = False,
     ) -> None:
-        self.start_time = time.time()
         self._command = command
         self.arguments = arguments
-        self.session_id = session_id
+        self.log_paths = log_paths
+        self.summary_format: str = summary_format
+        self.clobber = clobber
+        # Defaults to be set later
+        self.start_time = None
+        self.process: subprocess.Popen | None = None
+        self.session_id: int | None = None
         self.gpus: list[dict[str, str]] | None = None
         self.env: dict[str, str] | None = None
         self.number = 0
         self.system_info: SystemInfo | None = None
-        self.log_paths = log_paths
         self.max_values = Sample()
         self.averages: Averages = Averages()
-        self.process = process
         self.current_sample: Sample | None = None
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
-        self.summary_format: str = summary_format
-        self.clobber = clobber
 
     @property
     def command(self) -> str:
@@ -299,7 +298,14 @@ class Report:
 
     @property
     def elapsed_time(self) -> float:
+        assert self.start_time
         return time.time() - self.start_time
+
+    @property
+    def wall_clock_time(self) -> float:
+        assert self.start_time
+        assert self.end_time
+        return self.end_time - self.start_time
 
     def collect_environment(self) -> None:
         self.env = {k: v for k, v in os.environ.items() if k.startswith(ENV_PREFIXES)}
@@ -381,7 +387,7 @@ class Report:
             "exit_code": self.process.returncode,
             "command": self.command,
             "logs_prefix": self.log_paths.prefix,
-            "wall_clock_time": self.elapsed_time,
+            "wall_clock_time": self.wall_clock_time,
             "peak_rss": self.max_values.total_rss,
             "average_rss": self.averages.rss,
             "peak_vsz": self.max_values.total_vsz,
@@ -573,7 +579,7 @@ def monitor_process(
         else:
             assert report.current_sample.averages is not None
             report.current_sample.averages.update(sample)
-        if report.elapsed_time >= report.number * report_interval:
+        if report.start_time and report.elapsed_time >= report.number * report_interval:
             report.write_subreport()
             report.max_values = report.max_values.max(sample)
             report.current_sample = None
@@ -705,8 +711,18 @@ def execute(args: Arguments) -> int:
 
     full_command = " ".join([str(args.command)] + args.command_args)
     files_to_close = [stdout_file, stdout, stderr_file, stderr]
+    
+    report = Report(
+        args.command,
+        args.command_args,
+        log_paths,
+        args.summary_format,
+        args.clobber,
+    )
+
+    report.start_time = time.time()
     try:
-        process = subprocess.Popen(
+        report.process = process = subprocess.Popen(
             [str(args.command)] + args.command_args,
             stdout=stdout_file,
             stderr=stderr_file,
@@ -728,18 +744,10 @@ def execute(args: Arguments) -> int:
     lgr.info("duct is executing %r...", full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
-        session_id = os.getsid(process.pid)  # Get session ID of the new process
+        report.session_id = os.getsid(process.pid)  # Get session ID of the new process
     except ProcessLookupError:  # process has already finished
-        session_id = None
-    report = Report(
-        args.command,
-        args.command_args,
-        session_id,
-        process,
-        log_paths,
-        args.summary_format,
-        args.clobber,
-    )
+        # TODO: log this at least.
+        pass
     stop_event = threading.Event()
     if args.record_types.has_processes_samples():
         monitoring_args = [
@@ -757,6 +765,7 @@ def execute(args: Arguments) -> int:
         monitoring_thread = None
 
     process.wait()
+    report.end_time = time.time()
     stop_event.set()
     if monitoring_thread is not None:
         monitoring_thread.join()
@@ -771,7 +780,6 @@ def execute(args: Arguments) -> int:
         report.collect_environment()
         report.get_system_info()
         with open(log_paths.info, "a") as system_logs:
-            report.end_time = time.time()
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
             system_logs.write(report.dump_json())
