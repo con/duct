@@ -235,14 +235,13 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
     assert_files(temp_output_dir, expected_files, exists=True)
 
 
-def test_execute_unknown_command(temp_output_dir: str) -> None:
+def test_execute_unknown_command(
+    temp_output_dir: str, capsys: pytest.CaptureFixture
+) -> None:
     cmd = "this_command_does_not_exist_123abrakadabra"
     args = Arguments.from_argv([cmd])
-    with mock.patch(
-        "con_duct.__main__.duct_print", new_callable=mock.MagicMock
-    ) as mock_duct_print:
-        assert execute(args) == 127
-        mock_duct_print.assert_called_once_with(f"{cmd}: command not found")
+    assert execute(args) == 127
+    assert f"{cmd}: command not found\n" == capsys.readouterr().err
     expected_files = [
         SUFFIXES["stdout"],
         SUFFIXES["stderr"],
