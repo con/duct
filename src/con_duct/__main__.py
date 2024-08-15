@@ -6,6 +6,7 @@ from datetime import datetime
 from enum import Enum
 from functools import cached_property
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -14,6 +15,11 @@ import threading
 import time
 from typing import IO, Any, Optional, TextIO
 from . import __version__
+
+lgr = logging.getLogger("con-duct")
+# Default log level is DEBUG, but can be overridden by setting DUCT_LOG_LEVEL
+# and later set via CLI argument
+DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "DEBUG").upper()
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
@@ -359,7 +365,8 @@ class Report:
                             timestamp=datetime.now().astimezone().isoformat(),
                         ),
                     )
-        except subprocess.CalledProcessError:  # when session_id has no processes
+        except subprocess.CalledProcessError as exc:  # when session_id has no processes
+            lgr.debug("Error collecting sample: %s", str(exc))
             return None
         return sample
 
@@ -423,7 +430,7 @@ class Arguments:
     outputs: Outputs
     record_types: RecordTypes
     summary_format: str
-    quiet: bool
+    log_level: str
 
     def __post_init__(self) -> None:
         if self.report_interval < self.sample_interval:
@@ -474,10 +481,11 @@ class Arguments:
             help="Replace log files if they already exist.",
         )
         parser.add_argument(
-            "-q",
-            "--quiet",
-            action="store_true",
-            help="Suppress duct output (to stderr).",
+            "-l",
+            "--log_level",
+            default=DEFAULT_LOG_LEVEL,
+            choices=("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
+            help="Log level from duct operation.",
         )
         parser.add_argument(
             "--sample-interval",
@@ -532,7 +540,7 @@ class Arguments:
             record_types=args.record_types,
             summary_format=args.summary_format,
             clobber=args.clobber,
-            quiet=args.quiet,
+            log_level=args.log_level,
         )
 
 
@@ -657,11 +665,12 @@ def safe_close_files(file_list: Iterable[Any]) -> None:
             pass
 
 
-def duct_print(msg: str) -> None:
-    print(msg, file=sys.stderr, flush=True)
-
-
 def main() -> None:
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+        level=getattr(logging, DEFAULT_LOG_LEVEL),
+    )
     args = Arguments.from_argv()
     sys.exit(execute(args))
 
@@ -704,12 +713,11 @@ def execute(args: Arguments) -> int:
                 assert os.stat(file_path).st_size == 0
                 os.remove(file_path)
         # mimicking behavior of bash and zsh.
-        duct_print(f"{args.command}: command not found")
+        print(f"{args.command}: command not found", file=sys.stderr)
         return 127  # seems what zsh and bash return then
 
-    if not args.quiet:
-        duct_print(f"duct is executing {full_command}...")
-        duct_print(f"Log files will be written to {log_paths.prefix}")
+    lgr.info("duct is executing %r...", full_command)
+    lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
         session_id = os.getsid(process.pid)  # Get session ID of the new process
     except ProcessLookupError:  # process has already finished
@@ -758,9 +766,8 @@ def execute(args: Arguments) -> int:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             report.get_system_info()
             system_logs.write(report.dump_json())
-    if not args.quiet:
-        duct_print(report.execution_summary_formatted)
     safe_close_files(files_to_close)
+    lgr.info("Summary:\n%s", report.execution_summary_formatted)
     return report.process.returncode
 
 

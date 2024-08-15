@@ -14,7 +14,7 @@ def test_sample_less_than_report_interval() -> None:
         outputs=Outputs.ALL,
         record_types=RecordTypes.SYSTEM_SUMMARY,
         summary_format="",
-        quiet=False,
+        log_level="INFO",
         clobber=False,
     )
     assert args.sample_interval <= args.report_interval
@@ -32,7 +32,7 @@ def test_sample_equal_to_report_interval() -> None:
         record_types=RecordTypes.SYSTEM_SUMMARY,
         clobber=False,
         summary_format="",
-        quiet=False,
+        log_level="INFO",
     )
     assert args.sample_interval == args.report_interval
 
@@ -50,7 +50,7 @@ def test_sample_equal_greater_than_report_interval() -> None:
             record_types=RecordTypes.SYSTEM_SUMMARY,
             clobber=False,
             summary_format="",
-            quiet=False,
+            log_level="INFO",
         )
 
 
