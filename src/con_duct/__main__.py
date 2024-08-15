@@ -19,7 +19,7 @@ from . import __version__
 lgr = logging.getLogger("con-duct")
 # Default log level is DEBUG, but can be overridden by setting DUCT_LOG_LEVEL
 # and later set via CLI argument
-DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "DEBUG").upper()
+DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
