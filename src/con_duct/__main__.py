@@ -433,7 +433,7 @@ class Arguments:
             )
 
     @classmethod
-    def from_argv(cls) -> Arguments:  # pragma: no cover
+    def from_argv(cls, cli_args: Optional[list[str]] = None) -> Arguments:
         parser = argparse.ArgumentParser(
             description="Gathers metrics on a command and all its child processes.",
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -520,7 +520,7 @@ class Arguments:
             type=RecordTypes,
             help="Record system-summary, processes-samples, or all",
         )
-        args = parser.parse_args()
+        args = parser.parse_args(args=cli_args)
         return cls(
             command=args.command,
             command_args=args.command_args,
@@ -658,7 +658,7 @@ def safe_close_files(file_list: Iterable[Any]) -> None:
 
 
 def duct_print(msg: str) -> None:
-    print(msg, file=sys.stderr)
+    print(msg, file=sys.stderr, flush=True)
 
 
 def main() -> None:
@@ -686,15 +686,30 @@ def execute(args: Arguments) -> int:
         stderr_file = stderr
 
     full_command = " ".join([str(args.command)] + args.command_args)
+    files_to_close = [stdout_file, stdout, stderr_file, stderr]
+    try:
+        process = subprocess.Popen(
+            [str(args.command)] + args.command_args,
+            stdout=stdout_file,
+            stderr=stderr_file,
+            preexec_fn=os.setsid,
+        )
+    except FileNotFoundError:
+        # We failed to execute due to file not found in PATH
+        # We should remove log etc files since they are 0-sized
+        # degenerates etc
+        safe_close_files(files_to_close)
+        for _, file_path in log_paths:
+            if os.path.exists(file_path):
+                assert os.stat(file_path).st_size == 0
+                os.remove(file_path)
+        # mimicking behavior of bash and zsh.
+        duct_print(f"{args.command}: command not found")
+        return 127  # seems what zsh and bash return then
+
     if not args.quiet:
         duct_print(f"duct is executing {full_command}...")
         duct_print(f"Log files will be written to {log_paths.prefix}")
-    process = subprocess.Popen(
-        [str(args.command)] + args.command_args,
-        stdout=stdout_file,
-        stderr=stderr_file,
-        preexec_fn=os.setsid,
-    )
     try:
         session_id = os.getsid(process.pid)  # Get session ID of the new process
     except ProcessLookupError:  # process has already finished
@@ -745,8 +760,7 @@ def execute(args: Arguments) -> int:
             system_logs.write(report.dump_json())
     if not args.quiet:
         duct_print(report.execution_summary_formatted)
-    safe_close_files([stdout_file, stdout, stderr_file, stderr])
-
+    safe_close_files(files_to_close)
     return report.process.returncode
 
 
