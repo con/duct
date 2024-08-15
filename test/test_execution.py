@@ -41,7 +41,9 @@ def test_sanity_green(temp_output_dir: str) -> None:
 
 
 @pytest.mark.parametrize("exit_code", [0, 1, 2, 128])
-def test_sanity_red(exit_code: int, temp_output_dir: str) -> None:
+def test_sanity_red(
+    caplog: pytest.LogCaptureFixture, exit_code: int, temp_output_dir: str
+) -> None:
     args = Arguments(
         command="sh",
         command_args=["-c", f"exit {exit_code}"],
@@ -55,10 +57,9 @@ def test_sanity_red(exit_code: int, temp_output_dir: str) -> None:
         summary_format=EXECUTION_SUMMARY_FORMAT,
         log_level="INFO",
     )
-    with mock.patch("sys.stderr", new_callable=mock.MagicMock) as mock_stderr:
-        assert execute(args) == exit_code
-        call_args = [call.args for call in mock_stderr.write.call_args_list]
-        assert any(f"Exit Code: {exit_code}" in call_arg[0] for call_arg in call_args)
+    caplog.set_level("INFO")
+    assert execute(args) == exit_code
+    assert f"Exit Code: {exit_code}" in caplog.records[-1].message
 
     # We still should execute normally
     expected_files = [
