@@ -389,8 +389,7 @@ class Report:
 
     @property
     def execution_summary(self) -> dict[str, Any]:
-        # prepare the base, but enrich if we did get process
-        # running
+        # prepare the base, but enrich if we did get process running
         return {
             "exit_code": self.process.returncode if self.process else None,
             "command": self.command,
