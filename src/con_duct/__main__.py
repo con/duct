@@ -490,6 +490,7 @@ class Arguments:
             "-q",
             "--quiet",
             action="store_true",
+            help="Suppress duct logging output (to stderr)",
         )
         parser.add_argument(
             "--sample-interval",
