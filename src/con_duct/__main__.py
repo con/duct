@@ -280,7 +280,7 @@ class Report:
         self.summary_format: str = summary_format
         self.clobber = clobber
         # Defaults to be set later
-        self.start_time = None
+        self.start_time: float | None = None
         self.process = process
         self.session_id: int | None = None
         self.gpus: list[dict[str, str]] | None = None
@@ -299,7 +299,7 @@ class Report:
 
     @property
     def elapsed_time(self) -> float:
-        assert self.start_time
+        assert self.start_time is not None
         return time.time() - self.start_time
 
     @property

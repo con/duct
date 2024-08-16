@@ -149,7 +149,7 @@ def test_execution_summary_formatted(
     mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock
 ) -> None:
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], None, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     # It should not crash and it would render even where no wallclock time yet
     assert "wall clock time: nan" in report.execution_summary_formatted.lower()
 
