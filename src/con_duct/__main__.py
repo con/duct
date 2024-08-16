@@ -718,7 +718,7 @@ def execute(args: Arguments) -> int:
 
     full_command = " ".join([str(args.command)] + args.command_args)
     files_to_close = [stdout_file, stdout, stderr_file, stderr]
-    
+
     report = Report(
         args.command,
         args.command_args,
