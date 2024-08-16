@@ -174,6 +174,7 @@ class Averages:
     def update(self: Averages, other: Sample) -> None:
         assert_num(other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu)
         if not self.num_samples:
+            # how do we hit it???
             self.num_samples += 1
             self.rss = other.total_rss
             self.vsz = other.total_vsz
@@ -324,8 +325,9 @@ class Report:
         self.system_info = SystemInfo(
             uid=uid, memory_total=memory_total, cpu_total=cpu_total
         )
-        # GPU information
+        # GPU information.
         if shutil.which("nvidia-smi"):
+            lgr.debug("Checking NVIDIA GPU using nvidia-smi")
             try:
                 gpu_info = (
                     subprocess.check_output(
@@ -575,14 +577,30 @@ def monitor_process(
     sample_interval: float,
     stop_event: threading.Event,
 ) -> None:
-    while not stop_event.wait(timeout=sample_interval):
-        if process.poll() is not None:  # the passthrough command has finished
+    lgr.debug(
+        "Starting monitoring of the process %s on sample interval %f for report interval %f",
+        process,
+        sample_interval,
+        report_interval,
+    )
+    while True:
+        if process.poll() is not None:
+            lgr.debug(
+                "Breaking out of the monitor since the passthrough command has finished"
+            )
             break
         sample = report.collect_sample()
         # Report averages should be updated prior to sample aggregation
         if (
             sample is None
         ):  # passthrough has probably finished before sample could be collected
+            if process.poll() is not None:
+                lgr.debug(
+                    "Breaking out of the monitor since the passthrough command has finished "
+                    "before we could collect sample"
+                )
+                break
+            # process is still running, but we could not collect sample
             continue
         report.averages.update(sample)
         if report.current_sample is None:
@@ -591,11 +609,14 @@ def monitor_process(
         else:
             assert report.current_sample.averages is not None
             report.current_sample.averages.update(sample)
+        report.max_values = report.max_values.max(sample)
         if report.start_time and report.elapsed_time >= report.number * report_interval:
             report.write_subreport()
-            report.max_values = report.max_values.max(sample)
             report.current_sample = None
             report.number += 1
+        if stop_event.wait(timeout=sample_interval):
+            lgr.debug("Breaking out because stop event was set")
+            break
 
 
 class TailPipe:
@@ -778,9 +799,12 @@ def execute(args: Arguments) -> int:
 
     process.wait()
     report.end_time = time.time()
+    lgr.debug("Process ended, setting stop_event to stop monitoring thread")
     stop_event.set()
     if monitoring_thread is not None:
+        lgr.debug("Waiting for monitoring thread to finish")
         monitoring_thread.join()
+        lgr.debug("Monitoring thread finished")
 
     # If we have any extra samples that haven't been written yet, do it now
     if report.current_sample is not None:
