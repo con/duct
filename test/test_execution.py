@@ -14,6 +14,17 @@ from con_duct.__main__ import (
 
 TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 
+expected_files = [
+    SUFFIXES["stdout"],
+    SUFFIXES["stderr"],
+    SUFFIXES["info"],
+    SUFFIXES["usage"],
+]
+
+
+def assert_expected_files(temp_output_dir: str, exists: bool = True) -> None:
+    assert_files(temp_output_dir, expected_files, exists=exists)
+
 
 def test_sanity_green(temp_output_dir: str) -> None:
     args = Arguments(
@@ -31,13 +42,8 @@ def test_sanity_green(temp_output_dir: str) -> None:
         quiet=False,
     )
     assert execute(args) == 0
-    expected_files = [
-        SUFFIXES["stdout"],
-        SUFFIXES["stderr"],
-        SUFFIXES["info"],
-        SUFFIXES["usage"],
-    ]
-    assert_files(temp_output_dir, expected_files, exists=True)
+
+    assert_expected_files(temp_output_dir)
     # TODO check usagefile empty
 
 
@@ -64,13 +70,7 @@ def test_sanity_red(
     assert f"Exit Code: {exit_code}" in caplog.records[-1].message
 
     # We still should execute normally
-    expected_files = [
-        SUFFIXES["stdout"],
-        SUFFIXES["stderr"],
-        SUFFIXES["info"],
-        SUFFIXES["usage"],
-    ]
-    assert_files(temp_output_dir, expected_files, exists=True)
+    assert_expected_files(temp_output_dir)
 
 
 def test_outputs_full(temp_output_dir: str) -> None:
@@ -89,13 +89,7 @@ def test_outputs_full(temp_output_dir: str) -> None:
         quiet=False,
     )
     assert execute(args) == 0
-    expected_files = [
-        SUFFIXES["stdout"],
-        SUFFIXES["stderr"],
-        SUFFIXES["info"],
-        SUFFIXES["usage"],
-    ]
-    assert_files(temp_output_dir, expected_files, exists=True)
+    assert_expected_files(temp_output_dir)
 
 
 def test_outputs_passthrough(temp_output_dir: str) -> None:
@@ -138,13 +132,7 @@ def test_outputs_capture(temp_output_dir: str) -> None:
     assert execute(args) == 0
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
-    expected_files = [
-        SUFFIXES["stdout"],
-        SUFFIXES["stderr"],
-        SUFFIXES["info"],
-        SUFFIXES["usage"],
-    ]
-    assert_files(temp_output_dir, expected_files, exists=True)
+    assert_expected_files(temp_output_dir)
 
 
 def test_outputs_none(temp_output_dir: str) -> None:
@@ -208,13 +196,7 @@ def test_exit_before_first_sample(temp_output_dir: str) -> None:
         quiet=False,
     )
     assert execute(args) == 0
-    expected_files = [
-        SUFFIXES["stdout"],
-        SUFFIXES["stderr"],
-        SUFFIXES["info"],
-        SUFFIXES["usage"],
-    ]
-    assert_files(temp_output_dir, expected_files, exists=True)
+    assert_expected_files(temp_output_dir)
     # TODO check usagefile
 
 
@@ -235,13 +217,7 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
     )
     assert execute(args) == 0
     # Specifically we need to assert that usage.json gets written anyway.
-    expected_files = [
-        SUFFIXES["stdout"],
-        SUFFIXES["stderr"],
-        SUFFIXES["usage"],
-        SUFFIXES["info"],
-    ]
-    assert_files(temp_output_dir, expected_files, exists=True)
+    assert_expected_files(temp_output_dir)
 
 
 def test_execute_unknown_command(
@@ -251,10 +227,4 @@ def test_execute_unknown_command(
     args = Arguments.from_argv([cmd])
     assert execute(args) == 127
     assert f"{cmd}: command not found\n" == capsys.readouterr().err
-    expected_files = [
-        SUFFIXES["stdout"],
-        SUFFIXES["stderr"],
-        SUFFIXES["info"],
-        SUFFIXES["usage"],
-    ]
-    assert_files(temp_output_dir, expected_files, exists=False)
+    assert_expected_files(temp_output_dir, exists=False)
