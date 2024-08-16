@@ -16,6 +16,7 @@ def test_sample_less_than_report_interval() -> None:
         summary_format="",
         log_level="INFO",
         clobber=False,
+        quiet=False,
     )
     assert args.sample_interval <= args.report_interval
 
@@ -33,6 +34,7 @@ def test_sample_equal_to_report_interval() -> None:
         clobber=False,
         summary_format="",
         log_level="INFO",
+        quiet=False,
     )
     assert args.sample_interval == args.report_interval
 
@@ -51,6 +53,7 @@ def test_sample_equal_greater_than_report_interval() -> None:
             clobber=False,
             summary_format="",
             log_level="INFO",
+            quiet=False,
         )
 
 

@@ -431,6 +431,7 @@ class Arguments:
     record_types: RecordTypes
     summary_format: str
     log_level: str
+    quiet: bool
 
     def __post_init__(self) -> None:
         if self.report_interval < self.sample_interval:
@@ -488,6 +489,11 @@ class Arguments:
             help="Log level from duct operation.",
         )
         parser.add_argument(
+            "-q",
+            "--quiet",
+            action="store_true",
+        )
+        parser.add_argument(
             "--sample-interval",
             "--s-i",
             type=float,
@@ -541,6 +547,7 @@ class Arguments:
             summary_format=args.summary_format,
             clobber=args.clobber,
             log_level=args.log_level,
+            quiet=args.quiet,
         )
 
 
@@ -681,6 +688,8 @@ def execute(args: Arguments) -> int:
     Returns exit code of the executed process.
     """
     lgr.setLevel(args.log_level)
+    if args.quiet:
+        lgr.disabled = True
     log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
     log_paths.prepare_paths(args.clobber, args.capture_outputs)
     stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)
