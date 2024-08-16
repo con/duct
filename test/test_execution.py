@@ -1,16 +1,9 @@
 from __future__ import annotations
 from pathlib import Path
-from unittest import mock
+from time import time
 import pytest
 from utils import assert_files
-from con_duct.__main__ import (
-    EXECUTION_SUMMARY_FORMAT,
-    SUFFIXES,
-    Arguments,
-    Outputs,
-    RecordTypes,
-    execute,
-)
+from con_duct.__main__ import SUFFIXES, Arguments, Outputs, execute
 
 TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
 
@@ -27,22 +20,16 @@ def assert_expected_files(temp_output_dir: str, exists: bool = True) -> None:
 
 
 def test_sanity_green(temp_output_dir: str) -> None:
-    args = Arguments(
-        command="echo",
-        command_args=["hello", "world"],
-        output_prefix=temp_output_dir,
-        sample_interval=1.0,
+    args = Arguments.from_argv(
+        ["echo", "hello", "world"],
+        sample_interval=4.0,
         report_interval=60.0,
-        capture_outputs=Outputs.ALL,
-        outputs=Outputs.ALL,
-        record_types=RecordTypes.ALL,
-        clobber=False,
-        summary_format="",
-        log_level="INFO",
-        quiet=False,
+        output_prefix=temp_output_dir,
     )
+    t0 = time()
     assert execute(args) == 0
-
+    # TODO: fix, since we should not even spend a second here
+    assert time() - t0 < 2.0  # we should not wait for a sample or report interval
     assert_expected_files(temp_output_dir)
     # TODO check usagefile empty
 
@@ -51,19 +38,9 @@ def test_sanity_green(temp_output_dir: str) -> None:
 def test_sanity_red(
     caplog: pytest.LogCaptureFixture, exit_code: int, temp_output_dir: str
 ) -> None:
-    args = Arguments(
-        command="sh",
-        command_args=["-c", f"exit {exit_code}"],
+    args = Arguments.from_argv(
+        ["sh", "-c", f"exit {exit_code}"],
         output_prefix=temp_output_dir,
-        sample_interval=1.0,
-        report_interval=60.0,
-        capture_outputs=Outputs.ALL,
-        outputs=Outputs.ALL,
-        record_types=RecordTypes.ALL,
-        clobber=False,
-        summary_format=EXECUTION_SUMMARY_FORMAT,
-        log_level="INFO",
-        quiet=False,
     )
     caplog.set_level("INFO")
     assert execute(args) == exit_code
@@ -74,38 +51,23 @@ def test_sanity_red(
 
 
 def test_outputs_full(temp_output_dir: str) -> None:
-    args = Arguments(
-        command=TEST_SCRIPT,
-        command_args=["--duration", "1"],
-        output_prefix=temp_output_dir,
-        sample_interval=0.01,
-        report_interval=0.1,
+    args = Arguments.from_argv(
+        [TEST_SCRIPT, "--duration", "1"],
+        # It is our default, but let's be explicit
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
-        record_types=RecordTypes.ALL,
-        clobber=False,
-        summary_format="",
-        log_level="INFO",
-        quiet=False,
+        output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
     assert_expected_files(temp_output_dir)
 
 
 def test_outputs_passthrough(temp_output_dir: str) -> None:
-    args = Arguments(
-        command=TEST_SCRIPT,
-        command_args=["--duration", "1"],
-        output_prefix=temp_output_dir,
-        sample_interval=0.01,
-        report_interval=0.1,
+    args = Arguments.from_argv(
+        [TEST_SCRIPT, "--duration", "1"],
         capture_outputs=Outputs.NONE,
         outputs=Outputs.ALL,
-        record_types=RecordTypes.ALL,
-        clobber=False,
-        summary_format="",
-        log_level="INFO",
-        quiet=False,
+        output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
     expected_files = [SUFFIXES["info"], SUFFIXES["usage"]]
@@ -115,19 +77,11 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
 
 
 def test_outputs_capture(temp_output_dir: str) -> None:
-    args = Arguments(
-        command=TEST_SCRIPT,
-        command_args=["--duration", "1"],
-        output_prefix=temp_output_dir,
-        sample_interval=0.01,
-        report_interval=0.1,
+    args = Arguments.from_argv(
+        [TEST_SCRIPT, "--duration", "1"],
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
-        record_types=RecordTypes.ALL,
-        clobber=False,
-        summary_format="",
-        log_level="INFO",
-        quiet=False,
+        output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -136,19 +90,11 @@ def test_outputs_capture(temp_output_dir: str) -> None:
 
 
 def test_outputs_none(temp_output_dir: str) -> None:
-    args = Arguments(
-        command=TEST_SCRIPT,
-        command_args=["--duration", "1"],
-        output_prefix=temp_output_dir,
-        sample_interval=0.01,
-        report_interval=0.1,
+    args = Arguments.from_argv(
+        [TEST_SCRIPT, "--duration", "1"],
         capture_outputs=Outputs.NONE,
         outputs=Outputs.NONE,
-        record_types=RecordTypes.ALL,
-        clobber=False,
-        summary_format="",
-        log_level="INFO",
-        quiet=False,
+        output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
@@ -160,60 +106,49 @@ def test_outputs_none(temp_output_dir: str) -> None:
     assert_files(temp_output_dir, not_expected_files, exists=False)
 
 
-def test_outputs_none_quiet(temp_output_dir: str) -> None:
-    args = Arguments(
-        command=TEST_SCRIPT,
-        command_args=["--duration", "1"],
+def test_outputs_none_quiet(
+    temp_output_dir: str,
+    capsys: pytest.CaptureFixture,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    args = Arguments.from_argv(
+        [TEST_SCRIPT, "--duration", "1"],
         output_prefix=temp_output_dir,
-        sample_interval=0.01,
-        report_interval=0.1,
-        capture_outputs=Outputs.NONE,
-        outputs=Outputs.NONE,
-        record_types=RecordTypes.ALL,
-        clobber=False,
-        summary_format="",
-        log_level="ERROR",
-        quiet=False,
     )
-    with mock.patch("sys.stderr", new_callable=mock.MagicMock) as mock_stderr:
-        assert execute(args) == 0
-        mock_stderr.write.assert_not_called()
+    assert execute(args) == 0
+    r1 = capsys.readouterr()
+    assert r1.out.startswith("this is of test of STDOUT")
+    assert "this is of test of STDERR" in r1.err
+    assert "Summary" in caplog.text
+    caplog_text1 = caplog.text
+
+    # now quiet please
+    args.quiet = True
+    args.clobber = True  # to avoid the file already exists error
+    assert execute(args) == 0
+    r2 = capsys.readouterr()
+    # Still have all the outputs
+    assert r1 == r2
+    # But nothing new to the log
+    assert caplog.text == caplog_text1
 
 
 def test_exit_before_first_sample(temp_output_dir: str) -> None:
-    args = Arguments(
-        command="ls",
-        command_args=[],
-        output_prefix=temp_output_dir,
-        sample_interval=0.1,
-        report_interval=0.1,
-        capture_outputs=Outputs.ALL,
-        outputs=Outputs.NONE,
-        record_types=RecordTypes.ALL,
-        clobber=False,
-        summary_format="",
-        log_level="INFO",
-        quiet=False,
+    args = Arguments.from_argv(
+        ["ls"], sample_interval=0.1, report_interval=0.1, output_prefix=temp_output_dir
     )
+
     assert execute(args) == 0
     assert_expected_files(temp_output_dir)
     # TODO check usagefile
 
 
 def test_run_less_than_report_interval(temp_output_dir: str) -> None:
-    args = Arguments(
-        command="sleep",
-        command_args=["0.01"],
-        output_prefix=temp_output_dir,
+    args = Arguments.from_argv(
+        ["sleep", "0.01"],
         sample_interval=0.001,
         report_interval=0.1,
-        capture_outputs=Outputs.ALL,
-        outputs=Outputs.NONE,
-        record_types=RecordTypes.ALL,
-        clobber=False,
-        summary_format="",
-        log_level="INFO",
-        quiet=False,
+        output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
     # Specifically we need to assert that usage.json gets written anyway.

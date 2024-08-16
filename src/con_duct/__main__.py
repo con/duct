@@ -452,7 +452,9 @@ class Arguments:
             )
 
     @classmethod
-    def from_argv(cls, cli_args: Optional[list[str]] = None) -> Arguments:
+    def from_argv(
+        cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
+    ) -> Arguments:
         parser = argparse.ArgumentParser(
             description="Gathers metrics on a command and all its child processes.",
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -546,7 +548,10 @@ class Arguments:
             type=RecordTypes,
             help="Record system-summary, processes-samples, or all",
         )
-        args = parser.parse_args(args=cli_args)
+        args = parser.parse_args(
+            args=cli_args,
+            namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,
+        )
         return cls(
             command=args.command,
             command_args=args.command_args,
