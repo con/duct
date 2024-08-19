@@ -165,7 +165,9 @@ def test_execution_summary_formatted(
 @mock.patch("con_duct.__main__.shutil.which")
 @mock.patch("con_duct.__main__.subprocess.check_output")
 @mock.patch("con_duct.__main__.LogPaths")
-def test_gpu_parsing(mock_log_paths, mock_sp, _mock_which) -> None:
+def test_gpu_parsing(
+    mock_log_paths: mock.MagicMock, mock_sp: mock.MagicMock, _mock_which: mock.MagicMock
+) -> None:
     mock_sp.return_value = (
         "index, name, pci.bus_id, driver_version, memory.total [MiB], compute_mode\n"
         "0, NVIDIA RTX A5500 Laptop GPU, 00000000:01:00.0, 535.183.01, 16384 MiB, Default"
