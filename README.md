@@ -68,7 +68,7 @@ options:
                         False)
   -l {CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log_level {CRITICAL,ERROR,WARNING,INFO,DEBUG}
                         Log level from duct operation. (default: INFO)
-  -q, --quiet           Suppress duct logging output (to stderr) (default:
+  -q, --quiet           Disable duct logging output (to stderr) (default:
                         False)
   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
