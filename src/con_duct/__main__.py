@@ -174,7 +174,6 @@ class Averages:
     def update(self: Averages, other: Sample) -> None:
         assert_num(other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu)
         if not self.num_samples:
-            # how do we hit it???
             self.num_samples += 1
             self.rss = other.total_rss
             self.vsz = other.total_vsz
@@ -325,7 +324,7 @@ class Report:
         self.system_info = SystemInfo(
             uid=uid, memory_total=memory_total, cpu_total=cpu_total
         )
-        # GPU information.
+        # GPU information
         if shutil.which("nvidia-smi"):
             lgr.debug("Checking NVIDIA GPU using nvidia-smi")
             try:
