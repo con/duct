@@ -351,7 +351,7 @@ class Report:
                         }
                     )
             except subprocess.CalledProcessError as e:
-                lgr.debug("Error collecting gpu information: %s", str(e))
+                lgr.warning("Error collecting gpu information: %s", str(e))
                 self.gpus = None
 
     def collect_sample(self) -> Optional[Sample]:
