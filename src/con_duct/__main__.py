@@ -809,6 +809,14 @@ def execute(args: Arguments) -> int:
     else:
         monitoring_thread = None
 
+    if args.record_types.has_system_summary():
+        env_thread = threading.Thread(target=report.collect_environment)
+        env_thread.start()
+        sys_info_thread = threading.Thread(target=report.get_system_info)
+        sys_info_thread.start()
+    else:
+        env_thread, sys_info_thread = None, None
+
     process.wait()
     report.end_time = time.time()
     lgr.debug("Process ended, setting stop_event to stop monitoring thread")
@@ -824,12 +832,19 @@ def execute(args: Arguments) -> int:
         report.write_subreport()
 
     report.process = process
+    if env_thread is not None:
+        lgr.debug("Waiting for environment collection thread to finish")
+        env_thread.join()
+        lgr.debug("Environment collection finished")
+
+    if sys_info_thread is not None:
+        lgr.debug("Waiting for system information collection thread to finish")
+        sys_info_thread.join()
+        lgr.debug("System information collection finished")
+
     if args.record_types.has_system_summary():
-        report.collect_environment()
-        report.get_system_info()
         with open(log_paths.info, "a") as system_logs:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
-            report.get_system_info()
             system_logs.write(report.dump_json())
     safe_close_files(files_to_close)
     lgr.info("Summary:\n%s", report.execution_summary_formatted)
