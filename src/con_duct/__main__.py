@@ -334,8 +334,14 @@ class Report:
                         "--query-gpu=index,name,pci.bus_id,driver_version,memory.total,compute_mode",
                         "--format=csv",
                     ]
-                ).decode("utf-8")
-                lines = out.strip().split("\n")
+                )
+            except subprocess.CalledProcessError as e:
+                lgr.warning("Error collecting gpu information: %s", str(e))
+                self.gpus = None
+                return
+            try:
+                decoded = out.decode("utf-8")
+                lines = decoded.strip().split("\n")
                 _ = lines.pop(0)  # header
                 self.gpus = []
                 for line in lines:
@@ -350,8 +356,8 @@ class Report:
                             "compute_mode": cols[5],
                         }
                     )
-            except subprocess.CalledProcessError as e:
-                lgr.warning("Error collecting gpu information: %s", str(e))
+            except Exception as e:
+                lgr.warning("Error parsing gpu information: %s", str(e))
                 self.gpus = None
 
     def collect_sample(self) -> Optional[Sample]:
