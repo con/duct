@@ -35,10 +35,10 @@ EXECUTION_SUMMARY_FORMAT = (
     "Memory Average Usage (RSS): {average_rss} bytes\n"
     "Virtual Memory Peak Usage (VSZ): {peak_vsz} bytes\n"
     "Virtual Memory Average Usage (VSZ): {average_vsz} bytes\n"
-    "Memory Peak Percentage: {peak_pmem}\n"
-    "Memory Average Percentage: {average_pmem}\n"
-    "CPU Peak Usage: {peak_pcpu}\n"
-    "Average CPU Usage: {average_pcpu}\n"
+    "Memory Peak Percentage: {peak_pmem}%\n"
+    "Memory Average Percentage: {average_pmem}%\n"
+    "CPU Peak Usage: {peak_pcpu}%\n"
+    "Average CPU Usage: {average_pcpu}%\n"
     "Samples Collected: {num_samples}\n"
     "Reports Written: {num_reports}\n"
 )
@@ -221,8 +221,8 @@ class Sample:
     def add_pid(self, pid: int, stats: ProcessStats) -> None:
         self.total_rss = self.total_rss or 0 + stats.rss
         self.total_vsz = self.total_vsz or 0 + stats.vsz
-        self.total_pmem = self.total_vsz or 0 + stats.pmem
-        self.total_pcpu = self.total_pcpu or 0 + stats.pcpu
+        self.total_pmem = self.total_pmem or 0.0 + stats.pmem
+        self.total_pcpu = self.total_pcpu or 0.0 + stats.pcpu
         self.stats[pid] = stats
         self.timestamp = max(self.timestamp, stats.timestamp)
 
@@ -240,8 +240,8 @@ class Sample:
         assert other.total_pcpu is not None
         assert other.total_rss is not None
         assert other.total_vsz is not None
-        output.total_pmem = max(self.total_pmem or 0, other.total_pmem)
-        output.total_pcpu = max(self.total_pcpu or 0, other.total_pcpu)
+        output.total_pmem = max(self.total_pmem or 0.0, other.total_pmem)
+        output.total_pcpu = max(self.total_pcpu or 0.0, other.total_pcpu)
         output.total_rss = max(self.total_rss or 0, other.total_rss)
         output.total_vsz = max(self.total_vsz or 0, other.total_vsz)
         return output
