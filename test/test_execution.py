@@ -1,4 +1,6 @@
 from __future__ import annotations
+import json
+import os
 from pathlib import Path
 from time import time
 import pytest
@@ -31,7 +33,25 @@ def test_sanity_green(temp_output_dir: str) -> None:
     # TODO: fix, since we should not even spend a second here
     assert time() - t0 < 2.0  # we should not wait for a sample or report interval
     assert_expected_files(temp_output_dir)
-    # TODO check usagefile empty
+
+
+def test_execution_summary(temp_output_dir: str) -> None:
+    args = Arguments.from_argv(
+        ["sleep", "0.1"],
+        sample_interval=0.05,  # small enough to ensure we collect at least 1 sample
+        report_interval=0.1,
+        output_prefix=temp_output_dir,
+    )
+    assert execute(args) == 0
+    with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+        info_dict = json.loads(info.read())
+    execution_summary = info_dict["execution_summary"]
+    # Since resources used should be small lets make sure values are roughly sane
+    assert execution_summary["average_pmem"] < 10
+    assert execution_summary["peak_pmem"] < 10
+    assert execution_summary["average_pcpu"] < 10
+    assert execution_summary["peak_pcpu"] < 10
+    assert execution_summary["exit_code"] == 0
 
 
 @pytest.mark.parametrize("exit_code", [0, 1, 2, 128])
