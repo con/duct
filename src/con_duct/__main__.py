@@ -9,6 +9,7 @@ import logging
 import math
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -85,6 +86,7 @@ class SystemInfo:
     uid: str | None
     memory_total: int
     cpu_total: int
+    hostname: str | None
 
 
 @dataclass
@@ -319,10 +321,11 @@ class Report:
     def get_system_info(self) -> None:
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
         uid = os.environ.get("USER")
+        hostname = socket.gethostname()
         memory_total = os.sysconf("SC_PAGESIZE") * os.sysconf("SC_PHYS_PAGES")
         cpu_total = os.sysconf("SC_NPROCESSORS_CONF")
         self.system_info = SystemInfo(
-            uid=uid, memory_total=memory_total, cpu_total=cpu_total
+            uid=uid, memory_total=memory_total, cpu_total=cpu_total, hostname=hostname
         )
         # GPU information
         if shutil.which("nvidia-smi") is not None:
