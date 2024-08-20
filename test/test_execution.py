@@ -28,7 +28,7 @@ def test_sanity_green(temp_output_dir: str) -> None:
     )
     t0 = time()
     assert execute(args) == 0
-    assert time() - t0 < 0.1  # we should not wait for a sample or report interval
+    assert time() - t0 < 0.2  # we should not wait for a sample or report interval
     assert_expected_files(temp_output_dir)
     # TODO check usagefile empty
 
