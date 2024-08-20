@@ -60,10 +60,10 @@ options:
                         (RSS): {average_rss} bytes Virtual Memory Peak Usage
                         (VSZ): {peak_vsz} bytes Virtual Memory Average Usage
                         (VSZ): {average_vsz} bytes Memory Peak Percentage:
-                        {peak_pmem} Memory Average Percentage: {average_pmem}
-                        CPU Peak Usage: {peak_pcpu} Average CPU Usage:
-                        {average_pcpu} Samples Collected: {num_samples}
-                        Reports Written: {num_reports} )
+                        {peak_pmem}% Memory Average Percentage:
+                        {average_pmem}% CPU Peak Usage: {peak_pcpu}% Average
+                        CPU Usage: {average_pcpu}% Samples Collected:
+                        {num_samples} Reports Written: {num_reports} )
   --clobber             Replace log files if they already exist. (default:
                         False)
   -l {CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log_level {CRITICAL,ERROR,WARNING,INFO,DEBUG}
