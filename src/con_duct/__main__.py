@@ -325,26 +325,39 @@ class Report:
             uid=uid, memory_total=memory_total, cpu_total=cpu_total
         )
         # GPU information
-        if shutil.which("nvidia-smi"):
+        if shutil.which("nvidia-smi") is not None:
             lgr.debug("Checking NVIDIA GPU using nvidia-smi")
             try:
-                gpu_info = (
-                    subprocess.check_output(
-                        [
-                            "nvidia-smi",
-                            "--query-gpu=index,name,pci.bus_id,driver_version,memory.total,compute_mode",
-                            "--format=csv",
-                        ],
-                        text=True,
-                    )
-                    .strip()
-                    .split("\n")[1:]
+                out = subprocess.check_output(
+                    [
+                        "nvidia-smi",
+                        "--query-gpu=index,name,pci.bus_id,driver_version,memory.total,compute_mode",
+                        "--format=csv",
+                    ]
                 )
-                self.gpus = [
-                    dict(zip(gpu_info[0].split(", "), gpu.split(", ")))
-                    for gpu in gpu_info[1:]
-                ]
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as e:
+                lgr.warning("Error collecting gpu information: %s", str(e))
+                self.gpus = None
+                return
+            try:
+                decoded = out.decode("utf-8")
+                lines = decoded.strip().split("\n")
+                _ = lines.pop(0)  # header
+                self.gpus = []
+                for line in lines:
+                    cols = line.split(", ")
+                    self.gpus.append(
+                        {
+                            "index": cols[0],
+                            "name": cols[1],
+                            "bus_id": cols[2],
+                            "driver_version": cols[3],
+                            "memory.total": cols[4],
+                            "compute_mode": cols[5],
+                        }
+                    )
+            except Exception as e:
+                lgr.warning("Error parsing gpu information: %s", str(e))
                 self.gpus = None
 
     def collect_sample(self) -> Optional[Sample]:

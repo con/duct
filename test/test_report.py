@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
+import subprocess
 from unittest import mock
 import pytest
 from con_duct.__main__ import (
@@ -160,3 +161,65 @@ def test_execution_summary_formatted(
     assert "unknown" in output
     # Process did not finish, we didn't set start_time, so remains nan but there
     assert "wall clock time: nan" in report.execution_summary_formatted.lower()
+
+
+@mock.patch("con_duct.__main__.shutil.which")
+@mock.patch("con_duct.__main__.subprocess.check_output")
+@mock.patch("con_duct.__main__.LogPaths")
+def test_gpu_parsing_green(
+    mock_log_paths: mock.MagicMock, mock_sp: mock.MagicMock, _mock_which: mock.MagicMock
+) -> None:
+    mock_sp.return_value = (
+        "index, name, pci.bus_id, driver_version, memory.total [MiB], compute_mode\n"
+        "0, NVIDIA RTX A5500 Laptop GPU, 00000000:01:00.0, 535.183.01, 16384 MiB, Default"
+    ).encode("utf-8")
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    report.get_system_info()
+    assert report.gpus is not None
+    assert report.gpus == [
+        {
+            "index": "0",
+            "name": "NVIDIA RTX A5500 Laptop GPU",
+            "bus_id": "00000000:01:00.0",
+            "driver_version": "535.183.01",
+            "memory.total": "16384 MiB",
+            "compute_mode": "Default",
+        }
+    ]
+
+
+@mock.patch("con_duct.__main__.lgr")
+@mock.patch("con_duct.__main__.shutil.which")
+@mock.patch("con_duct.__main__.subprocess.check_output")
+@mock.patch("con_duct.__main__.LogPaths")
+def test_gpu_call_error(
+    mock_log_paths: mock.MagicMock,
+    mock_sp: mock.MagicMock,
+    _mock_which: mock.MagicMock,
+    mlgr: mock.MagicMock,
+) -> None:
+    mock_sp.side_effect = subprocess.CalledProcessError(1, "errrr")
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    report.get_system_info()
+    assert report.gpus is None
+    mlgr.warning.assert_called_once()
+
+
+@mock.patch("con_duct.__main__.lgr")
+@mock.patch("con_duct.__main__.shutil.which")
+@mock.patch("con_duct.__main__.subprocess.check_output")
+@mock.patch("con_duct.__main__.LogPaths")
+def test_gpu_parse_error(
+    mock_log_paths: mock.MagicMock,
+    mock_sp: mock.MagicMock,
+    _mock_which: mock.MagicMock,
+    mlgr: mock.MagicMock,
+) -> None:
+    mock_sp.return_value = (
+        "index, name, pci.bus_id, driver_version, memory.total [MiB], compute_mode\n"
+        "not-enough-values, 535.183.01, 16384 MiB, Default"
+    ).encode("utf-8")
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    report.get_system_info()
+    assert report.gpus is None
+    mlgr.warning.assert_called_once()
