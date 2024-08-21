@@ -151,6 +151,17 @@ def test_outputs_none_quiet(
     # But nothing new to the log
     assert caplog.text == caplog_text1
 
+    # log_level NONE should have the same behavior as quiet
+    args.log_level = "NONE"
+    args.quiet = False
+    args.clobber = True  # to avoid the file already exists error
+    assert execute(args) == 0
+    r3 = capsys.readouterr()
+    # Still have all the outputs
+    assert r1 == r3
+    # But nothing new to the log
+    assert caplog.text == caplog_text1
+
 
 def test_exit_before_first_sample(temp_output_dir: str) -> None:
     args = Arguments.from_argv(

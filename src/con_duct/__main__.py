@@ -512,14 +512,14 @@ class Arguments:
             "-l",
             "--log_level",
             default=DEFAULT_LOG_LEVEL,
-            choices=("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
-            help="Log level from duct operation.",
+            choices=("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NONE"),
+            help="Log level from duct operation, use NONE to disable duct output to stderr.",
         )
         parser.add_argument(
             "-q",
             "--quiet",
             action="store_true",
-            help="Disable duct logging output (to stderr)",
+            help="[deprecated, use log level NONE] Disable duct logging output (to stderr)",
         )
         parser.add_argument(
             "--sample-interval",
@@ -737,9 +737,10 @@ def execute(args: Arguments) -> int:
 
     Returns exit code of the executed process.
     """
-    lgr.setLevel(args.log_level)
-    if args.quiet:
+    if args.log_level == "NONE" or args.quiet:
         lgr.disabled = True
+    else:
+        lgr.setLevel(args.log_level)
     log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
     log_paths.prepare_paths(args.clobber, args.capture_outputs)
     stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)
