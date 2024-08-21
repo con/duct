@@ -40,8 +40,7 @@ execute a command, particularly in an HPC environment.
 
 Resource usage is determined by polling, (at a sample-interval).
 During execution, duct produces a JSON lines (see https://jsonlines.org) file
-with one data
-point recorded for each report, (of frequency report-interval).
+with one data point recorded for each report, (of frequency report-interval).
 
 environment variables:
   Many duct options can be configured by environment variables (which are
