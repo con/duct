@@ -32,7 +32,9 @@ usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
             [-t {all,system-summary,processes-samples}]
             command [command_args ...] ...
 
-Gathers metrics on a command and all its child processes.
+duct is a lightweight wrapper that collects execution data for an arbitrary
+command. Execution data includes execution time, system information, and
+resource usage statistics of the command and all its child processes.
 
 positional arguments:
   command [command_args ...]
