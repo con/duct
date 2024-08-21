@@ -70,7 +70,7 @@ environment variables:
 
 
 class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
-    def _fill_text(self, text, width, _indent):
+    def _fill_text(self, text: str, width: int, _indent: str) -> str:
         # Override _fill_text to respect the newlines and indentation in descriptions
         return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
 
