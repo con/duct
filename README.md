@@ -36,12 +36,11 @@ duct is a lightweight wrapper that collects execution data for an arbitrary
 command.  Execution data includes execution time, system information, and
 resource usage statistics of the command and all its child processes. It is
 intended to simplify the problem of recording the resources necessary to
-execute a command to improve reproducibility, particularly in an HPC
-environment.
+execute a command, particularly in an HPC environment.
 
-Resource usage is determined by polling, (of frequency sample_interval).
-During execution, duct produces a Newline Deliminated JSON file with one data
-point recorded for each report, (of frequency report-interval).
+Resource usage is determined by polling (at a sample-interval).
+During execution, duct produces a JSON lines (see https://jsonlines.org) file with one data
+point recorded for each report (at a report-interval).
 
 environment variables:
   Many duct options can be configured by environment variables (which are
