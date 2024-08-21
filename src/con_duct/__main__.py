@@ -11,6 +11,7 @@ import os
 import shutil
 import subprocess
 import sys
+import textwrap
 import threading
 import time
 from typing import IO, Any, Optional, TextIO
@@ -42,6 +43,35 @@ EXECUTION_SUMMARY_FORMAT = (
     "Samples Collected: {num_samples}\n"
     "Reports Written: {num_reports}\n"
 )
+
+ABOUT_DUCT = """
+duct is a lightweight wrapper that collects execution data for an arbitrary
+command.  Execution data includes execution time, system information, and
+resource usage statistics of the command and all its child processes. It is
+intended to simplify the problem of recording the resources necessary to
+execute a command to improve reproducibility, particularly in an HPC environment.
+
+Resource usage is determined by polling, (of frequency sample_interval). During
+execution, duct produces a Newline Deliminated JSON file with one data point
+recorded for each report, (of frequency report-interval).
+
+environment variables:
+  Many duct options can be configured by environment variables (which are
+  overridden by command line options).
+
+  DUCT_LOG_LEVEL: see --log-level
+  DUCT_OUTPUT_PREFIX: see --output-prefix
+  DUCT_SUMMARY_FORMAT: see --summary-format
+  DUCT_SAMPLE_INTERVAL: see --sample-interval
+  DUCT_REPORT_INTERVAL: see --report-interval
+  DUCT_CAPTURE_OUTPUTS: see --capture-outputs
+"""
+
+
+class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
+    def _fill_text(self, text, width, _indent):
+        # Override _fill_text to respect the newlines and indentation in descriptions
+        return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
 
 
 def assert_num(*values: Any) -> None:
@@ -470,10 +500,8 @@ class Arguments:
         cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
     ) -> Arguments:
         parser = argparse.ArgumentParser(
-            description="duct is a lightweight wrapper that collects execution data for an "
-            "arbitrary command. Execution data includes execution time, system information, and "
-            "resource usage statistics of the command and all its child processes.",
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            description=ABOUT_DUCT,
+            formatter_class=CustomHelpFormatter,
         )
         parser.add_argument(
             "command",
