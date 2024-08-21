@@ -20,6 +20,8 @@ The following pull request labels are recognized:
 * dependencies: Update one or more dependencies version
 * performance: Improve performance of an existing feature
 
+Note: Changelog entries are created for each commit, so please rebase/squash before merge.
+
 
 Precommit
 ---------
