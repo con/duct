@@ -150,10 +150,10 @@ def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     report.get_system_info()
     assert report.system_info is not None
-    assert report.system_info.hostname is not None
-    assert report.system_info.cpu_total is not None
+    assert report.system_info.hostname
+    assert report.system_info.cpu_total
     assert report.system_info.memory_total > 10
-    assert report.system_info.uid is not None
+    assert report.system_info.uid
 
 
 @mock.patch("con_duct.__main__.LogPaths")
