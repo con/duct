@@ -25,7 +25,7 @@ A process wrapper script that monitors the execution of a command.
 
 usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
             [--summary-format SUMMARY_FORMAT] [--clobber]
-            [-l {CRITICAL,ERROR,WARNING,INFO,DEBUG,NONE}] [-q]
+            [-l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}] [-q]
             [--sample-interval SAMPLE_INTERVAL]
             [--report-interval REPORT_INTERVAL] [-c {all,none,stdout,stderr}]
             [-o {all,none,stdout,stderr}]
@@ -66,9 +66,9 @@ options:
                         {num_samples} Reports Written: {num_reports} )
   --clobber             Replace log files if they already exist. (default:
                         False)
-  -l {CRITICAL,ERROR,WARNING,INFO,DEBUG,NONE}, --log_level {CRITICAL,ERROR,WARNING,INFO,DEBUG,NONE}
-                        Log level from duct operation, use NONE to disable
-                        duct output to stderr. (default: INFO)
+  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log_level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+                        Level of log output to stderr, use NONE to entirely
+                        disable. (default: INFO)
   -q, --quiet           [deprecated, use log level NONE] Disable duct logging
                         output (to stderr) (default: False)
   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
