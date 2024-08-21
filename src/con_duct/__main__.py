@@ -52,9 +52,9 @@ resource usage statistics of the command and all its child processes. It is
 intended to simplify the problem of recording the resources necessary to
 execute a command, particularly in an HPC environment.
 
-Resource usage is determined by polling, (at a sample-interval).
+Resource usage is determined by polling (at a sample-interval).
 During execution, duct produces a JSON lines (see https://jsonlines.org) file
-with one data point recorded for each report, (of frequency report-interval).
+with one data point recorded for each report (at a report-interval).
 
 environment variables:
   Many duct options can be configured by environment variables (which are
