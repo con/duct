@@ -771,7 +771,7 @@ def execute(args: Arguments) -> int:
             [str(args.command)] + args.command_args,
             stdout=stdout_file,
             stderr=stderr_file,
-            preexec_fn=os.setsid,
+            start_new_session=True,
         )
     except FileNotFoundError:
         # We failed to execute due to file not found in PATH
