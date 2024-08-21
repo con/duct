@@ -473,7 +473,9 @@ class Arguments:
         cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
     ) -> Arguments:
         parser = argparse.ArgumentParser(
-            description="Gathers metrics on a command and all its child processes.",
+            description="duct is a lightweight wrapper that collects execution data for an "
+            "arbitrary command. Execution data includes execution time, system information, and "
+            "resource usage statistics of the command and all its child processes.",
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         )
         parser.add_argument(
