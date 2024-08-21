@@ -40,3 +40,8 @@ To run the tests::
 To run tests on one file (args after ``--`` are passed to pytest)::
 
     tox -- test/test_my_thing.py
+
+It is also possible to use pytest directly, but you will need to override the options passed from
+`tox.ini` with `addopts`. Invocation in this way can be faster while developing::
+
+    python -m pytest -o addopts="" test/test_thething.py::specific_test
