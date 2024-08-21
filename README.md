@@ -33,8 +33,27 @@ usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
             command [command_args ...] ...
 
 duct is a lightweight wrapper that collects execution data for an arbitrary
-command. Execution data includes execution time, system information, and
-resource usage statistics of the command and all its child processes.
+command.  Execution data includes execution time, system information, and
+resource usage statistics of the command and all its child processes. It is
+intended to simplify the problem of recording the resources necessary to
+execute a command to improve reproducibility, particularly in an HPC
+environment.
+
+Resource usage is determined by polling, (of frequency sample_interval).
+During
+execution, duct produces a Newline Deliminated JSON file with one data point
+recorded for each report, (of frequency report-interval).
+
+environment variables:
+  Many duct options can be configured by environment variables (which are
+  overridden by command line options).
+
+  DUCT_LOG_LEVEL: see --log-level
+  DUCT_OUTPUT_PREFIX: see --output-prefix
+  DUCT_SUMMARY_FORMAT: see --summary-format
+  DUCT_SAMPLE_INTERVAL: see --sample-interval
+  DUCT_REPORT_INTERVAL: see --report-interval
+  DUCT_CAPTURE_OUTPUTS: see --capture-outputs
 
 positional arguments:
   command [command_args ...]
