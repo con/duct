@@ -1,0 +1,25 @@
+name: Check PR Labels
+
+on:
+  pull_request:
+    types: [opened, labeled, unlabeled, synchronize]
+
+jobs:
+  check_labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Labels
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const requiredPattern = /^semver-.*/;
+            const labels = context.payload.pull_request.labels.map(label => label.name);
+
+            // Check if one of the labels matches the pattern
+            const hasMatchingLabel = labels.some(label => requiredPattern.test(label));
+
+            if (!hasMatchingLabel) {
+              core.setFailed(`The pull request must have a label matching the pattern 'semvar-*'.`);
+            } else {
+              console.log('PR has a valid label');
+            }
