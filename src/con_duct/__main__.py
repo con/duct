@@ -515,7 +515,7 @@ class Arguments:
             "-l",
             "--log_level",
             default=DEFAULT_LOG_LEVEL,
-            choices=("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NONE"),
+            choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
             help="Log level from duct operation, use NONE to disable duct output to stderr.",
         )
         parser.add_argument(
