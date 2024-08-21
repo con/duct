@@ -145,6 +145,18 @@ def test_process_stats_red(pcpu: float, pmem: float, rss: int, vsz: int) -> None
 
 
 @mock.patch("con_duct.__main__.LogPaths")
+def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    report.get_system_info()
+    assert report.system_info is not None
+    assert report.system_info.hostname is not None
+    assert report.system_info.cpu_total is not None
+    assert report.system_info.memory_total > 10
+    assert report.system_info.uid is not None
+
+
+@mock.patch("con_duct.__main__.LogPaths")
 @mock.patch("con_duct.__main__.subprocess.Popen")
 def test_execution_summary_formatted(
     mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock
