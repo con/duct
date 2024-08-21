@@ -40,8 +40,8 @@ execute a command to improve reproducibility, particularly in an HPC
 environment.
 
 Resource usage is determined by polling, (of frequency sample_interval).
-During
-execution, duct produces a Newline Deliminated JSON file with one data point
+During execution, duct produces a Newline Deliminated JSON file with one data
+point
 recorded for each report, (of frequency report-interval).
 
 environment variables:
