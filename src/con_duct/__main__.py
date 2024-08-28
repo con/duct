@@ -503,6 +503,7 @@ class Arguments:
         cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
     ) -> Arguments:
         parser = argparse.ArgumentParser(
+            allow_abbrev=False,
             description=ABOUT_DUCT,
             formatter_class=CustomHelpFormatter,
         )
