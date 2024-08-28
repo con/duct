@@ -16,7 +16,7 @@ import textwrap
 import threading
 import time
 from typing import IO, Any, Optional, TextIO
-from . import __version__
+from . import __schema_version__, __version__
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
@@ -193,6 +193,14 @@ class LogPaths:
                 continue
             # usage and info should always be created
             open(path, "w").close()
+
+    def for_json(self) -> dict[str, Any]:
+        return {
+            "stdout": self.stdout,
+            "stderr": self.stderr,
+            "usage": {"schema_version": __schema_version__, "path": self.usage},
+            "info": self.info,
+        }
 
 
 @dataclass
@@ -465,6 +473,7 @@ class Report:
                 "gpu": self.gpus,
                 "duct_version": __version__,
                 "execution_summary": self.execution_summary,
+                "output_paths": self.log_paths.for_json(),
             }
         )
 
