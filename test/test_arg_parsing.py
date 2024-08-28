@@ -49,6 +49,7 @@ def test_abreviation_disabled() -> None:
     """
     try:
         subprocess.check_output(["duct", "ps", "--output"], stderr=subprocess.STDOUT)
+        raise AssertionError("Invocation of 'ps' should have failed")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 1
         assert "duct: error: ambiguous option: --output could match" not in str(
