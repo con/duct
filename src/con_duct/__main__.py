@@ -194,14 +194,6 @@ class LogPaths:
             # usage and info should always be created
             open(path, "w").close()
 
-    def for_json(self) -> dict[str, Any]:
-        return {
-            "stdout": self.stdout,
-            "stderr": self.stderr,
-            "usage": {"schema_version": __schema_version__, "path": self.usage},
-            "info": self.info,
-        }
-
 
 @dataclass
 class Averages:
@@ -472,8 +464,9 @@ class Report:
                 "env": self.env,
                 "gpu": self.gpus,
                 "duct_version": __version__,
+                "schema_version": __schema_version__,
                 "execution_summary": self.execution_summary,
-                "output_paths": self.log_paths.for_json(),
+                "output_paths": asdict(self.log_paths),
             }
         )
 
