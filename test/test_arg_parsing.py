@@ -40,3 +40,19 @@ def test_duct_missing_cmd() -> None:
         assert "duct: error: the following arguments are required: command" in str(
             e.stdout
         )
+
+
+def test_abreviation_disabled() -> None:
+    """
+    If abbreviation is enabled, options passed to command (not duct) are still
+    filtered through the argparse and causes problems.
+    """
+    try:
+        subprocess.check_output(["duct", "ps", "--output"], stderr=subprocess.STDOUT)
+        raise AssertionError("Invocation of 'ps' should have failed")
+    except subprocess.CalledProcessError as e:
+        assert e.returncode == 1
+        assert "duct: error: ambiguous option: --output could match" not in str(
+            e.stdout
+        )
+        assert "ps [options]" in str(e.stdout)
