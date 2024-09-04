@@ -16,7 +16,7 @@ import textwrap
 import threading
 import time
 from typing import IO, Any, Optional, TextIO
-from . import __version__
+from . import __schema_version__, __version__
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
@@ -464,7 +464,9 @@ class Report:
                 "env": self.env,
                 "gpu": self.gpus,
                 "duct_version": __version__,
+                "schema_version": __schema_version__,
                 "execution_summary": self.execution_summary,
+                "output_paths": asdict(self.log_paths),
             }
         )
 
