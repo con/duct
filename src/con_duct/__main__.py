@@ -126,14 +126,19 @@ class ProcessStats:
     rss: int  # Memory Resident Set Size in Bytes
     vsz: int  # Virtual Memory size in Bytes
     timestamp: str
+    etime: str
+    cmd: str
 
     def max(self, other: ProcessStats) -> ProcessStats:
+        assert self.cmd == other.cmd
         return ProcessStats(
             pcpu=max(self.pcpu, other.pcpu),
             pmem=max(self.pmem, other.pmem),
             rss=max(self.rss, other.rss),
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
+            etime=other.etime,  # For the aggregate always take the latest
+            cmd=other.cmd,
         )
 
     def __post_init__(self) -> None:
@@ -420,6 +425,8 @@ class Report:
                             rss=int(rss_kib) * 1024,
                             vsz=int(vsz_kib) * 1024,
                             timestamp=datetime.now().astimezone().isoformat(),
+                            etime=etime,
+                            cmd=cmd,
                         ),
                     )
         except subprocess.CalledProcessError as exc:  # when session_id has no processes
