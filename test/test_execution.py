@@ -202,7 +202,7 @@ def test_signal_exit(temp_output_dir: str) -> None:
 
     def runner() -> int:
         args = Arguments.from_argv(
-            ["sleep", "60"],
+            ["sleep", "60.74016230000801"],
             output_prefix=temp_output_dir,
         )
         return execute(args)
@@ -210,7 +210,7 @@ def test_signal_exit(temp_output_dir: str) -> None:
     thread = threading.Thread(target=runner)
     thread.start()
     sleep(0.01)  # make sure the process is started
-    ps_command = "ps aux | grep '[s]leep 60'"  # brackets to not match grep process
+    ps_command = "ps aux | grep '[s]leep 60.74016230000801'"  # brackets to not match grep process
     ps_output = subprocess.check_output(ps_command, shell=True).decode()
     pid = int(ps_output.split()[1])
     os.kill(pid, signal.SIGTERM)
