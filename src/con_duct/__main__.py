@@ -8,6 +8,7 @@ import json
 import logging
 import math
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -130,7 +131,17 @@ class ProcessStats:
     cmd: str
 
     def max(self, other: ProcessStats) -> ProcessStats:
-        assert self.cmd == other.cmd
+        cmd = self.cmd
+        if self.cmd != other.cmd:
+            lgr.debug(
+                f"cmd has changed. Previous measurement was {self.cmd}, now {other.cmd}."
+            )
+            # Brackets indicate that the kernel has substituted an abbreviation.
+            surrounded_by_brackets = r"\[.*?\]"
+            if re.search(surrounded_by_brackets, self.cmd):
+                lgr.debug(f"using {other.cmd}.")
+                cmd = other.cmd
+            lgr.debug(f"using {self.cmd}.")
         return ProcessStats(
             pcpu=max(self.pcpu, other.pcpu),
             pmem=max(self.pmem, other.pmem),
@@ -138,7 +149,7 @@ class ProcessStats:
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
             etime=other.etime,  # For the aggregate always take the latest
-            cmd=other.cmd,
+            cmd=cmd,
         )
 
     def __post_init__(self) -> None:
@@ -268,7 +279,11 @@ class Sample:
         for pid in self.stats.keys() | other.stats.keys():
             if (mine := self.stats.get(pid)) is not None:
                 if (theirs := other.stats.get(pid)) is not None:
-                    output.add_pid(pid, mine.max(theirs))
+                    try:
+                        output.add_pid(pid, mine.max(theirs))
+                    except Exception as e:
+                        lgr.critical(f"Pid: {pid} Mine: {mine} theirs: {theirs}")
+                        raise e
                 else:
                     output.add_pid(pid, mine)
             else:
@@ -414,11 +429,9 @@ class Report:
             )
             for line in output.splitlines()[1:]:
                 if line:
-                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(
-                        maxsplit=7
+                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, cmd = line.split(
+                        maxsplit=6,
                     )
-                    if "Z" in stat:  # Skip zombie processes
-                        continue
                     sample.add_pid(
                         int(pid),
                         ProcessStats(
