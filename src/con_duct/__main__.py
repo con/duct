@@ -279,11 +279,7 @@ class Sample:
         for pid in self.stats.keys() | other.stats.keys():
             if (mine := self.stats.get(pid)) is not None:
                 if (theirs := other.stats.get(pid)) is not None:
-                    try:
-                        output.add_pid(pid, mine.max(theirs))
-                    except Exception as e:
-                        lgr.critical(f"Pid: {pid} Mine: {mine} theirs: {theirs}")
-                        raise e
+                    output.add_pid(pid, mine.max(theirs))
                 else:
                     output.add_pid(pid, mine)
             else:
