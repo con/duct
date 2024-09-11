@@ -209,7 +209,7 @@ def test_signal_exit(temp_output_dir: str) -> None:
 
     thread = threading.Thread(target=runner)
     thread.start()
-    sleep(0.01)  # make sure the process is started
+    sleep(0.03)  # make sure the process is started
     ps_command = "ps aux | grep '[s]leep 60.74016230000801'"  # brackets to not match grep process
     ps_output = subprocess.check_output(ps_command, shell=True).decode()
     pid = int(ps_output.split()[1])
