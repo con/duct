@@ -408,15 +408,17 @@ class Report:
                     "-s",
                     str(self.session_id),
                     "-o",
-                    "pid,pcpu,pmem,rss,vsz,etime,cmd",
+                    "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
                 ],
                 text=True,
             )
             for line in output.splitlines()[1:]:
                 if line:
-                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, cmd = line.split(
-                        maxsplit=6
+                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(
+                        maxsplit=7
                     )
+                    if "Z" in stat:  # Skip zombie processes
+                        continue
                     sample.add_pid(
                         int(pid),
                         ProcessStats(
