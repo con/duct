@@ -436,6 +436,10 @@ class Report:
 
     @property
     def execution_summary(self) -> dict[str, Any]:
+        # killed by a signal
+        # https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html#tag_19_08_02
+        if self.process and self.process.returncode < 0:
+            self.process.returncode = 128 + abs(self.process.returncode)
         # prepare the base, but enrich if we did get process running
         return {
             "exit_code": self.process.returncode if self.process else None,

@@ -168,6 +168,7 @@ def test_execution_summary_formatted(
 
     # Test with process
     report.process = mock_popen
+    report.process.returncode = 0
     output = report.execution_summary_formatted
     assert "None" not in output
     assert "unknown" in output

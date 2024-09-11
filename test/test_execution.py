@@ -2,7 +2,10 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from time import time
+import signal
+import subprocess
+import threading
+from time import sleep, time
 import pytest
 from utils import assert_files
 from con_duct.__main__ import SUFFIXES, Arguments, Outputs, execute
@@ -193,3 +196,29 @@ def test_execute_unknown_command(
     assert execute(args) == 127
     assert f"{cmd}: command not found\n" == capsys.readouterr().err
     assert_expected_files(temp_output_dir, exists=False)
+
+
+def test_signal_exit(temp_output_dir: str) -> None:
+
+    def runner() -> int:
+        args = Arguments.from_argv(
+            ["sleep", "60.74016230000801"],
+            output_prefix=temp_output_dir,
+        )
+        return execute(args)
+
+    thread = threading.Thread(target=runner)
+    thread.start()
+    sleep(0.03)  # make sure the process is started
+    ps_command = "ps aux | grep '[s]leep 60.74016230000801'"  # brackets to not match grep process
+    ps_output = subprocess.check_output(ps_command, shell=True).decode()
+    pid = int(ps_output.split()[1])
+    os.kill(pid, signal.SIGTERM)
+
+    thread.join()
+    # Cannot retrieve the exit code from the thread, it is written to the file
+    with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+        info_data = json.loads(info.read())
+
+    exit_code = info_data["execution_summary"]["exit_code"]
+    assert exit_code == 128 + 15
