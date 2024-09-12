@@ -12,11 +12,23 @@ from con_duct.__main__ import (
 )
 
 stat0 = ProcessStats(
-    pcpu=0.0, pmem=0, rss=0, vsz=0, timestamp="2024-06-11T10:09:37-04:00"
+    pcpu=0.0,
+    pmem=0,
+    rss=0,
+    vsz=0,
+    timestamp="2024-06-11T10:09:37-04:00",
+    etime="00:00",
+    cmd="cmd 1",
 )
 
 stat1 = ProcessStats(
-    pcpu=1.0, pmem=0, rss=0, vsz=0, timestamp="2024-06-11T10:13:23-04:00"
+    pcpu=1.0,
+    pmem=0,
+    rss=0,
+    vsz=0,
+    timestamp="2024-06-11T10:13:23-04:00",
+    etime="00:02",
+    cmd="cmd 1",
 )
 
 
@@ -102,17 +114,19 @@ def test_averages_three_samples() -> None:
 
 
 @pytest.mark.parametrize(
-    "pcpu, pmem, rss, vsz",
+    "pcpu, pmem, rss, vsz, etime, cmd",
     [
-        (1.0, 1.1, 1024, 1025),
-        (0.5, 0.7, 20.48, 40.96),
-        (1, 2, 3, 4),
-        (0, 0.0, 0, 0.0),
-        (2.5, 3.5, 8192, 16384),
-        (100.0, 99.9, 65536, 131072),
+        (1.0, 1.1, 1024, 1025, "00:00", "cmd"),
+        (0.5, 0.7, 20.48, 40.96, "00:01", "any"),
+        (1, 2, 3, 4, "100:1000", "string"),
+        (0, 0.0, 0, 0.0, "999:999:999", "can have spaces"),
+        (2.5, 3.5, 8192, 16384, "any", "for --this --kind of thing"),
+        (100.0, 99.9, 65536, 131072, "string", "cmd"),
     ],
 )
-def test_process_stats_green(pcpu: float, pmem: float, rss: int, vsz: int) -> None:
+def test_process_stats_green(
+    pcpu: float, pmem: float, rss: int, vsz: int, etime: str, cmd: str
+) -> None:
     # Assert does not raise
     ProcessStats(
         pcpu=pcpu,
@@ -120,20 +134,24 @@ def test_process_stats_green(pcpu: float, pmem: float, rss: int, vsz: int) -> No
         rss=rss,
         vsz=vsz,
         timestamp=datetime.now().astimezone().isoformat(),
+        etime=etime,
+        cmd=cmd,
     )
 
 
 @pytest.mark.parametrize(
-    "pcpu, pmem, rss, vsz",
+    "pcpu, pmem, rss, vsz, etime, cmd",
     [
-        ("only", 1.1, 1024, 1025),
-        (0.5, "takes", 20.48, 40.96),
-        (1, 2, "one", 4),
-        (1, 2, 3, "value"),
-        ("2", "fail", "or", "more"),
+        ("only", 1.1, 1024, 1025, "etime", "cmd"),
+        (0.5, "takes", 20.48, 40.96, "some", "str"),
+        (1, 2, "one", 4, "anything", "accepted"),
+        (1, 2, 3, "value", "etime", "cmd"),
+        ("2", "fail", "or", "more", "etime", "cmd"),
     ],
 )
-def test_process_stats_red(pcpu: float, pmem: float, rss: int, vsz: int) -> None:
+def test_process_stats_red(
+    pcpu: float, pmem: float, rss: int, vsz: int, etime: str, cmd: str
+) -> None:
     with pytest.raises(AssertionError):
         ProcessStats(
             pcpu=pcpu,
@@ -141,6 +159,8 @@ def test_process_stats_red(pcpu: float, pmem: float, rss: int, vsz: int) -> None
             rss=rss,
             vsz=vsz,
             timestamp=datetime.now().astimezone().isoformat(),
+            etime=etime,
+            cmd=cmd,
         )
 
 

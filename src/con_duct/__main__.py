@@ -8,6 +8,7 @@ import json
 import logging
 import math
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -126,14 +127,29 @@ class ProcessStats:
     rss: int  # Memory Resident Set Size in Bytes
     vsz: int  # Virtual Memory size in Bytes
     timestamp: str
+    etime: str
+    cmd: str
 
     def max(self, other: ProcessStats) -> ProcessStats:
+        cmd = self.cmd
+        if self.cmd != other.cmd:
+            lgr.debug(
+                f"cmd has changed. Previous measurement was {self.cmd}, now {other.cmd}."
+            )
+            # Brackets indicate that the kernel has substituted an abbreviation.
+            surrounded_by_brackets = r"^\[.+\]"
+            if re.search(surrounded_by_brackets, self.cmd):
+                lgr.debug(f"using {other.cmd}.")
+                cmd = other.cmd
+            lgr.debug(f"using {self.cmd}.")
         return ProcessStats(
             pcpu=max(self.pcpu, other.pcpu),
             pmem=max(self.pmem, other.pmem),
             rss=max(self.rss, other.rss),
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
+            etime=other.etime,  # For the aggregate always take the latest
+            cmd=cmd,
         )
 
     def __post_init__(self) -> None:
@@ -403,14 +419,14 @@ class Report:
                     "-s",
                     str(self.session_id),
                     "-o",
-                    "pid,pcpu,pmem,rss,vsz,etime,cmd",
+                    "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
                 ],
                 text=True,
             )
             for line in output.splitlines()[1:]:
                 if line:
                     pid, pcpu, pmem, rss_kib, vsz_kib, etime, cmd = line.split(
-                        maxsplit=6
+                        maxsplit=6,
                     )
                     sample.add_pid(
                         int(pid),
@@ -420,6 +436,8 @@ class Report:
                             rss=int(rss_kib) * 1024,
                             vsz=int(vsz_kib) * 1024,
                             timestamp=datetime.now().astimezone().isoformat(),
+                            etime=etime,
+                            cmd=cmd,
                         ),
                     )
         except subprocess.CalledProcessError as exc:  # when session_id has no processes
