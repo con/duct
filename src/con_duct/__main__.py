@@ -137,7 +137,7 @@ class ProcessStats:
                 f"cmd has changed. Previous measurement was {self.cmd}, now {other.cmd}."
             )
             # Brackets indicate that the kernel has substituted an abbreviation.
-            surrounded_by_brackets = r"\[.*?\]"
+            surrounded_by_brackets = r"^\[.+\]"
             if re.search(surrounded_by_brackets, self.cmd):
                 lgr.debug(f"using {other.cmd}.")
                 cmd = other.cmd
