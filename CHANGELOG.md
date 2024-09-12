@@ -1,3 +1,23 @@
+# v0.3.0 (Thu Sep 12 2024)
+
+#### 🚀 Enhancement
+
+- (Re)add etime and cmd into process stats [#175](https://github.com/con/duct/pull/175) ([@asmacdo](https://github.com/asmacdo))
+- Modify exit code if cmd terminated by signal [#169](https://github.com/con/duct/pull/169) ([@asmacdo](https://github.com/asmacdo))
+- Add output files and schema version to info.json [#168](https://github.com/con/duct/pull/168) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- Catchup to actual version for auto releases [#177](https://github.com/con/duct/pull/177) ([@asmacdo](https://github.com/asmacdo))
+- Argparse abbreviation affects and breaks cmd args [#167](https://github.com/con/duct/pull/167) ([@asmacdo](https://github.com/asmacdo))
+- Add tests for correct handling of args [#166](https://github.com/con/duct/pull/166) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.2.0 (Thurs Aug 22 2024)
 
  #### 🚀 Enhancement
