@@ -128,9 +128,14 @@ class ProcessStats:
     vsz: int  # Virtual Memory size in Bytes
     timestamp: str
     etime: str
-    cmd: str
+    stat: str
+    cmd: list[str]
+    i: int = 1
 
     def aggregate(self, other: ProcessStats) -> ProcessStats:
+        lgr.critical("PS agg")
+        lgr.critical(f"self.stat {self.stat}, other.stat {other.stat}")
+        lgr.critical(f"will return {self.stat + other.stat}")
         cmd = self.cmd
         if self.cmd != other.cmd:
             lgr.debug(
@@ -149,7 +154,9 @@ class ProcessStats:
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
             etime=other.etime,  # For the aggregate always take the latest
+            stat=self.stat + other.stat,
             cmd=cmd,
+            i=self.i + other.i,
         )
 
     def __post_init__(self) -> None:
@@ -267,23 +274,32 @@ class Sample:
     timestamp: str = ""  # TS of last sample collected
 
     def add_pid(self, pid: int, stats: ProcessStats) -> None:
+        assert (
+            self.stats.get(pid) is None
+        )  # add_pid should only be called when pid not in Sample
         self.total_rss = (self.total_rss or 0) + stats.rss
         self.total_vsz = (self.total_vsz or 0) + stats.vsz
         self.total_pmem = (self.total_pmem or 0.0) + stats.pmem
         self.total_pcpu = (self.total_pcpu or 0.0) + stats.pcpu
         self.stats[pid] = stats
         self.timestamp = max(self.timestamp, stats.timestamp)
+        self.stats[pid] = stats
 
     def aggregate(self: Sample, other: Sample) -> Sample:
         output = Sample()
+        lgr.critical("aggregating sample")
         for pid in self.stats.keys() | other.stats.keys():
             if (mine := self.stats.get(pid)) is not None:
                 if (theirs := other.stats.get(pid)) is not None:
+                    lgr.critical("both samples contain pid")
                     output.add_pid(pid, mine.aggregate(theirs))
+                    lgr.critical(f"sanity check: output[{pid}]: {output.stats}")
                 else:
                     output.add_pid(pid, mine)
+                    lgr.critical("new")
             else:
                 output.add_pid(pid, other.stats[pid])
+                lgr.critical("new2")
         assert other.total_pmem is not None
         assert other.total_pcpu is not None
         assert other.total_rss is not None
@@ -410,6 +426,7 @@ class Report:
                 self.gpus = None
 
     def collect_sample(self) -> Optional[Sample]:
+        lgr.critical("Collecting Sample")
         assert self.session_id is not None
         sample = Sample()
         try:
@@ -425,8 +442,8 @@ class Report:
             )
             for line in output.splitlines()[1:]:
                 if line:
-                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, cmd = line.split(
-                        maxsplit=6,
+                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(
+                        maxsplit=7,
                     )
                     sample.add_pid(
                         int(pid),
@@ -437,6 +454,7 @@ class Report:
                             vsz=int(vsz_kib) * 1024,
                             timestamp=datetime.now().astimezone().isoformat(),
                             etime=etime,
+                            stat=[stat],
                             cmd=cmd,
                         ),
                     )
