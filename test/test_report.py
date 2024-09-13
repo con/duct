@@ -31,6 +31,16 @@ stat1 = ProcessStats(
     cmd="cmd 1",
 )
 
+stat2 = ProcessStats(
+    pcpu=1.1,
+    pmem=1.1,
+    rss=11,
+    vsz=11,
+    timestamp="2024-06-11T10:13:23-04:00",
+    etime="00:02",
+    cmd="cmd 1",
+)
+
 
 def test_sample_max_initial_values_one_pid() -> None:
     maxes = Sample()
@@ -111,6 +121,16 @@ def test_averages_three_samples() -> None:
     averages.update(sample2)
     averages.update(sample2)
     assert averages.pcpu == (stat0.pcpu + (2 * stat1.pcpu)) / 3
+
+
+def test_sample_totals() -> None:
+    sample = Sample()
+    sample.add_pid(1, stat2)
+    sample.add_pid(2, stat2)
+    assert sample.total_rss == stat2.rss * 2
+    assert sample.total_vsz == stat2.vsz * 2
+    assert sample.total_pmem == stat2.pmem * 2
+    assert sample.total_pcpu == stat2.pcpu * 2
 
 
 @pytest.mark.parametrize(

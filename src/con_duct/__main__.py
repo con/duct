@@ -267,10 +267,10 @@ class Sample:
     timestamp: str = ""  # TS of last sample collected
 
     def add_pid(self, pid: int, stats: ProcessStats) -> None:
-        self.total_rss = self.total_rss or 0 + stats.rss
-        self.total_vsz = self.total_vsz or 0 + stats.vsz
-        self.total_pmem = self.total_pmem or 0.0 + stats.pmem
-        self.total_pcpu = self.total_pcpu or 0.0 + stats.pcpu
+        self.total_rss = (self.total_rss or 0) + stats.rss
+        self.total_vsz = (self.total_vsz or 0) + stats.vsz
+        self.total_pmem = (self.total_pmem or 0.0) + stats.pmem
+        self.total_pcpu = (self.total_pcpu or 0.0) + stats.pcpu
         self.stats[pid] = stats
         self.timestamp = max(self.timestamp, stats.timestamp)
 
