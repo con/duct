@@ -130,7 +130,7 @@ class ProcessStats:
     etime: str
     cmd: str
 
-    def max(self, other: ProcessStats) -> ProcessStats:
+    def aggregate(self, other: ProcessStats) -> ProcessStats:
         cmd = self.cmd
         if self.cmd != other.cmd:
             lgr.debug(
@@ -274,12 +274,12 @@ class Sample:
         self.stats[pid] = stats
         self.timestamp = max(self.timestamp, stats.timestamp)
 
-    def max(self: Sample, other: Sample) -> Sample:
+    def aggregate(self: Sample, other: Sample) -> Sample:
         output = Sample()
         for pid in self.stats.keys() | other.stats.keys():
             if (mine := self.stats.get(pid)) is not None:
                 if (theirs := other.stats.get(pid)) is not None:
-                    output.add_pid(pid, mine.max(theirs))
+                    output.add_pid(pid, mine.aggregate(theirs))
                 else:
                     output.add_pid(pid, mine)
             else:
@@ -679,7 +679,7 @@ def monitor_process(
         else:
             assert report.current_sample.averages is not None
             report.current_sample.averages.update(sample)
-        report.max_values = report.max_values.max(sample)
+        report.max_values = report.max_values.aggregate(sample)
         if report.start_time and report.elapsed_time >= report.number * report_interval:
             report.write_subreport()
             report.current_sample = None
@@ -887,7 +887,7 @@ def execute(args: Arguments) -> int:
 
     # If we have any extra samples that haven't been written yet, do it now
     if report.current_sample is not None:
-        report.max_values = report.max_values.max(report.current_sample)
+        report.max_values = report.max_values.aggregate(report.current_sample)
         report.write_subreport()
 
     report.process = process
