@@ -133,9 +133,9 @@ class ProcessStats:
     i: int = 1
 
     def aggregate(self, other: ProcessStats) -> ProcessStats:
-        lgr.critical("PS agg")
-        lgr.critical(f"self.stat {self.stat}, other.stat {other.stat}")
-        lgr.critical(f"will return {self.stat + other.stat}")
+        # lgr.critical("PS agg")
+        # lgr.critical(f"self.stat {self.stat}, other.stat {other.stat}")
+        # lgr.critical(f"will return {self.stat + other.stat}")
         cmd = self.cmd
         if self.cmd != other.cmd:
             lgr.debug(
@@ -229,12 +229,14 @@ class Averages:
     def update(self: Averages, other: Sample) -> None:
         assert_num(other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu)
         if not self.num_samples:
+            # lgr.critical("new ave")
             self.num_samples += 1
             self.rss = other.total_rss
             self.vsz = other.total_vsz
             self.pmem = other.total_pmem
             self.pcpu = other.total_pcpu
         else:
+            # lgr.critical(f"existing ave, num_samples: {self.num_samples}")
             assert self.rss is not None
             assert self.vsz is not None
             assert self.pmem is not None
@@ -287,19 +289,19 @@ class Sample:
 
     def aggregate(self: Sample, other: Sample) -> Sample:
         output = Sample()
-        lgr.critical("aggregating sample")
+        # lgr.critical("aggregating sample")
         for pid in self.stats.keys() | other.stats.keys():
             if (mine := self.stats.get(pid)) is not None:
                 if (theirs := other.stats.get(pid)) is not None:
-                    lgr.critical("both samples contain pid")
+                    # lgr.critical("both samples contain pid")
                     output.add_pid(pid, mine.aggregate(theirs))
-                    lgr.critical(f"sanity check: output[{pid}]: {output.stats}")
+                    # lgr.critical(f"sanity check: output[{pid}]: {output.stats}")
                 else:
                     output.add_pid(pid, mine)
-                    lgr.critical("new")
+                    # lgr.critical("new")
             else:
                 output.add_pid(pid, other.stats[pid])
-                lgr.critical("new2")
+                # lgr.critical("new2")
         assert other.total_pmem is not None
         assert other.total_pcpu is not None
         assert other.total_rss is not None
@@ -308,6 +310,8 @@ class Sample:
         output.total_pcpu = max(self.total_pcpu or 0.0, other.total_pcpu)
         output.total_rss = max(self.total_rss or 0, other.total_rss)
         output.total_vsz = max(self.total_vsz or 0, other.total_vsz)
+        output.averages = self.averages
+        output.averages.update(other)
         return output
 
     def for_json(self) -> dict[str, Any]:
@@ -349,7 +353,7 @@ class Report:
         self.session_id: int | None = None
         self.gpus: list[dict[str, str]] | None = None
         self.env: dict[str, str] | None = None
-        self.number = 0
+        self.number = 1
         self.system_info: SystemInfo | None = None
         self.max_values = Sample()
         self.averages: Averages = Averages()
@@ -426,7 +430,7 @@ class Report:
                 self.gpus = None
 
     def collect_sample(self) -> Optional[Sample]:
-        lgr.critical("Collecting Sample")
+        # lgr.critical("Collecting Sample")
         assert self.session_id is not None
         sample = Sample()
         try:
@@ -462,6 +466,29 @@ class Report:
             lgr.debug("Error collecting sample: %s", str(exc))
             return None
         return sample
+
+    def update_from_sample(self, sample: Sample) -> None:
+        # Update total stats
+        lgr.critical("***NEWSAMPLE***")
+        self.averages.update(sample)
+        lgr.critical(f"REPORT averages now has {self.averages.num_samples} samples")
+        self.max_values = self.max_values.aggregate(sample)
+
+        # Update current sample
+        if self.current_sample is None:
+            lgr.critical("+++++++++++starting new sample entry")
+            sample.averages = Averages.from_sample(sample)
+            self.current_sample = sample
+            lgr.critical(
+                f"current sample has {self.current_sample.averages.num_samples} samples"
+            )
+        else:
+            assert self.current_sample.averages is not None
+            lgr.critical("updating current sample")
+            self.current_sample = self.current_sample.aggregate(sample)
+            lgr.critical(
+                f"current sample has {self.current_sample.averages.num_samples} samples"
+            )
 
     def write_subreport(self) -> None:
         assert self.current_sample is not None
@@ -690,16 +717,16 @@ def monitor_process(
                 break
             # process is still running, but we could not collect sample
             continue
-        report.averages.update(sample)
-        if report.current_sample is None:
-            sample.averages = Averages.from_sample(sample)
-            report.current_sample = sample
-        else:
-            assert report.current_sample.averages is not None
-            report.current_sample.averages.update(sample)
-        report.max_values = report.max_values.aggregate(sample)
-        if report.start_time and report.elapsed_time >= report.number * report_interval:
+        report.update_from_sample(sample)
+        if (
+            report.start_time
+            and report.elapsed_time >= (report.number - 1) * report_interval
+        ):
             report.write_subreport()
+            lgr.critical(
+                f"wrote sample with {report.current_sample.averages.num_samples} samples"
+            )
+            lgr.critical("Removing old sample-----------------------------")
             report.current_sample = None
             report.number += 1
         if stop_event.wait(timeout=sample_interval):
