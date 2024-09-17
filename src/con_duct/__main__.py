@@ -465,19 +465,21 @@ class Report:
         except subprocess.CalledProcessError as exc:  # when session_id has no processes
             lgr.debug("Error collecting sample: %s", str(exc))
             return None
+
+        sample.averages = Averages.from_sample(sample)
         return sample
 
     def update_from_sample(self, sample: Sample) -> None:
         # Update total stats
         lgr.critical("***NEWSAMPLE***")
-        self.averages.update(sample)
-        lgr.critical(f"REPORT averages now has {self.averages.num_samples} samples")
         self.max_values = self.max_values.aggregate(sample)
+        lgr.critical(
+            f"REPORT averages now has {self.max_values.averages.num_samples} samples"
+        )
 
         # Update current sample
         if self.current_sample is None:
             lgr.critical("+++++++++++starting new sample entry")
-            sample.averages = Averages.from_sample(sample)
             self.current_sample = sample
             lgr.critical(
                 f"current sample has {self.current_sample.averages.num_samples} samples"
