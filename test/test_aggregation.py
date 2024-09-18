@@ -275,3 +275,14 @@ def test_aggregation_many_samples(
     assert report.full_run_stats.averages.vsz == (stat.vsz * 100 + stat2.vsz) / 101.0
     assert report.full_run_stats.averages.pmem == (stat.pmem * 100 + stat2.pmem) / 101.0
     assert report.full_run_stats.averages.pcpu == (stat.pcpu * 100 + stat2.pcpu) / 101.0
+
+
+@mock.patch("con_duct.__main__.LogPaths")
+def test_aggregation_sample_no_pids(mock_log_paths: mock.MagicMock) -> None:
+    sample0 = Sample()
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    # When there are no pids, finalization should be triggered because the exe is finished,
+    # so a Sample with no PIDs should never be passed to update_from_sample.
+    with pytest.raises(AssertionError):
+        report.update_from_sample(sample0)
