@@ -226,7 +226,7 @@ def test_aggregation_current_ave_diverges_from_total_ave(
     assert report.current_sample.averages.pmem == sample2.total_pmem
     assert report.current_sample.averages.pcpu == sample2.total_pcpu
 
-    # Current sample should only contain sample2
+    # Full sample average should == (samples_sum/num_samples)
     assert (
         report.full_run_stats.averages.rss
         == (stat0.rss + stat1.rss + stat2.rss * 4) / 6.0
