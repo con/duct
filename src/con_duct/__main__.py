@@ -276,6 +276,7 @@ class Sample:
     timestamp: str = ""  # TS of last sample collected
 
     def add_pid(self, pid: int, stats: ProcessStats) -> None:
+        # TODO why not calculate averages when we add Pid
         assert (
             self.stats.get(pid) is None
         )  # add_pid should only be called when pid not in Sample
@@ -480,7 +481,8 @@ class Report:
         # Update current sample
         if self.current_sample is None:
             lgr.critical("+++++++++++starting new sample entry")
-            self.current_sample = sample
+            # Aggregate an empty sample rather than use sample to trigger averages calculation
+            self.current_sample = Sample().aggregate(sample)
             lgr.critical(
                 f"current sample has {self.current_sample.averages.num_samples} samples"
             )
