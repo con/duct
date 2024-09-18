@@ -355,7 +355,7 @@ class Report:
         self.env: dict[str, str] | None = None
         self.number = 1
         self.system_info: SystemInfo | None = None
-        self.max_values = Sample()
+        self.full_run_stats = Sample()
         self.averages: Averages = Averages()
         self.current_sample: Sample | None = None
         self.end_time: float | None = None
@@ -472,9 +472,9 @@ class Report:
     def update_from_sample(self, sample: Sample) -> None:
         # Update total stats
         lgr.critical("***NEWSAMPLE***")
-        self.max_values = self.max_values.aggregate(sample)
+        self.full_run_stats = self.full_run_stats.aggregate(sample)
         lgr.critical(
-            f"REPORT averages now has {self.max_values.averages.num_samples} samples"
+            f"REPORT averages now has {self.full_run_stats.averages.num_samples} samples"
         )
 
         # Update current sample
@@ -511,13 +511,13 @@ class Report:
             "command": self.command,
             "logs_prefix": self.log_paths.prefix if self.log_paths else "",
             "wall_clock_time": self.wall_clock_time,
-            "peak_rss": self.max_values.total_rss,
+            "peak_rss": self.full_run_stats.total_rss,
             "average_rss": self.averages.rss,
-            "peak_vsz": self.max_values.total_vsz,
+            "peak_vsz": self.full_run_stats.total_vsz,
             "average_vsz": self.averages.vsz,
-            "peak_pmem": self.max_values.total_pmem,
+            "peak_pmem": self.full_run_stats.total_pmem,
             "average_pmem": self.averages.pmem,
-            "peak_pcpu": self.max_values.total_pcpu,
+            "peak_pcpu": self.full_run_stats.total_pcpu,
             "average_pcpu": self.averages.pcpu,
             "num_samples": self.averages.num_samples,
             "num_reports": self.number,
@@ -934,7 +934,7 @@ def execute(args: Arguments) -> int:
 
     # If we have any extra samples that haven't been written yet, do it now
     if report.current_sample is not None:
-        report.max_values = report.max_values.aggregate(report.current_sample)
+        report.full_run_stats = report.full_run_stats.aggregate(report.current_sample)
         report.write_subreport()
 
     report.process = process
