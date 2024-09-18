@@ -1,4 +1,5 @@
 from unittest import mock
+import pytest
 from con_duct.__main__ import EXECUTION_SUMMARY_FORMAT, ProcessStats, Report, Sample
 
 stat0 = ProcessStats(
@@ -82,10 +83,13 @@ def test_aggregation_single_sample_sanity(mock_log_paths: mock.MagicMock) -> Non
     assert report.current_sample.averages.pcpu == report.current_sample.averages.pcpu
 
 
+@pytest.mark.parametrize("stat", [stat0, stat1, stat2])
 @mock.patch("con_duct.__main__.LogPaths")
-def test_aggregation_multiple_samples_sanity(mock_log_paths: mock.MagicMock) -> None:
+def test_aggregation_single_stat_multiple_samples_sanity(
+    mock_log_paths: mock.MagicMock, stat: ProcessStats
+) -> None:
     ex0 = Sample()
-    ex0.add_pid(1, stat1)
+    ex0.add_pid(1, stat)
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     assert report.current_sample is None
@@ -97,10 +101,10 @@ def test_aggregation_multiple_samples_sanity(mock_log_paths: mock.MagicMock) -> 
     assert report.full_run_stats.averages.num_samples == 3
 
     # With 3 identical samples, totals should be identical to 1 sample
-    assert report.current_sample.total_rss == stat1.rss
-    assert report.current_sample.total_vsz == stat1.vsz
-    assert report.current_sample.total_pmem == stat1.pmem
-    assert report.current_sample.total_pcpu == stat1.pcpu
+    assert report.current_sample.total_rss == stat.rss
+    assert report.current_sample.total_vsz == stat.vsz
+    assert report.current_sample.total_pmem == stat.pmem
+    assert report.current_sample.total_pcpu == stat.pcpu
 
     # Without resetting the current sample, full_run_stats should equal current_sample
     assert report.full_run_stats.total_rss == report.current_sample.total_rss
