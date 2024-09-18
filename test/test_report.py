@@ -19,7 +19,6 @@ stat0 = ProcessStats(
     timestamp="2024-06-11T10:09:37-04:00",
     etime="00:00",
     cmd="cmd 1",
-    stat="stat0",
 )
 
 stat1 = ProcessStats(
@@ -30,7 +29,6 @@ stat1 = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 1",
-    stat="stat1",
 )
 
 stat2 = ProcessStats(
