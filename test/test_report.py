@@ -278,16 +278,3 @@ def test_gpu_parse_error(
     report.get_system_info()
     assert report.gpus is None
     mlgr.warning.assert_called_once()
-
-
-@mock.patch("con_duct.__main__.LogPaths")
-def test_aggregation_sanity(mock_log_paths: mock.MagicMock) -> None:
-    ex0 = Sample()
-    ex0.add_pid(1, stat1)
-    mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
-    report.update_from_sample(ex0)
-    report.update_from_sample(ex0)
-    import ipdb
-
-    ipdb.set_trace()
