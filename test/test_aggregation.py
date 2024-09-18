@@ -35,6 +35,17 @@ stat2 = ProcessStats(
     stat="stat2",
 )
 
+stat_big = ProcessStats(
+    pcpu=20000.0,
+    pmem=21234234.0,
+    rss=43645634562,
+    vsz=2345234523452342,
+    timestamp="2024-06-11T10:13:23-04:00",
+    etime="00:02",
+    cmd="cmd 2",
+    stat="stat2",
+)
+
 
 @mock.patch("con_duct.__main__.LogPaths")
 def test_aggregation_num_samples_increment(mock_log_paths: mock.MagicMock) -> None:
@@ -83,7 +94,7 @@ def test_aggregation_single_sample_sanity(mock_log_paths: mock.MagicMock) -> Non
     assert report.current_sample.averages.pcpu == report.current_sample.averages.pcpu
 
 
-@pytest.mark.parametrize("stat", [stat0, stat1, stat2])
+@pytest.mark.parametrize("stat", [stat0, stat1, stat2, stat_big])
 @mock.patch("con_duct.__main__.LogPaths")
 def test_aggregation_single_stat_multiple_samples_sanity(
     mock_log_paths: mock.MagicMock, stat: ProcessStats
@@ -245,7 +256,7 @@ def test_aggregation_current_ave_diverges_from_total_ave(
     )
 
 
-@pytest.mark.parametrize("stat", [stat0, stat1, stat2])
+@pytest.mark.parametrize("stat", [stat0, stat1, stat2, stat_big])
 @mock.patch("con_duct.__main__.LogPaths")
 def test_aggregation_many_samples(
     mock_log_paths: mock.MagicMock, stat: ProcessStats
