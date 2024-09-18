@@ -130,12 +130,8 @@ class ProcessStats:
     etime: str
     stat: str
     cmd: list[str]
-    i: int = 1
 
     def aggregate(self, other: ProcessStats) -> ProcessStats:
-        # lgr.critical("PS agg")
-        # lgr.critical(f"self.stat {self.stat}, other.stat {other.stat}")
-        # lgr.critical(f"will return {self.stat + other.stat}")
         cmd = self.cmd
         if self.cmd != other.cmd:
             lgr.debug(
@@ -156,7 +152,6 @@ class ProcessStats:
             etime=other.etime,  # For the aggregate always take the latest
             stat=self.stat + other.stat,
             cmd=cmd,
-            i=self.i + other.i,
         )
 
     def __post_init__(self) -> None:
@@ -229,14 +224,12 @@ class Averages:
     def update(self: Averages, other: Sample) -> None:
         assert_num(other.total_rss, other.total_vsz, other.total_pmem, other.total_pcpu)
         if not self.num_samples:
-            # lgr.critical("new ave")
             self.num_samples += 1
             self.rss = other.total_rss
             self.vsz = other.total_vsz
             self.pmem = other.total_pmem
             self.pcpu = other.total_pcpu
         else:
-            # lgr.critical(f"existing ave, num_samples: {self.num_samples}")
             assert self.rss is not None
             assert self.vsz is not None
             assert self.pmem is not None
@@ -290,19 +283,14 @@ class Sample:
 
     def aggregate(self: Sample, other: Sample) -> Sample:
         output = Sample()
-        # lgr.critical("aggregating sample")
         for pid in self.stats.keys() | other.stats.keys():
             if (mine := self.stats.get(pid)) is not None:
                 if (theirs := other.stats.get(pid)) is not None:
-                    # lgr.critical("both samples contain pid")
                     output.add_pid(pid, mine.aggregate(theirs))
-                    # lgr.critical(f"sanity check: output[{pid}]: {output.stats}")
                 else:
                     output.add_pid(pid, mine)
-                    # lgr.critical("new")
             else:
                 output.add_pid(pid, other.stats[pid])
-                # lgr.critical("new2")
         assert other.total_pmem is not None
         assert other.total_pcpu is not None
         assert other.total_rss is not None
@@ -431,7 +419,6 @@ class Report:
                 self.gpus = None
 
     def collect_sample(self) -> Optional[Sample]:
-        # lgr.critical("Collecting Sample")
         assert self.session_id is not None
         sample = Sample()
         try:
@@ -471,28 +458,12 @@ class Report:
         return sample
 
     def update_from_sample(self, sample: Sample) -> None:
-        # Update total stats
-        lgr.critical("***NEWSAMPLE***")
         self.full_run_stats = self.full_run_stats.aggregate(sample)
-        lgr.critical(
-            f"REPORT averages now has {self.full_run_stats.averages.num_samples} samples"
-        )
-
-        # Update current sample
         if self.current_sample is None:
-            lgr.critical("+++++++++++starting new sample entry")
-            # Aggregate an empty sample rather than use sample to trigger averages calculation
             self.current_sample = Sample().aggregate(sample)
-            lgr.critical(
-                f"current sample has {self.current_sample.averages.num_samples} samples"
-            )
         else:
             assert self.current_sample.averages is not None
-            lgr.critical("updating current sample")
             self.current_sample = self.current_sample.aggregate(sample)
-            lgr.critical(
-                f"current sample has {self.current_sample.averages.num_samples} samples"
-            )
 
     def write_subreport(self) -> None:
         assert self.current_sample is not None
@@ -727,10 +698,6 @@ def monitor_process(
             and report.elapsed_time >= (report.number - 1) * report_interval
         ):
             report.write_subreport()
-            lgr.critical(
-                f"wrote sample with {report.current_sample.averages.num_samples} samples"
-            )
-            lgr.critical("Removing old sample-----------------------------")
             report.current_sample = None
             report.number += 1
         if stop_event.wait(timeout=sample_interval):
