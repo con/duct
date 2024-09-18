@@ -243,3 +243,35 @@ def test_aggregation_current_ave_diverges_from_total_ave(
         report.full_run_stats.averages.pcpu
         == (stat0.pcpu + stat1.pcpu + stat2.pcpu * 4) / 6.0
     )
+
+
+@pytest.mark.parametrize("stat", [stat0, stat1, stat2])
+@mock.patch("con_duct.__main__.LogPaths")
+def test_aggregation_many_samples(
+    mock_log_paths: mock.MagicMock, stat: ProcessStats
+) -> None:
+    sample1 = Sample()
+    sample1.add_pid(1, stat)
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    assert report.current_sample is None
+    assert report.full_run_stats.averages.num_samples == 0
+
+    # Ensure nothing strange happens after many updates
+    for _ in range(100):
+        report.update_from_sample(sample1)
+    assert report.full_run_stats.averages.num_samples == 100
+    assert report.full_run_stats.averages.rss == (stat.rss * 100) / 100.0
+    assert report.full_run_stats.averages.vsz == (stat.vsz * 100) / 100.0
+    assert report.full_run_stats.averages.pmem == (stat.pmem * 100) / 100.0
+    assert report.full_run_stats.averages.pcpu == (stat.pcpu * 100) / 100.0
+
+    # Add a stat that is not 0 and check that the average is still correct
+    sample2 = Sample()
+    sample2.add_pid(1, stat2)
+    report.update_from_sample(sample2)
+    assert report.full_run_stats.averages.num_samples == 101
+    assert report.full_run_stats.averages.rss == (stat.rss * 100 + stat2.rss) / 101.0
+    assert report.full_run_stats.averages.vsz == (stat.vsz * 100 + stat2.vsz) / 101.0
+    assert report.full_run_stats.averages.pmem == (stat.pmem * 100 + stat2.pmem) / 101.0
+    assert report.full_run_stats.averages.pcpu == (stat.pcpu * 100 + stat2.pcpu) / 101.0
