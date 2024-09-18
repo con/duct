@@ -118,3 +118,124 @@ def test_aggregation_multiple_samples_sanity(mock_log_paths: mock.MagicMock) -> 
     assert report.current_sample.averages.vsz == report.current_sample.total_vsz
     assert report.current_sample.averages.pmem == report.current_sample.total_pmem
     assert report.current_sample.averages.pcpu == report.current_sample.total_pcpu
+
+
+@mock.patch("con_duct.__main__.LogPaths")
+def test_aggregation_averages(mock_log_paths: mock.MagicMock) -> None:
+    sample0 = Sample()
+    sample0.add_pid(1, stat0)
+    sample1 = Sample()
+    sample1.add_pid(1, stat1)
+    sample2 = Sample()
+    sample2.add_pid(1, stat2)
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    assert report.current_sample is None
+    assert report.full_run_stats.averages.num_samples == 0
+    report.update_from_sample(sample0)
+    report.update_from_sample(sample1)
+    report.update_from_sample(sample2)
+    assert report.current_sample.averages.num_samples == 3
+    assert report.full_run_stats.averages.num_samples == 3
+
+    # Assert that average calculation works as expected
+    assert (
+        report.current_sample.averages.rss == (stat0.rss + stat1.rss + stat2.rss) / 3.0
+    )
+    assert (
+        report.current_sample.averages.vsz == (stat0.vsz + stat1.vsz + stat2.vsz) / 3.0
+    )
+    assert (
+        report.current_sample.averages.pmem
+        == (stat0.pmem + stat1.pmem + stat2.pmem) / 3.0
+    )
+    assert (
+        report.current_sample.averages.pcpu
+        == (stat0.pcpu + stat1.pcpu + stat2.pcpu) / 3.0
+    )
+    # And full_run_stats.averages is still identical
+    assert report.current_sample.averages.rss == report.full_run_stats.averages.rss
+    assert report.current_sample.averages.vsz == report.full_run_stats.averages.vsz
+    assert report.current_sample.averages.pmem == report.full_run_stats.averages.pmem
+    assert report.current_sample.averages.pcpu == report.full_run_stats.averages.pcpu
+
+    # Lets make the arithmetic a little less round
+    report.update_from_sample(sample2)
+    report.update_from_sample(sample2)
+    report.update_from_sample(sample2)
+    assert report.current_sample.averages.num_samples == 6
+    assert report.full_run_stats.averages.num_samples == 6
+    assert (
+        report.current_sample.averages.rss
+        == (stat0.rss + stat1.rss + stat2.rss * 4) / 6.0
+    )
+    assert (
+        report.current_sample.averages.vsz
+        == (stat0.vsz + stat1.vsz + stat2.vsz * 4) / 6.0
+    )
+    assert (
+        report.current_sample.averages.pmem
+        == (stat0.pmem + stat1.pmem + stat2.pmem * 4) / 6.0
+    )
+    assert (
+        report.current_sample.averages.pcpu
+        == (stat0.pcpu + stat1.pcpu + stat2.pcpu * 4) / 6.0
+    )
+
+
+@mock.patch("con_duct.__main__.LogPaths")
+def test_aggregation_current_ave_diverges_from_total_ave(
+    mock_log_paths: mock.MagicMock,
+) -> None:
+    sample0 = Sample()
+    sample0.add_pid(1, stat0)
+    sample1 = Sample()
+    sample1.add_pid(1, stat1)
+    sample2 = Sample()
+    sample2.add_pid(1, stat2)
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    assert report.current_sample is None
+    assert report.full_run_stats.averages.num_samples == 0
+    report.update_from_sample(sample0)
+    report.update_from_sample(sample1)
+    report.update_from_sample(sample2)
+    assert report.current_sample.averages.num_samples == 3
+    assert report.full_run_stats.averages.num_samples == 3
+    # full_run_stats.averages is still identical to current_sample
+    assert report.current_sample.averages.rss == report.full_run_stats.averages.rss
+    assert report.current_sample.averages.vsz == report.full_run_stats.averages.vsz
+    assert report.current_sample.averages.pmem == report.full_run_stats.averages.pmem
+    assert report.current_sample.averages.pcpu == report.full_run_stats.averages.pcpu
+
+    # Reset current_sample so averages will diverge from full_run_stats.averages
+    report.current_sample = None
+    report.update_from_sample(sample2)
+    report.update_from_sample(sample2)
+    report.update_from_sample(sample2)
+    assert report.current_sample.averages.num_samples == 3
+    assert report.full_run_stats.averages.num_samples == 6
+
+    # Current sample should only contain sample2
+    assert report.current_sample.averages.rss == sample2.total_rss
+    assert report.current_sample.averages.vsz == sample2.total_vsz
+    assert report.current_sample.averages.pmem == sample2.total_pmem
+    assert report.current_sample.averages.pcpu == sample2.total_pcpu
+
+    # Current sample should only contain sample2
+    assert (
+        report.full_run_stats.averages.rss
+        == (stat0.rss + stat1.rss + stat2.rss * 4) / 6.0
+    )
+    assert (
+        report.full_run_stats.averages.vsz
+        == (stat0.vsz + stat1.vsz + stat2.vsz * 4) / 6.0
+    )
+    assert (
+        report.full_run_stats.averages.pmem
+        == (stat0.pmem + stat1.pmem + stat2.pmem * 4) / 6.0
+    )
+    assert (
+        report.full_run_stats.averages.pcpu
+        == (stat0.pcpu + stat1.pcpu + stat2.pcpu * 4) / 6.0
+    )
