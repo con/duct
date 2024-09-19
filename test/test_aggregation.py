@@ -342,4 +342,5 @@ def test_aggregation_no_false_peak(mock_log_paths: mock.MagicMock) -> None:
     sample2.add_pid(1, stat0)
     sample2.add_pid(2, stat100)
     report.update_from_sample(sample2)
+    assert report.current_sample is not None
     assert report.current_sample.total_pcpu == 100
