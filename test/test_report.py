@@ -46,7 +46,7 @@ def test_sample_max_initial_values_one_pid() -> None:
     maxes = Sample()
     ex0 = Sample()
     ex0.add_pid(1, stat0)
-    maxes = maxes.max(ex0)
+    maxes = maxes.aggregate(ex0)
     assert maxes.stats == {1: stat0}
 
 
@@ -55,7 +55,7 @@ def test_sample_max_one_pid() -> None:
     maxes.add_pid(1, stat0)
     ex1 = Sample()
     ex1.add_pid(1, stat1)
-    maxes = maxes.max(ex1)
+    maxes = maxes.aggregate(ex1)
     assert maxes.stats == {1: stat1}
 
 
@@ -64,7 +64,7 @@ def test_sample_max_initial_values_two_pids() -> None:
     ex0 = Sample()
     ex0.add_pid(1, stat0)
     ex0.add_pid(2, stat0)
-    maxes = maxes.max(ex0)
+    maxes = maxes.aggregate(ex0)
     assert maxes.stats == {1: stat0, 2: stat0}
 
 
@@ -74,10 +74,10 @@ def test_sample_maxtwo_pids() -> None:
     maxes.add_pid(2, stat0)
     ex1 = Sample()
     ex1.add_pid(1, stat1)
-    maxes = maxes.max(ex1)
+    maxes = maxes.aggregate(ex1)
     ex2 = Sample()
     ex2.add_pid(2, stat1)
-    maxes = maxes.max(ex2)
+    maxes = maxes.aggregate(ex2)
     assert maxes.stats == {1: stat1, 2: stat1}
 
 
