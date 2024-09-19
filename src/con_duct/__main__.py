@@ -267,7 +267,7 @@ class Sample:
     timestamp: str = ""  # TS of last sample collected
 
     def add_pid(self, pid: int, stats: ProcessStats) -> None:
-        # TODO why not calculate averages when we add Pid
+        # We do not calculate averages when we add a pid because we require all pids first
         assert (
             self.stats.get(pid) is None
         )  # add_pid should only be called when pid not in Sample
