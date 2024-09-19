@@ -33,6 +33,15 @@ stat2 = ProcessStats(
     cmd="cmd 2",
 )
 
+stat100 = ProcessStats(
+    pcpu=100.0,
+    pmem=100.0,
+    rss=2,
+    vsz=2,
+    timestamp="2024-06-11T10:13:23-04:00",
+    etime="00:02",
+    cmd="cmd 100",
+)
 stat_big = ProcessStats(
     pcpu=20000.0,
     pmem=21234234.0,
@@ -319,3 +328,18 @@ def test_aggregation_sample_no_pids(mock_log_paths: mock.MagicMock) -> None:
     # so a Sample with no PIDs should never be passed to update_from_sample.
     with pytest.raises(AssertionError):
         report.update_from_sample(sample0)
+
+
+@mock.patch("con_duct.__main__.LogPaths")
+def test_aggregation_no_false_peak(mock_log_paths: mock.MagicMock) -> None:
+    sample1 = Sample()
+    sample2 = Sample()
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    sample1.add_pid(1, stat100)
+    sample1.add_pid(2, stat0)
+    report.update_from_sample(sample1)
+    sample2.add_pid(1, stat0)
+    sample2.add_pid(2, stat100)
+    report.update_from_sample(sample2)
+    assert report.current_sample.total_pcpu == 100
