@@ -1,3 +1,4 @@
+from typing import cast
 from unittest import mock
 import pytest
 from con_duct.__main__ import EXECUTION_SUMMARY_FORMAT, ProcessStats, Report, Sample
@@ -52,6 +53,10 @@ def test_aggregation_num_samples_increment(mock_log_paths: mock.MagicMock) -> No
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
     report.update_from_sample(ex0)
+    report.current_sample = cast(
+        Sample, report.current_sample
+    )  # So mypy is convcinced it is not None
+    assert report.current_sample is not None
     assert report.current_sample.averages.num_samples == 1
     assert report.full_run_stats.averages.num_samples == 1
     report.update_from_sample(ex0)
@@ -74,6 +79,11 @@ def test_aggregation_single_sample_sanity(mock_log_paths: mock.MagicMock) -> Non
     assert report.full_run_stats.averages.num_samples == 0
     report.update_from_sample(ex0)
     # 3 pids in a single sample should still be "1" sample
+    report.current_sample = cast(
+        Sample, report.current_sample
+    )  # So mypy is convcinced it is not None
+    assert report.current_sample is not None
+    assert report.full_run_stats is not None
     assert report.current_sample.averages.num_samples == 1
     assert report.full_run_stats.averages.num_samples == 1
 
@@ -104,6 +114,10 @@ def test_aggregation_single_stat_multiple_samples_sanity(
     report.update_from_sample(ex0)
     report.update_from_sample(ex0)
     report.update_from_sample(ex0)
+    report.current_sample = cast(
+        Sample, report.current_sample
+    )  # So mypy is convcinced it is not None
+    assert report.current_sample is not None
     assert report.current_sample.averages.num_samples == 3
     assert report.full_run_stats.averages.num_samples == 3
 
@@ -146,6 +160,10 @@ def test_aggregation_averages(mock_log_paths: mock.MagicMock) -> None:
     report.update_from_sample(sample0)
     report.update_from_sample(sample1)
     report.update_from_sample(sample2)
+    report.current_sample = cast(
+        Sample, report.current_sample
+    )  # So mypy is convcinced it is not None
+    assert report.current_sample is not None
     assert report.current_sample.averages.num_samples == 3
     assert report.full_run_stats.averages.num_samples == 3
 
@@ -211,6 +229,10 @@ def test_aggregation_current_ave_diverges_from_total_ave(
     report.update_from_sample(sample0)
     report.update_from_sample(sample1)
     report.update_from_sample(sample2)
+    report.current_sample = cast(
+        Sample, report.current_sample
+    )  # So mypy is convcinced it is not None
+    assert report.current_sample is not None
     assert report.current_sample.averages.num_samples == 3
     assert report.full_run_stats.averages.num_samples == 3
     # full_run_stats.averages is still identical to current_sample
@@ -224,6 +246,10 @@ def test_aggregation_current_ave_diverges_from_total_ave(
     report.update_from_sample(sample2)
     report.update_from_sample(sample2)
     report.update_from_sample(sample2)
+    report.current_sample = cast(
+        Sample, report.current_sample
+    )  # So mypy is convcinced it is not None
+    assert report.current_sample is not None
     assert report.current_sample.averages.num_samples == 3
     assert report.full_run_stats.averages.num_samples == 6
 

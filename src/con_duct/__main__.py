@@ -343,8 +343,7 @@ class Report:
         self.number = 1
         self.system_info: SystemInfo | None = None
         self.full_run_stats = Sample()
-        self.averages: Averages = Averages()
-        self.current_sample: Sample | None = None
+        self.current_sample: Optional[Sample] = None
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
 
@@ -461,6 +460,7 @@ class Report:
         else:
             assert self.current_sample.averages is not None
             self.current_sample = self.current_sample.aggregate(sample)
+        assert self.current_sample is not None
 
     def write_subreport(self) -> None:
         assert self.current_sample is not None
