@@ -135,7 +135,8 @@ class ProcessStats:
     vsz: int  # Virtual Memory size in Bytes
     timestamp: str
     etime: str
-    cmd: str
+    stat: str
+    cmd: list[str]
 
     def aggregate(self, other: ProcessStats) -> ProcessStats:
         cmd = self.cmd
@@ -156,6 +157,7 @@ class ProcessStats:
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
             etime=other.etime,  # For the aggregate always take the latest
+            stat=self.stat + other.stat,
             cmd=cmd,
         )
 
@@ -440,8 +442,8 @@ class Report:
             )
             for line in output.splitlines()[1:]:
                 if line:
-                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, cmd = line.split(
-                        maxsplit=6,
+                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(
+                        maxsplit=7,
                     )
                     sample.add_pid(
                         int(pid),
@@ -452,6 +454,7 @@ class Report:
                             vsz=int(vsz_kib) * 1024,
                             timestamp=datetime.now().astimezone().isoformat(),
                             etime=etime,
+                            stat=[stat],
                             cmd=cmd,
                         ),
                     )
