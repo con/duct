@@ -18,8 +18,7 @@ import textwrap
 import threading
 import time
 from typing import IO, Any, Optional, TextIO
-import humanize  # TODO: get rid off it
-from . import __schema_version__, __version__, ansi_colors
+from . import __schema_version__, __version__, ansi_colors, filesize
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
@@ -555,8 +554,7 @@ class Formatter(string.Formatter):
         elif conversion == "S":  # Human size
             # return value
             if value is not None:
-                # TODO: duplicate functionality with humanize
-                return humanize.naturalsize(value)
+                return filesize.naturalsize(value)
             else:
                 return "-"
         elif conversion == "E":  # colored non-zero is bad
