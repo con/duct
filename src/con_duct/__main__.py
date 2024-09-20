@@ -548,9 +548,11 @@ class SummaryFormatter(string.Formatter):
         # print("%r->%r" % (value, conversion))
         if conversion == "S":  # Human size
             if value is not None:
-                return filesize.naturalsize(value)
+                return ansi_colors.color_word(
+                    filesize.naturalsize(value), ansi_colors.GREEN
+                )
             else:
-                return self.NONE
+                return ansi_colors.color_word(self.NONE, ansi_colors.RED)
         elif conversion == "E":  # colored non-zero is bad
             return ansi_colors.color_word(
                 value, ansi_colors.RED if value else ansi_colors.GREEN
