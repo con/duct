@@ -513,11 +513,11 @@ class Report:
 
     @property
     def execution_summary_formatted(self) -> str:
-        formatter = Formatter()
+        formatter = SummaryFormatter()
         return formatter.format(self.summary_format, **self.execution_summary)
 
 
-class Formatter(string.Formatter):
+class SummaryFormatter(string.Formatter):
     # TODO: we might want to just ignore and force utf8 while explicitly .encode()'ing output!
     # unicode versions which look better but which blow during tests etc
     # Those might be reset by the constructor
@@ -526,7 +526,7 @@ class Formatter(string.Formatter):
     NONE = "-"  # u"✗"
 
     def __init__(self, *args, **kwargs):
-        super(Formatter, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         if sys.stdout.encoding is None:
             lgr.debug("encoding not set, using safe alternatives")
         elif not sys.stdout.isatty():
@@ -585,7 +585,7 @@ class Formatter(string.Formatter):
                 ],
             )
 
-        return super(Formatter, self).convert_field(value, conversion)
+        return super().convert_field(value, conversion)
 
     def format_field(self, value, format_spec):
         # TODO: move all the "coloring" into formatting, so we could correctly indent
@@ -594,7 +594,7 @@ class Formatter(string.Formatter):
         if value is None:
             # TODO: could still use our formatter and make it red or smth like that
             return self.NONE
-        return super(Formatter, self).format_field(value, format_spec)
+        return super().format_field(value, format_spec)
 
 
 @dataclass
