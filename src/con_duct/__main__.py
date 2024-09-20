@@ -44,8 +44,8 @@ EXECUTION_SUMMARY_FORMAT = (
     "Memory Average Percentage: {average_pmem!P}%\n"
     "CPU Peak Usage: {peak_pcpu!P}%\n"
     "Average CPU Usage: {average_pcpu!P}%\n"
-    "Samples Collected: {num_samples}\n"
-    "Reports Written: {num_reports}\n"
+    "Samples Collected: {num_samples!X}\n"
+    "Reports Written: {num_reports!X}\n"
 )
 
 ABOUT_DUCT = """
@@ -560,12 +560,9 @@ class SummaryFormatter(string.Formatter):
                 value if value is not None else self.NONE,
                 ansi_colors.RED if value and value >= 80 else ansi_colors.GREEN,
             )
-        elif conversion == "X":  # colored bool
-            if value:
-                mark, col = self.OK, ansi_colors.GREEN
-            else:
-                mark, col = self.NOK, ansi_colors.RED
-            return ansi_colors.color_word(mark, col)
+        elif conversion == "X":  # colored truthy
+            col = ansi_colors.GREEN if value else ansi_colors.RED
+            return ansi_colors.color_word(value, col)
         elif conversion == "N":  # colored Red - if None
             if value is None:
                 # return "%s✖%s" % (self.RED, self.RESET)
