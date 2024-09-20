@@ -32,7 +32,8 @@ SUFFIXES = {
     "info": "info.json",
 }
 EXECUTION_SUMMARY_FORMAT = (
-    "Exit Code: {exit_code}\n"
+    "Summary:\n"
+    "Exit Code: {exit_code!E}\n"
     "Command: {command}\n"
     "Log files location: {logs_prefix}\n"
     "Wall Clock Time: {wall_clock_time:.3f} sec\n"
@@ -40,10 +41,10 @@ EXECUTION_SUMMARY_FORMAT = (
     "Memory Average Usage (RSS): {average_rss!S}\n"
     "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
     "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
-    "Memory Peak Percentage: {peak_pmem}%\n"
-    "Memory Average Percentage: {average_pmem}%\n"
-    "CPU Peak Usage: {peak_pcpu}%\n"
-    "Average CPU Usage: {average_pcpu}%\n"
+    "Memory Peak Percentage: {peak_pmem!P}%\n"
+    "Memory Average Percentage: {average_pmem!P}%\n"
+    "CPU Peak Usage: {peak_pcpu!P}%\n"
+    "Average CPU Usage: {average_pcpu!P}%\n"
     "Samples Collected: {num_samples}\n"
     "Reports Written: {num_reports}\n"
 )
@@ -558,6 +559,15 @@ class Formatter(string.Formatter):
                 return humanize.naturalsize(value)
             else:
                 return "-"
+        elif conversion == "E":  # colored non-zero is bad
+            return ansi_colors.color_word(
+                value, ansi_colors.RED if value else ansi_colors.GREEN
+            )
+        elif conversion == "P":  # getting above 80% is red
+            return ansi_colors.color_word(
+                value if value is not None else self.NONE,
+                ansi_colors.RED if value and value >= 80 else ansi_colors.GREEN,
+            )
         elif conversion == "X":  # colored bool
             if value:
                 mark, col = self.OK, ansi_colors.GREEN
@@ -991,7 +1001,7 @@ def execute(args: Arguments) -> int:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             system_logs.write(report.dump_json())
     safe_close_files(files_to_close)
-    lgr.info("Summary:\n%s", report.execution_summary_formatted)
+    lgr.info(report.execution_summary_formatted)
     return report.process.returncode
 
 
