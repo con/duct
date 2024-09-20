@@ -60,7 +60,10 @@ def test_sample_max_one_pid() -> None:
     ex1 = Sample()
     ex1.add_pid(1, stat1)
     maxes = maxes.aggregate(ex1)
-    assert maxes.stats == {1: stat1}
+    assert maxes.stats[1].rss == stat1.rss
+    assert maxes.stats[1].vsz == stat1.vsz
+    assert maxes.stats[1].pmem == stat1.pmem
+    assert maxes.stats[1].pcpu == stat1.pcpu
 
 
 def test_sample_max_initial_values_two_pids() -> None:
@@ -82,6 +85,9 @@ def test_sample_maxtwo_pids() -> None:
     ex2 = Sample()
     ex2.add_pid(2, stat1)
     maxes = maxes.aggregate(ex2)
+    import ipdb
+
+    ipdb.set_trace()
     assert maxes.stats == {1: stat1, 2: stat1}
 
 

@@ -137,7 +137,7 @@ class ProcessStats:
     timestamp: str
     etime: str
     stat: Counter
-    cmd: list[str]
+    cmd: str
 
     def aggregate(self, other: ProcessStats) -> ProcessStats:
         cmd = self.cmd
@@ -164,7 +164,7 @@ class ProcessStats:
             cmd=cmd,
         )
 
-    def for_json(self) -> None:
+    def for_json(self) -> dict:
         ret = asdict(self)
         ret["stat"] = dict(self.stat)
         return ret
