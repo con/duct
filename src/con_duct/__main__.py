@@ -11,13 +11,15 @@ import os
 import re
 import shutil
 import socket
+import string
 import subprocess
 import sys
 import textwrap
 import threading
 import time
 from typing import IO, Any, Optional, TextIO
-from . import __schema_version__, __version__
+import humanize  # TODO: get rid off it
+from . import __schema_version__, __version__, ansi_colors
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
@@ -34,10 +36,10 @@ EXECUTION_SUMMARY_FORMAT = (
     "Command: {command}\n"
     "Log files location: {logs_prefix}\n"
     "Wall Clock Time: {wall_clock_time:.3f} sec\n"
-    "Memory Peak Usage (RSS): {peak_rss} bytes\n"
-    "Memory Average Usage (RSS): {average_rss} bytes\n"
-    "Virtual Memory Peak Usage (VSZ): {peak_vsz} bytes\n"
-    "Virtual Memory Average Usage (VSZ): {average_vsz} bytes\n"
+    "Memory Peak Usage (RSS): {peak_rss!S}\n"
+    "Memory Average Usage (RSS): {average_rss!S}\n"
+    "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
+    "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
     "Memory Peak Percentage: {peak_pmem}%\n"
     "Memory Average Percentage: {average_pmem}%\n"
     "CPU Peak Usage: {peak_pcpu}%\n"
@@ -511,10 +513,80 @@ class Report:
 
     @property
     def execution_summary_formatted(self) -> str:
-        human_readable = {
-            k: "unknown" if v is None else v for k, v in self.execution_summary.items()
-        }
-        return self.summary_format.format_map(human_readable)
+        formatter = Formatter()
+        return formatter.format(self.summary_format, **self.execution_summary)
+
+
+class Formatter(string.Formatter):
+    # TODO: we might want to just ignore and force utf8 while explicitly .encode()'ing output!
+    # unicode versions which look better but which blow during tests etc
+    # Those might be reset by the constructor
+    OK = "OK"  # u"✓"
+    NOK = "X"  # u"✗"
+    NONE = "-"  # u"✗"
+
+    def __init__(self, *args, **kwargs):
+        super(Formatter, self).__init__(*args, **kwargs)
+        if sys.stdout.encoding is None:
+            lgr.debug("encoding not set, using safe alternatives")
+        elif not sys.stdout.isatty():
+            lgr.debug("stdout is not a tty, using safe alternatives")
+        else:
+            try:
+                "✓".encode(sys.stdout.encoding)
+            except UnicodeEncodeError:
+                lgr.debug(
+                    "encoding %s does not support unicode, " "using safe alternatives",
+                    sys.stdout.encoding,
+                )
+            else:
+                self.OK = "✓"
+                self.NOK = "✗"
+                self.NONE = "✗"
+
+    def convert_field(self, value, conversion):
+        # print("%r->%r" % (value, conversion))
+        if conversion == "D":  # Date
+            if value is not None:
+                return time.strftime("%Y-%m-%d/%H:%M:%S", time.localtime(value))
+            else:
+                return "-"
+        elif conversion == "S":  # Human size
+            # return value
+            if value is not None:
+                # TODO: duplicate functionality with humanize
+                return humanize.naturalsize(value)
+            else:
+                return "-"
+        elif conversion == "X":  # colored bool
+            if value:
+                mark, col = self.OK, ansi_colors.GREEN
+            else:
+                mark, col = self.NOK, ansi_colors.RED
+            return ansi_colors.color_word(mark, col)
+        elif conversion == "N":  # colored Red - if None
+            if value is None:
+                # return "%s✖%s" % (self.RED, self.RESET)
+                return ansi_colors.color_word(self.NONE, ansi_colors.RED)
+            return value
+        elif conversion in {"B", "R", "U"}:
+            return ansi_colors.color_word(
+                value,
+                {"B": ansi_colors.BLUE, "R": ansi_colors.RED, "U": ansi_colors.DATASET}[
+                    conversion
+                ],
+            )
+
+        return super(Formatter, self).convert_field(value, conversion)
+
+    def format_field(self, value, format_spec):
+        # TODO: move all the "coloring" into formatting, so we could correctly indent
+        # given the format and only then color it up
+        # print "> %r, %r" % (value, format_spec)
+        if value is None:
+            # TODO: could still use our formatter and make it red or smth like that
+            return self.NONE
+        return super(Formatter, self).format_field(value, format_spec)
 
 
 @dataclass
