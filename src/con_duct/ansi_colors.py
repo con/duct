@@ -1,12 +1,9 @@
-# emacs: -*- mode: python; py-indent-offset: 4; tab-width: 4; indent-tabs-mode: nil -*-
-# ex: set sts=4 ts=4 sw=4 et:
-# ## ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ##
-#
-#   See COPYING file distributed along with the datalad package for the
-#   copyright and license terms.
-#
-# ## ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ##
-"""Definitions for ansi colors etc"""
+"""
+Definitions for ansi colors etc
+
+Originally copied from the `datalad` (MIT Licence) project on September 20, 2024
+https://github.com/datalad/datalad/blob/b55d8b7292fcb37b3ba6faad7fd7107fcc1caa50/datalad/support/ansi_colors.py#L4
+"""
 
 from __future__ import annotations
 import os
