@@ -40,10 +40,10 @@ EXECUTION_SUMMARY_FORMAT = (
     "Memory Average Usage (RSS): {average_rss!S}\n"
     "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
     "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
-    "Memory Peak Percentage: {peak_pmem!X}%\n"
-    "Memory Average Percentage: {average_pmem!X}%\n"
-    "CPU Peak Usage: {peak_pcpu!X}%\n"
-    "Average CPU Usage: {average_pcpu!X}%\n"
+    "Memory Peak Percentage: {peak_pmem!N}%\n"
+    "Memory Average Percentage: {average_pmem!N}%\n"
+    "CPU Peak Usage: {peak_pcpu!N}%\n"
+    "Average CPU Usage: {average_pcpu!N}%\n"
     "Samples Collected: {num_samples!X}\n"
     "Reports Written: {num_reports!X}\n"
 )
@@ -562,9 +562,9 @@ class SummaryFormatter(string.Formatter):
             )
         elif conversion == "N":  # colored Red - if None
             if value is None:
-                # return "%s✖%s" % (self.RED, self.RESET)
                 return ansi_colors.color_word(self.NONE, ansi_colors.RED)
-            return value
+            else:
+                return ansi_colors.color_word(value, ansi_colors.GREEN)
         elif conversion in {"B", "R", "U"}:
             return ansi_colors.color_word(
                 value,
