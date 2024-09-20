@@ -1,3 +1,16 @@
+# v0.3.1 (Fri Sep 20 2024)
+
+#### 🐛 Bug Fix
+
+- BF: Fix sample aggregation [#180](https://github.com/con/duct/pull/180) ([@asmacdo](https://github.com/asmacdo))
+- Fix operator precedence involving or and addition [#179](https://github.com/con/duct/pull/179) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.3.0 (Thu Sep 12 2024)
 
 #### 🚀 Enhancement
