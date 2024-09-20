@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse
+from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -135,7 +136,7 @@ class ProcessStats:
     vsz: int  # Virtual Memory size in Bytes
     timestamp: str
     etime: str
-    stat: str
+    stat: Counter
     cmd: list[str]
 
     def aggregate(self, other: ProcessStats) -> ProcessStats:
@@ -150,6 +151,8 @@ class ProcessStats:
                 lgr.debug(f"using {other.cmd}.")
                 cmd = other.cmd
             lgr.debug(f"using {self.cmd}.")
+
+        self.stat.update(other.stat)
         return ProcessStats(
             pcpu=max(self.pcpu, other.pcpu),
             pmem=max(self.pmem, other.pmem),
@@ -157,9 +160,14 @@ class ProcessStats:
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
             etime=other.etime,  # For the aggregate always take the latest
-            stat=self.stat + other.stat,
+            stat=self.stat,
             cmd=cmd,
         )
+
+    def for_json(self) -> None:
+        ret = asdict(self)
+        ret["stat"] = dict(self.stat)
+        return ret
 
     def __post_init__(self) -> None:
         self._validate()
@@ -314,7 +322,9 @@ class Sample:
         d = {
             "timestamp": self.timestamp,
             "num_samples": self.averages.num_samples,
-            "processes": {str(pid): asdict(stats) for pid, stats in self.stats.items()},
+            "processes": {
+                str(pid): stats.for_json() for pid, stats in self.stats.items()
+            },
             "totals": {  # total of all processes during this sample
                 "pmem": self.total_pmem,
                 "pcpu": self.total_pcpu,
@@ -454,7 +464,7 @@ class Report:
                             vsz=int(vsz_kib) * 1024,
                             timestamp=datetime.now().astimezone().isoformat(),
                             etime=etime,
-                            stat=[stat],
+                            stat=Counter([stat]),
                             cmd=cmd,
                         ),
                     )

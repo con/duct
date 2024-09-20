@@ -1,4 +1,5 @@
 from __future__ import annotations
+from collections import Counter
 from datetime import datetime
 import subprocess
 from unittest import mock
@@ -19,7 +20,7 @@ stat0 = ProcessStats(
     timestamp="2024-06-11T10:09:37-04:00",
     etime="00:00",
     cmd="cmd 1",
-    stat="stat0",
+    stat=Counter(["stat0"]),
 )
 
 stat1 = ProcessStats(
@@ -30,7 +31,7 @@ stat1 = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 1",
-    stat="stat1",
+    stat=Counter(["stat1"]),
 )
 
 stat2 = ProcessStats(
@@ -41,6 +42,7 @@ stat2 = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 1",
+    stat=Counter(["stat2"]),
 )
 
 
@@ -158,6 +160,7 @@ def test_process_stats_green(
         timestamp=datetime.now().astimezone().isoformat(),
         etime=etime,
         cmd=cmd,
+        stat=Counter(["stat0"]),
     )
 
 
@@ -183,6 +186,7 @@ def test_process_stats_red(
             timestamp=datetime.now().astimezone().isoformat(),
             etime=etime,
             cmd=cmd,
+            stat=Counter(["stat0"]),
         )
 
 

@@ -1,3 +1,4 @@
+from collections import Counter
 from typing import cast
 from unittest import mock
 import pytest
@@ -11,7 +12,7 @@ stat0 = ProcessStats(
     timestamp="2024-06-11T10:09:37-04:00",
     etime="00:00",
     cmd="cmd 0",
-    stat="stat0",
+    stat=Counter(["stat0"]),
 )
 
 stat1 = ProcessStats(
@@ -22,7 +23,7 @@ stat1 = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 1",
-    stat="stat1",
+    stat=Counter(["stat1"]),
 )
 
 stat2 = ProcessStats(
@@ -33,7 +34,7 @@ stat2 = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 2",
-    stat="stat2",
+    stat=Counter(["stat2"]),
 )
 
 stat100 = ProcessStats(
@@ -44,6 +45,7 @@ stat100 = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 100",
+    stat=Counter(["stat100"]),
 )
 stat_big = ProcessStats(
     pcpu=20000.0,
@@ -53,7 +55,7 @@ stat_big = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 2",
-    stat="stat2",
+    stat=Counter(["statbig"]),
 )
 
 
