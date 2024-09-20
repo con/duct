@@ -40,10 +40,10 @@ EXECUTION_SUMMARY_FORMAT = (
     "Memory Average Usage (RSS): {average_rss!S}\n"
     "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
     "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
-    "Memory Peak Percentage: {peak_pmem!P}%\n"
-    "Memory Average Percentage: {average_pmem!P}%\n"
-    "CPU Peak Usage: {peak_pcpu!P}%\n"
-    "Average CPU Usage: {average_pcpu!P}%\n"
+    "Memory Peak Percentage: {peak_pmem!X}%\n"
+    "Memory Average Percentage: {average_pmem!X}%\n"
+    "CPU Peak Usage: {peak_pcpu!X}%\n"
+    "Average CPU Usage: {average_pcpu!X}%\n"
     "Samples Collected: {num_samples!X}\n"
     "Reports Written: {num_reports!X}\n"
 )
@@ -555,14 +555,11 @@ class SummaryFormatter(string.Formatter):
             return ansi_colors.color_word(
                 value, ansi_colors.RED if value else ansi_colors.GREEN
             )
-        elif conversion == "P":  # getting above 80% is red
-            return ansi_colors.color_word(
-                value if value is not None else self.NONE,
-                ansi_colors.RED if value and value >= 80 else ansi_colors.GREEN,
-            )
         elif conversion == "X":  # colored truthy
             col = ansi_colors.GREEN if value else ansi_colors.RED
-            return ansi_colors.color_word(value, col)
+            return ansi_colors.color_word(
+                value if value is not None else self.NONE, col
+            )
         elif conversion == "N":  # colored Red - if None
             if value is None:
                 # return "%s✖%s" % (self.RED, self.RESET)
