@@ -550,7 +550,7 @@ class SummaryFormatter(string.Formatter):
             if value is not None:
                 return filesize.naturalsize(value)
             else:
-                return "-"
+                return self.NONE
         elif conversion == "E":  # colored non-zero is bad
             return ansi_colors.color_word(
                 value, ansi_colors.RED if value else ansi_colors.GREEN
