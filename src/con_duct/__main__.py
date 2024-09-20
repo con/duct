@@ -546,13 +546,7 @@ class SummaryFormatter(string.Formatter):
 
     def convert_field(self, value, conversion):
         # print("%r->%r" % (value, conversion))
-        if conversion == "D":  # Date
-            if value is not None:
-                return time.strftime("%Y-%m-%d/%H:%M:%S", time.localtime(value))
-            else:
-                return "-"
-        elif conversion == "S":  # Human size
-            # return value
+        if conversion == "S":  # Human size
             if value is not None:
                 return filesize.naturalsize(value)
             else:
