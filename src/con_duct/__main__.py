@@ -33,7 +33,7 @@ EXECUTION_SUMMARY_FORMAT = (
     "Exit Code: {exit_code}\n"
     "Command: {command}\n"
     "Log files location: {logs_prefix}\n"
-    "Wall Clock Time: {wall_clock_time:.3f} sec\n"
+    "Wall Clock Time: {wall_clock_time} sec\n"
     "Memory Peak Usage (RSS): {peak_rss} bytes\n"
     "Memory Average Usage (RSS): {average_rss} bytes\n"
     "Virtual Memory Peak Usage (VSZ): {peak_vsz} bytes\n"
@@ -494,10 +494,18 @@ class Report:
 
     @property
     def execution_summary_formatted(self) -> str:
-        human_readable = {
+        unknowned = {
             k: "unknown" if v is None else v for k, v in self.execution_summary.items()
         }
-        return self.summary_format.format_map(human_readable)
+
+        rounded = {}
+        for k, v in unknowned.items():
+            if isinstance(v, float):
+                rounded[k] = round(v, 2)
+            else:
+                rounded[k] = v
+
+        return self.summary_format.format_map(rounded)
 
 
 @dataclass
