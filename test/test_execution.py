@@ -19,12 +19,15 @@ expected_files = [
     SUFFIXES["usage"],
 ]
 
+EXIT_CODE_GREEN = "Exit Code: \x1b[1;32m{exit_code}\x1b[0m"
+EXIT_CODE_RED = "Exit Code: \x1b[1;31m{exit_code}\x1b[0m"
+
 
 def assert_expected_files(temp_output_dir: str, exists: bool = True) -> None:
     assert_files(temp_output_dir, expected_files, exists=exists)
 
 
-def test_sanity_green(temp_output_dir: str) -> None:
+def test_sanity_green(caplog: pytest.LogCaptureFixture, temp_output_dir: str) -> None:
     args = Arguments.from_argv(
         ["echo", "hello", "world"],
         sample_interval=4.0,
@@ -32,9 +35,11 @@ def test_sanity_green(temp_output_dir: str) -> None:
         output_prefix=temp_output_dir,
     )
     t0 = time()
-    assert execute(args) == 0
+    exit_code = 0
+    assert execute(args) == exit_code
     assert time() - t0 < 0.4  # we should not wait for a sample or report interval
     assert_expected_files(temp_output_dir)
+    assert EXIT_CODE_GREEN.format(exit_code=exit_code) in caplog.records[-1].message
 
 
 def test_execution_summary(temp_output_dir: str) -> None:
@@ -56,7 +61,7 @@ def test_execution_summary(temp_output_dir: str) -> None:
     assert execution_summary["exit_code"] == 0
 
 
-@pytest.mark.parametrize("exit_code", [0, 1, 2, 128])
+@pytest.mark.parametrize("exit_code", [1, 2, 128])
 def test_sanity_red(
     caplog: pytest.LogCaptureFixture, exit_code: int, temp_output_dir: str
 ) -> None:
@@ -66,7 +71,7 @@ def test_sanity_red(
     )
     caplog.set_level("INFO")
     assert execute(args) == exit_code
-    assert f"Exit Code: {exit_code}" in caplog.records[-1].message
+    assert EXIT_CODE_RED.format(exit_code=exit_code) in caplog.records[-1].message
 
     # We still should execute normally
     assert_expected_files(temp_output_dir)
