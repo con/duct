@@ -74,7 +74,7 @@ options:
                         Output template to use when printing the summary
                         following execution. (default: Exit Code: {exit_code}
                         Command: {command} Log files location: {logs_prefix}
-                        Wall Clock Time: {wall_clock_time:.3f} sec Memory Peak
+                        Wall Clock Time: {wall_clock_time} sec Memory Peak
                         Usage (RSS): {peak_rss} bytes Memory Average Usage
                         (RSS): {average_rss} bytes Virtual Memory Peak Usage
                         (VSZ): {peak_vsz} bytes Virtual Memory Average Usage
