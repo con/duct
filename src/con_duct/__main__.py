@@ -328,6 +328,7 @@ class Report:
         arguments: list[str],
         log_paths: LogPaths,
         summary_format: str,
+        colors: bool = False,
         clobber: bool = False,
         process: subprocess.Popen | None = None,
     ) -> None:
@@ -336,6 +337,7 @@ class Report:
         self.log_paths = log_paths
         self.summary_format: str = summary_format
         self.clobber = clobber
+        self.colors = colors
         # Defaults to be set later
         self.start_time: float | None = None
         self.process = process
@@ -513,7 +515,7 @@ class Report:
 
     @property
     def execution_summary_formatted(self) -> str:
-        formatter = SummaryFormatter()
+        formatter = SummaryFormatter(enable_colors=self.colors)
         return formatter.format(self.summary_format, **self.execution_summary)
 
 
@@ -522,34 +524,46 @@ class SummaryFormatter(string.Formatter):
     NOK = "X"
     NONE = "-"
 
+    def __init__(self, enable_colors=False):
+        self.enable_colors = enable_colors
+
     def convert_field(self, value, conversion):
         if conversion == "S":  # Human size
             if value is not None:
                 return ansi_colors.color_word(
-                    filesize.naturalsize(value), ansi_colors.GREEN
+                    filesize.naturalsize(value), ansi_colors.GREEN, self.enable_colors
                 )
             else:
-                return ansi_colors.color_word(self.NONE, ansi_colors.RED)
+                return ansi_colors.color_word(
+                    self.NONE, ansi_colors.RED, self.enable_colors
+                )
         elif conversion == "E":  # colored non-zero is bad
             return ansi_colors.color_word(
-                value, ansi_colors.RED if value else ansi_colors.GREEN
+                value,
+                ansi_colors.RED if value else ansi_colors.GREEN,
+                self.enable_colors,
             )
         elif conversion == "X":  # colored truthy
             col = ansi_colors.GREEN if value else ansi_colors.RED
             return ansi_colors.color_word(
-                value if value is not None else self.NONE, col
+                value if value is not None else self.NONE, col, self.enable_colors
             )
         elif conversion == "N":  # colored Red - if None
             if value is None:
-                return ansi_colors.color_word(self.NONE, ansi_colors.RED)
+                return ansi_colors.color_word(
+                    self.NONE, ansi_colors.RED, self.enable_colors
+                )
             else:
-                return ansi_colors.color_word(value, ansi_colors.GREEN)
+                return ansi_colors.color_word(
+                    value, ansi_colors.GREEN, self.enable_colors
+                )
         elif conversion in {"B", "R", "U"}:
             return ansi_colors.color_word(
                 value,
                 {"B": ansi_colors.BLUE, "R": ansi_colors.RED, "U": ansi_colors.DATASET}[
                     conversion
                 ],
+                self.enable_colors,
             )
 
         return super().convert_field(value, conversion)
@@ -576,6 +590,7 @@ class Arguments:
     outputs: Outputs
     record_types: RecordTypes
     summary_format: str
+    colors: bool
     log_level: str
     quiet: bool
 
@@ -624,6 +639,12 @@ class Arguments:
             type=str,
             default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
             help="Output template to use when printing the summary following execution.",
+        )
+        parser.add_argument(
+            "--colors",
+            action="store_true",
+            default=os.getenv("DUCT_COLORS", False),
+            help="Use colors in duct output.",
         )
         parser.add_argument(
             "--clobber",
@@ -699,6 +720,7 @@ class Arguments:
             record_types=args.record_types,
             summary_format=args.summary_format,
             clobber=args.clobber,
+            colors=args.colors,
             log_level=args.log_level,
             quiet=args.quiet,
         )
@@ -881,6 +903,7 @@ def execute(args: Arguments) -> int:
         args.command_args,
         log_paths,
         args.summary_format,
+        args.colors,
         args.clobber,
     )
 

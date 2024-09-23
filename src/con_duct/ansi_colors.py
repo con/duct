@@ -6,75 +6,14 @@ https://github.com/datalad/datalad/blob/b55d8b7292fcb37b3ba6faad7fd7107fcc1caa50
 """
 
 from __future__ import annotations
-import os
-from typing import Optional
-
-# from .. import cfg
-# from ..ui import ui
 
 BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
-BOLD = 1
-UNDERLINE = 4
 
 RESET_SEQ = "\033[0m"
 COLOR_SEQ = "\033[1;%dm"
-BOLD_SEQ = "\033[1m"
-
-LOG_LEVEL_COLORS = {
-    "WARNING": YELLOW,
-    "INFO": None,
-    "DEBUG": BLUE,
-    "CRITICAL": YELLOW,
-    "ERROR": RED,
-}
-
-RESULT_STATUS_COLORS = {
-    "ok": GREEN,
-    "notneeded": GREEN,
-    "impossible": YELLOW,
-    "error": RED,
-}
-
-# Aliases for uniform presentation
-
-DATASET = UNDERLINE
-FIELD = BOLD
 
 
-def color_enabled() -> bool:
-    """Check for whether color output is enabled
-
-    If the configuration value ``datalad.ui.color`` is ``'on'`` or ``'off'``,
-    that takes precedence.
-    If ``datalad.ui.color`` is ``'auto'``, and the environment variable
-    ``NO_COLOR`` is defined (see https://no-color.org), then color is disabled.
-    Otherwise, enable colors if a TTY is detected by ``datalad.ui.ui.is_interactive``.
-
-    Returns
-    -------
-    bool
-    """
-
-    # TODO: change to decide based on stdin being a pipe or not etc
-    ui_color = "auto"  # cfg.obtain('datalad.ui.color')
-    is_interactive = True
-    return (
-        ui_color == "on"
-        or ui_color == "auto"
-        and os.getenv("NO_COLOR") is None
-        and is_interactive
-    )
-
-
-def format_msg(fmt: str, use_color: bool = False) -> str:
-    """Replace $RESET and $BOLD with corresponding ANSI entries"""
-    if color_enabled() and use_color:
-        return fmt.replace("$RESET", RESET_SEQ).replace("$BOLD", BOLD_SEQ)
-    else:
-        return fmt.replace("$RESET", "").replace("$BOLD", "")
-
-
-def color_word(s: str, color: Optional[int], force: bool = False) -> str:
+def color_word(s: str, color: int, enable_colors: bool = False) -> str:
     """Color `s` with `color`.
 
     Parameters
@@ -83,17 +22,12 @@ def color_word(s: str, color: Optional[int], force: bool = False) -> str:
     color : int
         Code for color. If the value evaluates to false, the string will not be
         colored.
-    force : boolean, optional
-        Color string even when non-interactive session is detected.
+    enable_colors: boolean, optional
 
     Returns
     -------
     str
     """
-    if color and (force or color_enabled()):
+    if color and enable_colors:
         return "%s%s%s" % (COLOR_SEQ % color, s, RESET_SEQ)
     return s
-
-
-def color_status(status: str) -> str:
-    return color_word(status, RESULT_STATUS_COLORS.get(status))
