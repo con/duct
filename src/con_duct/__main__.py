@@ -518,34 +518,11 @@ class Report:
 
 
 class SummaryFormatter(string.Formatter):
-    # TODO: we might want to just ignore and force utf8 while explicitly .encode()'ing output!
-    # unicode versions which look better but which blow during tests etc
-    # Those might be reset by the constructor
-    OK = "OK"  # u"✓"
-    NOK = "X"  # u"✗"
-    NONE = "-"  # u"✗"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if sys.stdout.encoding is None:
-            lgr.debug("encoding not set, using safe alternatives")
-        elif not sys.stdout.isatty():
-            lgr.debug("stdout is not a tty, using safe alternatives")
-        else:
-            try:
-                "✓".encode(sys.stdout.encoding)
-            except UnicodeEncodeError:
-                lgr.debug(
-                    "encoding %s does not support unicode, " "using safe alternatives",
-                    sys.stdout.encoding,
-                )
-            else:
-                self.OK = "✓"
-                self.NOK = "✗"
-                self.NONE = "✗"
+    OK = "OK"
+    NOK = "X"
+    NONE = "-"
 
     def convert_field(self, value, conversion):
-        # print("%r->%r" % (value, conversion))
         if conversion == "S":  # Human size
             if value is not None:
                 return ansi_colors.color_word(
