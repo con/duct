@@ -166,6 +166,9 @@ def test_summary_formatter_X_e2e() -> None:
     x_zero_applied = formatter.format(x_format_string, **{"x": 0})
     assert x_zero_applied == "test 0"
 
+    x_none_applied = formatter.format(x_format_string, **{"x": None})
+    assert x_none_applied == "test -"
+
 
 def test_summary_formatter_X_e2e_colors() -> None:
     formatter = SummaryFormatter(enable_colors=True)
