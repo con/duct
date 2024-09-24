@@ -150,6 +150,10 @@ def test_summary_formatter_E_e2e_colors() -> None:
     e_zero_applied = formatter.format(e_format_string, **{"e": 0})
     assert e_zero_applied == f"test {GREEN_START}0{formatter.RESET_SEQ}"
 
+    # # Test Red None
+    e_none_applied = formatter.format(e_format_string, **{"e": None})
+    assert e_none_applied == f"test {RED_START}-{formatter.RESET_SEQ}"
+
 
 def test_summary_formatter_X_e2e() -> None:
     formatter = SummaryFormatter()

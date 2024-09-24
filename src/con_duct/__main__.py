@@ -557,8 +557,8 @@ class SummaryFormatter(string.Formatter):
                 return self.color_word(self.NONE, self.RED)
         elif conversion == "E":  # colored non-zero is bad
             return self.color_word(
-                value,
-                self.RED if value else self.GREEN,
+                value if value is not None else self.NONE,
+                self.RED if value or value is None else self.GREEN,
             )
         elif conversion == "X":  # colored truthy
             col = self.GREEN if value else self.RED
@@ -644,7 +644,7 @@ class Arguments:
             help="Output template to use when printing the summary following execution. "
             "Accepts custom conversion flags: "
             "!S: Converts filesizes to human readable units, green if measured, red if None. "
-            "!E: Colors exit code, green if falsey, red if truthy. "
+            "!E: Colors exit code, green if falsey, red if truthy, and red if None. "
             "!X: Colors green if truthy, red if falsey. "
             "!N: Colors green if not None, red if None",
         )
