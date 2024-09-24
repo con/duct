@@ -9,15 +9,15 @@ from __future__ import annotations
 
 suffixes = {
     "decimal": (" kB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB"),
-    "binary": (" KiB", " MiB", " GiB", " TiB", " PiB", " EiB", " ZiB", " YiB"),
-    "gnu": "KMGTPEZY",
+    # "binary": (" KiB", " MiB", " GiB", " TiB", " PiB", " EiB", " ZiB", " YiB"),
+    # "gnu": "KMGTPEZY",
 }
 
 
 def naturalsize(
     value: float | str,
-    binary: bool = False,
-    gnu: bool = False,
+    # binary: bool = False,
+    # gnu: bool = False,
     format: str = "%.1f",  # noqa: A002
 ) -> str:
     """Format a number of bytes like a human readable filesize (e.g. 10 kB).
@@ -56,25 +56,27 @@ def naturalsize(
     Returns:
         str: Human readable representation of a filesize.
     """
-    if gnu:
-        suffix = suffixes["gnu"]
-    elif binary:
-        suffix = suffixes["binary"]
-    else:
-        suffix = suffixes["decimal"]
+    # if gnu:
+    #     suffix = suffixes["gnu"]
+    # elif binary:
+    #     suffix = suffixes["binary"]
+    # else:
+    #     suffix = suffixes["decimal"]
+    suffix = suffixes["decimal"]
 
-    base = 1024 if (gnu or binary) else 1000
+    # base = 1024 if (gnu or binary) else 1000
+    base = 1000
     bytes_ = float(value)
     abs_bytes = abs(bytes_)
 
-    if abs_bytes == 1 and not gnu:
+    if abs_bytes == 1:  # and not gnu:
         return "%d Byte" % bytes_
 
-    if abs_bytes < base and not gnu:
+    if abs_bytes < base:  # and not gnu:
         return "%d Bytes" % bytes_
 
-    if abs_bytes < base and gnu:
-        return "%dB" % bytes_
+    # if abs_bytes < base and gnu:
+    # return "%dB" % bytes_
 
     for i, _s in enumerate(suffix):
         unit = base ** (i + 2)
