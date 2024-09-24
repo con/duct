@@ -573,12 +573,6 @@ class SummaryFormatter(string.Formatter):
                 return self.color_word(self.NONE, self.RED, self.enable_colors)
             else:
                 return self.color_word(value, self.GREEN, self.enable_colors)
-        elif conversion in {"B", "R", "U"}:
-            return self.color_word(
-                value,
-                {"B": self.BLUE, "R": self.RED, "U": self.DATASET}[conversion],
-                self.enable_colors,
-            )
 
         return super().convert_field(value, conversion)
 
