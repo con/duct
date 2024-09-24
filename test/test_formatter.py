@@ -29,9 +29,8 @@ RED_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.RED
 
 def test_summary_formatter_no_vars() -> None:
     not_really_format_string = "test"
-    no_args = {}
     formatter = SummaryFormatter()
-    out = formatter.format(not_really_format_string, **no_args)
+    out = formatter.format(not_really_format_string, **{})
     assert out == not_really_format_string
 
 

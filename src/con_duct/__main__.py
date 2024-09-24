@@ -527,7 +527,7 @@ class SummaryFormatter(string.Formatter):
     RESET_SEQ = "\033[0m"
     COLOR_SEQ = "\033[1;%dm"
 
-    def __init__(self, enable_colors=False):
+    def __init__(self, enable_colors: bool = False) -> None:
         self.enable_colors = enable_colors
 
     def color_word(self, s: str, color: int) -> str:
@@ -549,7 +549,7 @@ class SummaryFormatter(string.Formatter):
             return "%s%s%s" % (self.COLOR_SEQ % color, s, self.RESET_SEQ)
         return s
 
-    def convert_field(self, value, conversion):
+    def convert_field(self, value: str | None, conversion: str | None) -> Any:
         if conversion == "S":  # Human size
             if value is not None:
                 return self.color_word(filesize.naturalsize(value), self.GREEN)
@@ -571,7 +571,7 @@ class SummaryFormatter(string.Formatter):
 
         return super().convert_field(value, conversion)
 
-    def format_field(self, value, format_spec):
+    def format_field(self, value: Any, format_spec: str) -> Any:
         # TODO: move all the "coloring" into formatting, so we could correctly indent
         # given the format and only then color it up
         # print "> %r, %r" % (value, format_spec)
