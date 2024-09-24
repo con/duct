@@ -1,4 +1,5 @@
 # from con_duct.__main__ import SUFFIXES, Arguments, Outputs, execute, Report, EXECUTION_SUMMARY_FORMAT
+import pytest
 from con_duct.__main__ import SummaryFormatter
 
 # @mock.patch("con_duct.__main__.LogPaths")
@@ -56,8 +57,15 @@ def test_summary_formatter_many_vars() -> None:
 
 
 def test_summary_formatter_missing_vars() -> None:
-    # assert False
-    assert True
+    valid_format_string = "{one}"
+    formatter = SummaryFormatter()
+    with pytest.raises(KeyError):
+        formatter.format(valid_format_string, **{})
+
+    valid_format_string = "{one} {two}"
+    formatter = SummaryFormatter()
+    with pytest.raises(KeyError):
+        formatter.format(valid_format_string, **{"one": 1})
 
 
 def test_summary_formatter_none_replacement() -> None:
