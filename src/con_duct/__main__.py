@@ -641,7 +641,12 @@ class Arguments:
             "--summary-format",
             type=str,
             default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
-            help="Output template to use when printing the summary following execution.",
+            help="Output template to use when printing the summary following execution. "
+            "Accepts custom conversion flags: "
+            "!S: Converts filesizes to human readable units, green if measured, red if None. "
+            "!E: Colors exit code, green if falsey, red if truthy. "
+            "!X: Colors green if truthy, red if falsey. "
+            "!N: Colors green if not None, red if None",
         )
         parser.add_argument(
             "--colors",
