@@ -88,7 +88,7 @@ def test_summary_formatter_S_e2e_colors() -> None:
     formatter = SummaryFormatter(enable_colors=True)
     s_format_string = "test {big_num!S}"
     GREEN_START = formatter.COLOR_SEQ % formatter.GREEN
-    # RED_START = formatter.COLOR_SEQ % formatter.RED
+    RED_START = formatter.COLOR_SEQ % formatter.RED
 
     zero_applied = formatter.format(s_format_string, **{"big_num": 0})
     assert zero_applied != "test 0 Bytes"
@@ -98,9 +98,11 @@ def test_summary_formatter_S_e2e_colors() -> None:
     ten_5 = formatter.format(s_format_string, **{"big_num": 100000})
     expected = f"test {GREEN_START}100.0 kB{formatter.RESET_SEQ}"
     assert expected == ten_5
-    #
-    # num_applied_c = formatter.format(s_format_string, **one_arg)
-    # assert "test 100.0 kB" in num_applied_c
-    #
-    # zero_applied_c = formatter.format(s_format_string, **{"big_num": 0})
-    # assert "test 0 Bytes" zero_applied_c ==
+
+    zero_applied_c = formatter.format(s_format_string, **{"big_num": 0})
+    expected = f"test {GREEN_START}0 Bytes{formatter.RESET_SEQ}"
+    assert expected == zero_applied_c
+
+    none_applied_c = formatter.format(s_format_string, **{"big_num": None})
+    expected = f"test {RED_START}-{formatter.RESET_SEQ}"
+    assert expected == none_applied_c
