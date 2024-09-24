@@ -18,7 +18,7 @@ import textwrap
 import threading
 import time
 from typing import IO, Any, Optional, TextIO
-from . import __schema_version__, __version__, ansi_colors, filesize
+from . import __schema_version__, __version__, filesize
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
@@ -574,7 +574,7 @@ class SummaryFormatter(string.Formatter):
             else:
                 return self.color_word(value, self.GREEN, self.enable_colors)
         elif conversion in {"B", "R", "U"}:
-            return ansi_colors.color_word(
+            return self.color_word(
                 value,
                 {"B": self.BLUE, "R": self.RED, "U": self.DATASET}[conversion],
                 self.enable_colors,

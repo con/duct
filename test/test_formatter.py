@@ -1,5 +1,3 @@
-from con_duct import ansi_colors
-
 # from con_duct.__main__ import SUFFIXES, Arguments, Outputs, execute, Report, EXECUTION_SUMMARY_FORMAT
 from con_duct.__main__ import SummaryFormatter
 
@@ -89,16 +87,16 @@ def test_summary_formatter_S_e2e() -> None:
 def test_summary_formatter_S_e2e_colors() -> None:
     formatter = SummaryFormatter(enable_colors=True)
     s_format_string = "test {big_num!S}"
-    GREEN_START = ansi_colors.COLOR_SEQ % ansi_colors.GREEN
-    # RED_START = ansi_colors.COLOR_SEQ % ansi_colors.RED
+    GREEN_START = formatter.COLOR_SEQ % formatter.GREEN
+    # RED_START = formatter.COLOR_SEQ % formatter.RED
 
     zero_applied = formatter.format(s_format_string, **{"big_num": 0})
     assert zero_applied != "test 0 Bytes"
-    expected = f"test {GREEN_START}0 Bytes{ansi_colors.RESET_SEQ}"
+    expected = f"test {GREEN_START}0 Bytes{formatter.RESET_SEQ}"
     assert expected == zero_applied
 
     ten_5 = formatter.format(s_format_string, **{"big_num": 100000})
-    expected = f"test {GREEN_START}100.0 kB{ansi_colors.RESET_SEQ}"
+    expected = f"test {GREEN_START}100.0 kB{formatter.RESET_SEQ}"
     assert expected == ten_5
     #
     # num_applied_c = formatter.format(s_format_string, **one_arg)
