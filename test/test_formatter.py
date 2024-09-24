@@ -190,3 +190,47 @@ def test_summary_formatter_X_e2e_colors() -> None:
     # Test Red None
     x_zero_applied = formatter.format(x_format_string, **{"x": None})
     assert x_zero_applied == f"test {RED_START}-{formatter.RESET_SEQ}"
+
+
+def test_summary_formatter_N_e2e() -> None:
+    formatter = SummaryFormatter()
+
+    valid_format_string = "test {n}"
+    no_n_applied = formatter.format(valid_format_string, **{"n": 1})
+    assert no_n_applied == "test 1"
+
+    n_format_string = "test {n!N}"
+
+    n_applied = formatter.format(n_format_string, **{"n": 1})
+    assert n_applied == "test 1"
+
+    n_zero_applied = formatter.format(n_format_string, **{"n": 0})
+    assert n_zero_applied == "test 0"
+
+    n_none_applied = formatter.format(n_format_string, **{"n": None})
+    assert n_none_applied == "test -"
+
+
+def test_summary_formatter_N_e2e_colors() -> None:
+    formatter = SummaryFormatter(enable_colors=True)
+
+    valid_format_string = "test {n}"
+    no_n_applied = formatter.format(valid_format_string, **{"n": 1})
+    assert no_n_applied == "test 1"
+
+    no_n_applied = formatter.format(valid_format_string, **{"n": None})
+    assert no_n_applied == "test -"
+
+    n_format_string = "test {n!N}"
+
+    # Test Green truthy
+    n_applied = formatter.format(n_format_string, **{"n": 1})
+    assert n_applied == f"test {GREEN_START}1{formatter.RESET_SEQ}"
+
+    # Test Green falsey
+    n_zero_applied = formatter.format(n_format_string, **{"n": 0})
+    assert n_zero_applied == f"test {GREEN_START}0{formatter.RESET_SEQ}"
+
+    # Test Red None
+    n_zero_applied = formatter.format(n_format_string, **{"n": None})
+    assert n_zero_applied == f"test {RED_START}-{formatter.RESET_SEQ}"
