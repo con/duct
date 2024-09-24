@@ -2,6 +2,9 @@
 import pytest
 from con_duct.__main__ import SummaryFormatter
 
+GREEN_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.GREEN
+RED_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.RED
+
 # @mock.patch("con_duct.__main__.LogPaths")
 # @mock.patch("con_duct.__main__.subprocess.Popen")
 # def test_execution_summary_formatted_e2e(
@@ -95,8 +98,6 @@ def test_summary_formatter_S_e2e() -> None:
 def test_summary_formatter_S_e2e_colors() -> None:
     formatter = SummaryFormatter(enable_colors=True)
     s_format_string = "test {big_num!S}"
-    GREEN_START = formatter.COLOR_SEQ % formatter.GREEN
-    RED_START = formatter.COLOR_SEQ % formatter.RED
 
     zero_applied = formatter.format(s_format_string, **{"big_num": 0})
     assert zero_applied != "test 0 Bytes"
@@ -114,3 +115,37 @@ def test_summary_formatter_S_e2e_colors() -> None:
     none_applied_c = formatter.format(s_format_string, **{"big_num": None})
     expected = f"test {RED_START}-{formatter.RESET_SEQ}"
     assert expected == none_applied_c
+
+
+def test_summary_formatter_E_e2e() -> None:
+    formatter = SummaryFormatter()
+
+    valid_format_string = "test {e}"
+    no_e_applied = formatter.format(valid_format_string, **{"e": 1})
+    assert no_e_applied == "test 1"
+
+    e_format_string = "test {e!E}"
+    e_applied = formatter.format(e_format_string, **{"e": 1})
+    assert e_applied == "test 1"
+
+    e_format_string = "test {e!E}"
+    e_zero_applied = formatter.format(e_format_string, **{"e": 0})
+    assert e_zero_applied == "test 0"
+
+
+def test_summary_formatter_E_e2e_colors() -> None:
+    formatter = SummaryFormatter(enable_colors=True)
+
+    valid_format_string = "test {e}"
+    no_e_applied = formatter.format(valid_format_string, **{"e": 1})
+    assert no_e_applied == "test 1"
+
+    # Test Red truthy
+    e_format_string = "test {e!E}"
+    e_applied = formatter.format(e_format_string, **{"e": 1})
+    assert e_applied == f"test {RED_START}1{formatter.RESET_SEQ}"
+
+    # Test Green falsey
+    e_format_string = "test {e!E}"
+    e_zero_applied = formatter.format(e_format_string, **{"e": 0})
+    assert e_zero_applied == f"test {GREEN_START}0{formatter.RESET_SEQ}"
