@@ -523,46 +523,60 @@ class SummaryFormatter(string.Formatter):
     OK = "OK"
     NOK = "X"
     NONE = "-"
+    BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
+    RESET_SEQ = "\033[0m"
+    COLOR_SEQ = "\033[1;%dm"
 
     def __init__(self, enable_colors=False):
         self.enable_colors = enable_colors
 
+    def color_word(self, s: str, color: int, enable_colors: bool = False) -> str:
+        """Color `s` with `color`.
+
+        Parameters
+        ----------
+        s : string
+        color : int
+            Code for color. If the value evaluates to false, the string will not be
+            colored.
+        enable_colors: boolean, optional
+
+        Returns
+        -------
+        str
+        """
+        if color and enable_colors:
+            return "%s%s%s" % (self.COLOR_SEQ % color, s, self.RESET_SEQ)
+        return s
+
     def convert_field(self, value, conversion):
         if conversion == "S":  # Human size
             if value is not None:
-                return ansi_colors.color_word(
-                    filesize.naturalsize(value), ansi_colors.GREEN, self.enable_colors
+                return self.color_word(
+                    filesize.naturalsize(value), self.GREEN, self.enable_colors
                 )
             else:
-                return ansi_colors.color_word(
-                    self.NONE, ansi_colors.RED, self.enable_colors
-                )
+                return self.color_word(self.NONE, self.RED, self.enable_colors)
         elif conversion == "E":  # colored non-zero is bad
-            return ansi_colors.color_word(
+            return self.color_word(
                 value,
-                ansi_colors.RED if value else ansi_colors.GREEN,
+                self.RED if value else self.GREEN,
                 self.enable_colors,
             )
         elif conversion == "X":  # colored truthy
-            col = ansi_colors.GREEN if value else ansi_colors.RED
-            return ansi_colors.color_word(
+            col = self.GREEN if value else self.RED
+            return self.color_word(
                 value if value is not None else self.NONE, col, self.enable_colors
             )
         elif conversion == "N":  # colored Red - if None
             if value is None:
-                return ansi_colors.color_word(
-                    self.NONE, ansi_colors.RED, self.enable_colors
-                )
+                return self.color_word(self.NONE, self.RED, self.enable_colors)
             else:
-                return ansi_colors.color_word(
-                    value, ansi_colors.GREEN, self.enable_colors
-                )
+                return self.color_word(value, self.GREEN, self.enable_colors)
         elif conversion in {"B", "R", "U"}:
             return ansi_colors.color_word(
                 value,
-                {"B": ansi_colors.BLUE, "R": ansi_colors.RED, "U": ansi_colors.DATASET}[
-                    conversion
-                ],
+                {"B": self.BLUE, "R": self.RED, "U": self.DATASET}[conversion],
                 self.enable_colors,
             )
 
