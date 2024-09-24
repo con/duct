@@ -530,7 +530,7 @@ class SummaryFormatter(string.Formatter):
     def __init__(self, enable_colors=False):
         self.enable_colors = enable_colors
 
-    def color_word(self, s: str, color: int, enable_colors: bool = False) -> str:
+    def color_word(self, s: str, color: int) -> str:
         """Color `s` with `color`.
 
         Parameters
@@ -545,34 +545,29 @@ class SummaryFormatter(string.Formatter):
         -------
         str
         """
-        if color and enable_colors:
+        if color and self.enable_colors:
             return "%s%s%s" % (self.COLOR_SEQ % color, s, self.RESET_SEQ)
         return s
 
     def convert_field(self, value, conversion):
         if conversion == "S":  # Human size
             if value is not None:
-                return self.color_word(
-                    filesize.naturalsize(value), self.GREEN, self.enable_colors
-                )
+                return self.color_word(filesize.naturalsize(value), self.GREEN)
             else:
-                return self.color_word(self.NONE, self.RED, self.enable_colors)
+                return self.color_word(self.NONE, self.RED)
         elif conversion == "E":  # colored non-zero is bad
             return self.color_word(
                 value,
                 self.RED if value else self.GREEN,
-                self.enable_colors,
             )
         elif conversion == "X":  # colored truthy
             col = self.GREEN if value else self.RED
-            return self.color_word(
-                value if value is not None else self.NONE, col, self.enable_colors
-            )
+            return self.color_word(value if value is not None else self.NONE, col)
         elif conversion == "N":  # colored Red - if None
             if value is None:
-                return self.color_word(self.NONE, self.RED, self.enable_colors)
+                return self.color_word(self.NONE, self.RED)
             else:
-                return self.color_word(value, self.GREEN, self.enable_colors)
+                return self.color_word(value, self.GREEN)
 
         return super().convert_field(value, conversion)
 
