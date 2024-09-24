@@ -24,7 +24,7 @@ A process wrapper script that monitors the execution of a command.
 >duct --help
 
 usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
-            [--summary-format SUMMARY_FORMAT] [--clobber]
+            [--summary-format SUMMARY_FORMAT] [--colors] [--clobber]
             [-l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}] [-q]
             [--sample-interval SAMPLE_INTERVAL]
             [--report-interval REPORT_INTERVAL] [-c {all,none,stdout,stderr}]
@@ -72,17 +72,23 @@ options:
                         .duct/logs/{datetime_filesafe}-{pid}_)
   --summary-format SUMMARY_FORMAT
                         Output template to use when printing the summary
-                        following execution. (default: Exit Code: {exit_code}
+                        following execution. Accepts custom conversion flags:
+                        !S: Converts filesizes to human readable units, green
+                        if measured, red if None. !E: Colors exit code, green
+                        if falsey, red if truthy. !X: Colors green if truthy,
+                        red if falsey. !N: Colors green if not None, red if
+                        None (default: Summary: Exit Code: {exit_code!E}
                         Command: {command} Log files location: {logs_prefix}
                         Wall Clock Time: {wall_clock_time:.3f} sec Memory Peak
-                        Usage (RSS): {peak_rss} bytes Memory Average Usage
-                        (RSS): {average_rss} bytes Virtual Memory Peak Usage
-                        (VSZ): {peak_vsz} bytes Virtual Memory Average Usage
-                        (VSZ): {average_vsz} bytes Memory Peak Percentage:
-                        {peak_pmem}% Memory Average Percentage:
-                        {average_pmem}% CPU Peak Usage: {peak_pcpu}% Average
-                        CPU Usage: {average_pcpu}% Samples Collected:
-                        {num_samples} Reports Written: {num_reports} )
+                        Usage (RSS): {peak_rss!S} Memory Average Usage (RSS):
+                        {average_rss!S} Virtual Memory Peak Usage (VSZ):
+                        {peak_vsz!S} Virtual Memory Average Usage (VSZ):
+                        {average_vsz!S} Memory Peak Percentage: {peak_pmem!N}%
+                        Memory Average Percentage: {average_pmem!N}% CPU Peak
+                        Usage: {peak_pcpu!N}% Average CPU Usage:
+                        {average_pcpu!N}% Samples Collected: {num_samples!X}
+                        Reports Written: {num_reports!X} )
+  --colors              Use colors in duct output. (default: False)
   --clobber             Replace log files if they already exist. (default:
                         False)
   -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log_level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
