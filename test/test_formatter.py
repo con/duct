@@ -109,6 +109,47 @@ def test_summary_formatter_S_e2e() -> None:
     assert none_applied == "test -"
 
 
+# YB -> ZB rollover https://github.com/python-humanize/humanize/issues/205
+@pytest.mark.parametrize(
+    "num,expected",
+    [
+        [1, "1 Byte"],
+        [10, "10 Bytes"],
+        [100, "100 Bytes"],
+        [1000, "1.0 kB"],
+        [10000, "10.0 kB"],
+        [100000, "100.0 kB"],
+        [1000000, "1.0 MB"],
+        [10000000, "10.0 MB"],
+        [100000000, "100.0 MB"],
+        [1000000000, "1.0 GB"],
+        [10000000000, "10.0 GB"],
+        [100000000000, "100.0 GB"],
+        [1000000000000, "1.0 TB"],
+        [10000000000000, "10.0 TB"],
+        [100000000000000, "100.0 TB"],
+        [1000000000000000, "1.0 PB"],
+        [10000000000000000, "10.0 PB"],
+        [100000000000000000, "100.0 PB"],
+        [1000000000000000000, "1.0 EB"],
+        [10000000000000000000, "10.0 EB"],
+        [100000000000000000000, "100.0 EB"],
+        [1000000000000000000000, "1.0 ZB"],
+        [10000000000000000000000, "10.0 ZB"],
+        [100000000000000000000000, "100.0 ZB"],
+        [1000000000000900000000000, "1.0 YB"],  # see issue above
+        [10000000000000000000000000, "10.0 YB"],
+        [100000000000000000000000000, "100.0 YB"],
+        [1000000000000000000000000000, "1000.0 YB"],
+    ],
+)
+def test_summary_formatter_S_sizes(num, expected) -> None:
+    formatter = SummaryFormatter()
+    format_string = "{num!S}"
+    actual = formatter.format(format_string, **{"num": num})
+    assert actual == expected
+
+
 def test_summary_formatter_S_e2e_colors() -> None:
     formatter = SummaryFormatter(enable_colors=True)
     s_format_string = "test {big_num!S}"
