@@ -143,7 +143,7 @@ def test_summary_formatter_S_e2e() -> None:
         [1000000000000000000000000000, "1000.0 YB"],
     ],
 )
-def test_summary_formatter_S_sizes(num, expected) -> None:
+def test_summary_formatter_S_sizes(num: int, expected: str) -> None:
     formatter = SummaryFormatter()
     format_string = "{num!S}"
     actual = formatter.format(format_string, **{"num": num})
