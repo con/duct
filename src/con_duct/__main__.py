@@ -527,11 +527,7 @@ class SummaryFormatter(string.Formatter):
     BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
     RESET_SEQ = "\033[0m"
     COLOR_SEQ = "\033[1;%dm"
-    SUFFIXES = {
-        "decimal": (" kB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB"),
-        # "binary": (" KiB", " MiB", " GiB", " TiB", " PiB", " EiB", " ZiB", " YiB"),
-        # "gnu": "KMGTPEZY",
-    }
+    FILESIZE_SUFFIXES = (" kB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB")
 
     def __init__(self, enable_colors: bool = False) -> None:
         self.enable_colors = enable_colors
@@ -539,69 +535,39 @@ class SummaryFormatter(string.Formatter):
     def naturalsize(
         self,
         value: float | str,
-        # binary: bool = False,
-        # gnu: bool = False,
         format: str = "%.1f",  # noqa: A002
     ) -> str:
-        """Format a number of bytes like a human readable filesize (e.g. 10 kB).
-
-        By default, decimal suffixes (kB, MB) are used.
-
-        Non-GNU modes are compatible with jinja2's `filesizeformat` filter.
+        """Format a number of bytes like a human readable decimal filesize (e.g. 10 kB).
 
         Examples:
             ```pycon
-            >>> naturalsize(3000000)
+            >>> formatter = SummaryFormatter()
+            >>> formatter.naturalsize(3000000)
             '3.0 MB'
-            >>> naturalsize(300, False, True)
-            '300B'
-            >>> naturalsize(3000, False, True)
-            '2.9K'
-            >>> naturalsize(3000, False, True, "%.3f")
-            '2.930K'
-            >>> naturalsize(3000, True)
-            '2.9 KiB'
-            >>> naturalsize(10**28)
+            >>> formatter.naturalsize(3000, "%.3f")
+            '2.930 kB'
+            >>> formatter.naturalsize(10**28)
             '10000.0 YB'
-            >>> naturalsize(-4096, True)
-            '-4.0 KiB'
-
             ```
 
         Args:
             value (int, float, str): Integer to convert.
-            binary (bool): If `True`, uses binary suffixes (KiB, MiB) with base
-                2<sup>10</sup> instead of 10<sup>3</sup>.
-            gnu (bool): If `True`, the binary argument is ignored and GNU-style
-                (`ls -sh` style) prefixes are used (K, M) with the 2**10 definition.
             format (str): Custom formatter.
 
         Returns:
             str: Human readable representation of a filesize.
         """
-        # if gnu:
-        #     suffix = suffixes["gnu"]
-        # elif binary:
-        #     suffix = suffixes["binary"]
-        # else:
-        #     suffix = suffixes["decimal"]
-        suffix = self.SUFFIXES["decimal"]
-
-        # base = 1024 if (gnu or binary) else 1000
         base = 1000
         bytes_ = float(value)
         abs_bytes = abs(bytes_)
 
-        if abs_bytes == 1:  # and not gnu:
+        if abs_bytes == 1:
             return "%d Byte" % bytes_
 
-        if abs_bytes < base:  # and not gnu:
+        if abs_bytes < base:
             return "%d Bytes" % bytes_
 
-        # if abs_bytes < base and gnu:
-        # return "%dB" % bytes_
-
-        for i, _s in enumerate(suffix):
+        for i, _s in enumerate(self.FILESIZE_SUFFIXES):
             unit = base ** (i + 2)
 
             if abs_bytes < unit:
