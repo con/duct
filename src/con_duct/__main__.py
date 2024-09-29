@@ -18,7 +18,7 @@ import textwrap
 import threading
 import time
 from typing import IO, Any, Optional, TextIO
-from . import __schema_version__, __version__, filesize
+from . import __schema_version__, __version__
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
@@ -47,6 +47,7 @@ EXECUTION_SUMMARY_FORMAT = (
     "Samples Collected: {num_samples!X}\n"
     "Reports Written: {num_reports!X}\n"
 )
+
 
 ABOUT_DUCT = """
 duct is a lightweight wrapper that collects execution data for an arbitrary
@@ -526,9 +527,88 @@ class SummaryFormatter(string.Formatter):
     BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
     RESET_SEQ = "\033[0m"
     COLOR_SEQ = "\033[1;%dm"
+    SUFFIXES = {
+        "decimal": (" kB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB"),
+        # "binary": (" KiB", " MiB", " GiB", " TiB", " PiB", " EiB", " ZiB", " YiB"),
+        # "gnu": "KMGTPEZY",
+    }
 
     def __init__(self, enable_colors: bool = False) -> None:
         self.enable_colors = enable_colors
+
+    def naturalsize(
+        self,
+        value: float | str,
+        # binary: bool = False,
+        # gnu: bool = False,
+        format: str = "%.1f",  # noqa: A002
+    ) -> str:
+        """Format a number of bytes like a human readable filesize (e.g. 10 kB).
+
+        By default, decimal suffixes (kB, MB) are used.
+
+        Non-GNU modes are compatible with jinja2's `filesizeformat` filter.
+
+        Examples:
+            ```pycon
+            >>> naturalsize(3000000)
+            '3.0 MB'
+            >>> naturalsize(300, False, True)
+            '300B'
+            >>> naturalsize(3000, False, True)
+            '2.9K'
+            >>> naturalsize(3000, False, True, "%.3f")
+            '2.930K'
+            >>> naturalsize(3000, True)
+            '2.9 KiB'
+            >>> naturalsize(10**28)
+            '10000.0 YB'
+            >>> naturalsize(-4096, True)
+            '-4.0 KiB'
+
+            ```
+
+        Args:
+            value (int, float, str): Integer to convert.
+            binary (bool): If `True`, uses binary suffixes (KiB, MiB) with base
+                2<sup>10</sup> instead of 10<sup>3</sup>.
+            gnu (bool): If `True`, the binary argument is ignored and GNU-style
+                (`ls -sh` style) prefixes are used (K, M) with the 2**10 definition.
+            format (str): Custom formatter.
+
+        Returns:
+            str: Human readable representation of a filesize.
+        """
+        # if gnu:
+        #     suffix = suffixes["gnu"]
+        # elif binary:
+        #     suffix = suffixes["binary"]
+        # else:
+        #     suffix = suffixes["decimal"]
+        suffix = self.SUFFIXES["decimal"]
+
+        # base = 1024 if (gnu or binary) else 1000
+        base = 1000
+        bytes_ = float(value)
+        abs_bytes = abs(bytes_)
+
+        if abs_bytes == 1:  # and not gnu:
+            return "%d Byte" % bytes_
+
+        if abs_bytes < base:  # and not gnu:
+            return "%d Bytes" % bytes_
+
+        # if abs_bytes < base and gnu:
+        # return "%dB" % bytes_
+
+        for i, _s in enumerate(suffix):
+            unit = base ** (i + 2)
+
+            if abs_bytes < unit:
+                break
+
+        ret: str = format % (base * bytes_ / unit) + _s
+        return ret
 
     def color_word(self, s: str, color: int) -> str:
         """Color `s` with `color`.
@@ -552,7 +632,7 @@ class SummaryFormatter(string.Formatter):
     def convert_field(self, value: str | None, conversion: str | None) -> Any:
         if conversion == "S":  # Human size
             if value is not None:
-                return self.color_word(filesize.naturalsize(value), self.GREEN)
+                return self.color_word(self.naturalsize(value), self.GREEN)
             else:
                 return self.color_word(self.NONE, self.RED)
         elif conversion == "E":  # colored non-zero is bad
