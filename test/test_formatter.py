@@ -293,3 +293,24 @@ def test_summary_formatter_N_e2e_colors() -> None:
     # Test Red None
     n_zero_applied = formatter.format(n_format_string, **{"n": None})
     assert n_zero_applied == f"test {RED_START}-{formatter.RESET_SEQ}"
+
+
+@mock.patch("con_duct.__main__.LogPaths")
+@mock.patch("con_duct.__main__.subprocess.Popen")
+def test_execution_summary_formatted_wall_clock_time_invalid(
+    mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock
+) -> None:
+    mock_log_paths.prefix = "mock_prefix"
+    wall_clock_format_string = "Invalid rounding of string: {wall_clock_time:.3f!X}"
+    report = Report("_cmd", [], mock_log_paths, wall_clock_format_string, clobber=False)
+    # It should not crash and it would render even where no wallclock time yet
+    report.process = mock_popen
+    report.process.returncode = 0
+    report.start_time = 1727221840.0486171
+    report.end_time = report.start_time + 1.111111111
+
+    # Assert ValueError not raised
+    assert (
+        "Invalid rounding of string: 1.1111111640930176"
+        == report.execution_summary_formatted
+    )
