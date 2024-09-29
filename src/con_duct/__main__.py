@@ -578,7 +578,13 @@ class SummaryFormatter(string.Formatter):
         if value is None:
             # TODO: could still use our formatter and make it red or smth like that
             return self.NONE
-        return super().format_field(value, format_spec)
+        try:
+            return super().format_field(value, format_spec)
+        except ValueError:
+            lgr.warning(
+                f"Value: {value} is invalid for format spec {format_spec}, falling back to `str`"
+            )
+            return str(value)
 
 
 @dataclass
