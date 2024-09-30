@@ -1,3 +1,16 @@
+# v0.4.0 (Mon Sep 30 2024)
+
+#### 🚀 Enhancement
+
+- Add custom formatter conversion flags and colors based on datalad ls [#183](https://github.com/con/duct/pull/183) ([@yarikoptic](https://github.com/yarikoptic) [@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 2
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.3.1 (Fri Sep 20 2024)
 
 #### 🐛 Bug Fix
