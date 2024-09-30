@@ -224,3 +224,9 @@ def test_signal_exit(temp_output_dir: str) -> None:
 
     exit_code = info_data["execution_summary"]["exit_code"]
     assert exit_code == 128 + 15
+
+
+def test_duct_as_executable(temp_output_dir: str) -> None:
+    ps_command = f"./src/con_duct/__main__.py -p {temp_output_dir} sleep 0.01"
+    # Assert does not raise
+    subprocess.check_output(ps_command, shell=True).decode()
