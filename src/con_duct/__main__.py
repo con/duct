@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import socket
+import string
 import subprocess
 import sys
 import textwrap
@@ -30,21 +31,23 @@ SUFFIXES = {
     "info": "info.json",
 }
 EXECUTION_SUMMARY_FORMAT = (
-    "Exit Code: {exit_code}\n"
+    "Summary:\n"
+    "Exit Code: {exit_code!E}\n"
     "Command: {command}\n"
     "Log files location: {logs_prefix}\n"
     "Wall Clock Time: {wall_clock_time:.3f} sec\n"
-    "Memory Peak Usage (RSS): {peak_rss} bytes\n"
-    "Memory Average Usage (RSS): {average_rss} bytes\n"
-    "Virtual Memory Peak Usage (VSZ): {peak_vsz} bytes\n"
-    "Virtual Memory Average Usage (VSZ): {average_vsz} bytes\n"
-    "Memory Peak Percentage: {peak_pmem}%\n"
-    "Memory Average Percentage: {average_pmem}%\n"
-    "CPU Peak Usage: {peak_pcpu}%\n"
-    "Average CPU Usage: {average_pcpu}%\n"
-    "Samples Collected: {num_samples}\n"
-    "Reports Written: {num_reports}\n"
+    "Memory Peak Usage (RSS): {peak_rss!S}\n"
+    "Memory Average Usage (RSS): {average_rss!S}\n"
+    "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
+    "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
+    "Memory Peak Percentage: {peak_pmem!N}%\n"
+    "Memory Average Percentage: {average_pmem!N}%\n"
+    "CPU Peak Usage: {peak_pcpu!N}%\n"
+    "Average CPU Usage: {average_pcpu!N}%\n"
+    "Samples Collected: {num_samples!X}\n"
+    "Reports Written: {num_reports!X}\n"
 )
+
 
 ABOUT_DUCT = """
 duct is a lightweight wrapper that collects execution data for an arbitrary
@@ -326,6 +329,7 @@ class Report:
         arguments: list[str],
         log_paths: LogPaths,
         summary_format: str,
+        colors: bool = False,
         clobber: bool = False,
         process: subprocess.Popen | None = None,
     ) -> None:
@@ -334,6 +338,7 @@ class Report:
         self.log_paths = log_paths
         self.summary_format: str = summary_format
         self.clobber = clobber
+        self.colors = colors
         # Defaults to be set later
         self.start_time: float | None = None
         self.process = process
@@ -511,10 +516,121 @@ class Report:
 
     @property
     def execution_summary_formatted(self) -> str:
-        human_readable = {
-            k: "unknown" if v is None else v for k, v in self.execution_summary.items()
-        }
-        return self.summary_format.format_map(human_readable)
+        formatter = SummaryFormatter(enable_colors=self.colors)
+        return formatter.format(self.summary_format, **self.execution_summary)
+
+
+class SummaryFormatter(string.Formatter):
+    OK = "OK"
+    NOK = "X"
+    NONE = "-"
+    BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
+    RESET_SEQ = "\033[0m"
+    COLOR_SEQ = "\033[1;%dm"
+    FILESIZE_SUFFIXES = (" kB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB")
+
+    def __init__(self, enable_colors: bool = False) -> None:
+        self.enable_colors = enable_colors
+
+    def naturalsize(
+        self,
+        value: float | str,
+        format: str = "%.1f",  # noqa: A002
+    ) -> str:
+        """Format a number of bytes like a human readable decimal filesize (e.g. 10 kB).
+
+        Examples:
+            ```pycon
+            >>> formatter = SummaryFormatter()
+            >>> formatter.naturalsize(3000000)
+            '3.0 MB'
+            >>> formatter.naturalsize(3000, "%.3f")
+            '2.930 kB'
+            >>> formatter.naturalsize(10**28)
+            '10000.0 YB'
+            ```
+
+        Args:
+            value (int, float, str): Integer to convert.
+            format (str): Custom formatter.
+
+        Returns:
+            str: Human readable representation of a filesize.
+        """
+        base = 1000
+        bytes_ = float(value)
+        abs_bytes = abs(bytes_)
+
+        if abs_bytes == 1:
+            return "%d Byte" % bytes_
+
+        if abs_bytes < base:
+            return "%d Bytes" % bytes_
+
+        for i, _s in enumerate(self.FILESIZE_SUFFIXES):
+            unit = base ** (i + 2)
+
+            if abs_bytes < unit:
+                break
+
+        ret: str = format % (base * bytes_ / unit) + _s
+        return ret
+
+    def color_word(self, s: str, color: int) -> str:
+        """Color `s` with `color`.
+
+        Parameters
+        ----------
+        s : string
+        color : int
+            Code for color. If the value evaluates to false, the string will not be
+            colored.
+        enable_colors: boolean, optional
+
+        Returns
+        -------
+        str
+        """
+        if color and self.enable_colors:
+            return "%s%s%s" % (self.COLOR_SEQ % color, s, self.RESET_SEQ)
+        return s
+
+    def convert_field(self, value: str | None, conversion: str | None) -> Any:
+        if conversion == "S":  # Human size
+            if value is not None:
+                return self.color_word(self.naturalsize(value), self.GREEN)
+            else:
+                return self.color_word(self.NONE, self.RED)
+        elif conversion == "E":  # colored non-zero is bad
+            return self.color_word(
+                value if value is not None else self.NONE,
+                self.RED if value or value is None else self.GREEN,
+            )
+        elif conversion == "X":  # colored truthy
+            col = self.GREEN if value else self.RED
+            return self.color_word(value if value is not None else self.NONE, col)
+        elif conversion == "N":  # colored Red - if None
+            if value is None:
+                return self.color_word(self.NONE, self.RED)
+            else:
+                return self.color_word(value, self.GREEN)
+
+        return super().convert_field(value, conversion)
+
+    def format_field(self, value: Any, format_spec: str) -> Any:
+        # TODO: move all the "coloring" into formatting, so we could correctly indent
+        # given the format and only then color it up
+        # print "> %r, %r" % (value, format_spec)
+        if value is None:
+            # TODO: could still use our formatter and make it red or smth like that
+            return self.NONE
+        try:
+            return super().format_field(value, format_spec)
+        except ValueError:
+            lgr.warning(
+                f"Value: {value} is invalid for format spec {format_spec}, falling back to `str`"
+            )
+            return str(value)
 
 
 @dataclass
@@ -529,6 +645,7 @@ class Arguments:
     outputs: Outputs
     record_types: RecordTypes
     summary_format: str
+    colors: bool
     log_level: str
     quiet: bool
 
@@ -576,7 +693,18 @@ class Arguments:
             "--summary-format",
             type=str,
             default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
-            help="Output template to use when printing the summary following execution.",
+            help="Output template to use when printing the summary following execution. "
+            "Accepts custom conversion flags: "
+            "!S: Converts filesizes to human readable units, green if measured, red if None. "
+            "!E: Colors exit code, green if falsey, red if truthy, and red if None. "
+            "!X: Colors green if truthy, red if falsey. "
+            "!N: Colors green if not None, red if None",
+        )
+        parser.add_argument(
+            "--colors",
+            action="store_true",
+            default=os.getenv("DUCT_COLORS", False),
+            help="Use colors in duct output.",
         )
         parser.add_argument(
             "--clobber",
@@ -652,6 +780,7 @@ class Arguments:
             record_types=args.record_types,
             summary_format=args.summary_format,
             clobber=args.clobber,
+            colors=args.colors,
             log_level=args.log_level,
             quiet=args.quiet,
         )
@@ -834,6 +963,7 @@ def execute(args: Arguments) -> int:
         args.command_args,
         log_paths,
         args.summary_format,
+        args.colors,
         args.clobber,
     )
 
@@ -919,7 +1049,7 @@ def execute(args: Arguments) -> int:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             system_logs.write(report.dump_json())
     safe_close_files(files_to_close)
-    lgr.info("Summary:\n%s", report.execution_summary_formatted)
+    lgr.info(report.execution_summary_formatted)
     return report.process.returncode
 
 

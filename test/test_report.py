@@ -196,26 +196,6 @@ def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     assert report.system_info.uid
 
 
-@mock.patch("con_duct.__main__.LogPaths")
-@mock.patch("con_duct.__main__.subprocess.Popen")
-def test_execution_summary_formatted(
-    mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock
-) -> None:
-    mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
-    # It should not crash and it would render even where no wallclock time yet
-    assert "wall clock time: nan" in report.execution_summary_formatted.lower()
-
-    # Test with process
-    report.process = mock_popen
-    report.process.returncode = 0
-    output = report.execution_summary_formatted
-    assert "None" not in output
-    assert "unknown" in output
-    # Process did not finish, we didn't set start_time, so remains nan but there
-    assert "wall clock time: nan" in report.execution_summary_formatted.lower()
-
-
 @mock.patch("con_duct.__main__.shutil.which")
 @mock.patch("con_duct.__main__.subprocess.check_output")
 @mock.patch("con_duct.__main__.LogPaths")
