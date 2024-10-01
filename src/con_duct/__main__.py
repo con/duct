@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from __future__ import annotations
 import argparse
 from collections.abc import Iterable, Iterator
@@ -18,7 +19,10 @@ import textwrap
 import threading
 import time
 from typing import IO, Any, Optional, TextIO
-from . import __schema_version__, __version__
+
+__version__ = "0.4.0"
+__schema_version__ = "0.1.0"
+
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
