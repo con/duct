@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
+import os
 import subprocess
 from unittest import mock
 import pytest
@@ -193,7 +194,8 @@ def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     assert report.system_info.hostname
     assert report.system_info.cpu_total
     assert report.system_info.memory_total > 10
-    assert report.system_info.uid
+    assert report.system_info.uid == os.getuid()
+    assert report.system_info.user == os.environ.get("USER")
 
 
 @mock.patch("con_duct.__main__.shutil.which")
