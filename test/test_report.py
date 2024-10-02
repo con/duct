@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections import Counter
+from copy import deepcopy
 from datetime import datetime
 import subprocess
 from unittest import mock
@@ -49,16 +50,16 @@ stat2 = ProcessStats(
 def test_sample_max_initial_values_one_pid() -> None:
     maxes = Sample()
     ex0 = Sample()
-    ex0.add_pid(1, stat0)
+    ex0.add_pid(1, deepcopy(stat0))
     maxes = maxes.aggregate(ex0)
     assert maxes.stats == {1: stat0}
 
 
 def test_sample_max_one_pid() -> None:
     maxes = Sample()
-    maxes.add_pid(1, stat0)
+    maxes.add_pid(1, deepcopy(stat0))
     ex1 = Sample()
-    ex1.add_pid(1, stat1)
+    ex1.add_pid(1, deepcopy(stat1))
     maxes = maxes.aggregate(ex1)
     assert maxes.stats[1].rss == stat1.rss
     assert maxes.stats[1].vsz == stat1.vsz
@@ -69,26 +70,46 @@ def test_sample_max_one_pid() -> None:
 def test_sample_max_initial_values_two_pids() -> None:
     maxes = Sample()
     ex0 = Sample()
-    ex0.add_pid(1, stat0)
-    ex0.add_pid(2, stat0)
+    ex0.add_pid(1, deepcopy(stat0))
+    ex0.add_pid(2, deepcopy(stat0))
     maxes = maxes.aggregate(ex0)
+    assert maxes.stats == {1: stat0, 2: stat0}
     assert maxes.stats == {1: stat0, 2: stat0}
 
 
-def test_sample_maxtwo_pids() -> None:
+def test_sample_aggregate_two_pids() -> None:
     maxes = Sample()
-    maxes.add_pid(1, stat0)
-    maxes.add_pid(2, stat0)
+    maxes.add_pid(1, deepcopy(stat0))
+    maxes.add_pid(2, deepcopy(stat0))
+    assert maxes.stats[1].stat["stat0"] == 1
+    assert maxes.stats[2].stat["stat0"] == 1
+    assert maxes.stats[1].stat["stat1"] == 0
+    assert maxes.stats[2].stat["stat1"] == 0
     ex1 = Sample()
-    ex1.add_pid(1, stat1)
+    ex1.add_pid(1, deepcopy(stat1))
     maxes = maxes.aggregate(ex1)
+    assert maxes.stats[1].stat["stat0"] == 1
+    assert maxes.stats[2].stat["stat0"] == 1
+    assert maxes.stats[1].stat["stat1"] == 1
+    assert maxes.stats[2].stat["stat1"] == 0
     ex2 = Sample()
-    ex2.add_pid(2, stat1)
+    ex2.add_pid(2, deepcopy(stat1))
     maxes = maxes.aggregate(ex2)
-    import ipdb
+    # Check the `stat` counts one of each for both pids
+    assert maxes.stats[1].stat["stat0"] == 1
+    assert maxes.stats[2].stat["stat0"] == 1
+    assert maxes.stats[1].stat["stat1"] == 1
+    assert maxes.stats[2].stat["stat1"] == 1
 
-    ipdb.set_trace()
-    assert maxes.stats == {1: stat1, 2: stat1}
+    # Each stat1 value > stat0 value
+    assert maxes.stats[1].pcpu == stat1.pcpu
+    assert maxes.stats[1].pmem == stat1.pmem
+    assert maxes.stats[1].rss == stat1.rss
+    assert maxes.stats[1].vsz == stat1.vsz
+    assert maxes.stats[2].pcpu == stat1.pcpu
+    assert maxes.stats[2].pmem == stat1.pmem
+    assert maxes.stats[2].rss == stat1.rss
+    assert maxes.stats[2].vsz == stat1.vsz
 
 
 def test_average_no_samples() -> None:
@@ -103,7 +124,7 @@ def test_average_no_samples() -> None:
 
 def test_averages_one_sample() -> None:
     sample = Sample()
-    sample.add_pid(1, stat0)
+    sample.add_pid(1, deepcopy(stat0))
     averages = Averages.from_sample(sample)
     assert averages.rss == sample.total_rss
     assert averages.vsz == sample.total_vsz
@@ -114,20 +135,20 @@ def test_averages_one_sample() -> None:
 
 def test_averages_two_samples() -> None:
     sample = Sample()
-    sample.add_pid(1, stat0)
+    sample.add_pid(1, deepcopy(stat0))
     averages = Averages.from_sample(sample)
     sample2 = Sample()
-    sample2.add_pid(2, stat1)
+    sample2.add_pid(2, deepcopy(stat1))
     averages.update(sample2)
     assert averages.pcpu == (stat0.pcpu + stat1.pcpu) / 2
 
 
 def test_averages_three_samples() -> None:
     sample = Sample()
-    sample.add_pid(1, stat0)
+    sample.add_pid(1, deepcopy(stat0))
     averages = Averages.from_sample(sample)
     sample2 = Sample()
-    sample2.add_pid(2, stat1)
+    sample2.add_pid(2, deepcopy(stat1))
     averages.update(sample2)
     averages.update(sample2)
     assert averages.pcpu == (stat0.pcpu + (2 * stat1.pcpu)) / 3
@@ -135,8 +156,8 @@ def test_averages_three_samples() -> None:
 
 def test_sample_totals() -> None:
     sample = Sample()
-    sample.add_pid(1, stat2)
-    sample.add_pid(2, stat2)
+    sample.add_pid(1, deepcopy(stat2))
+    sample.add_pid(2, deepcopy(stat2))
     assert sample.total_rss == stat2.rss * 2
     assert sample.total_vsz == stat2.vsz * 2
     assert sample.total_pmem == stat2.pmem * 2
