@@ -21,7 +21,7 @@ import time
 from typing import IO, Any, Optional, TextIO
 
 __version__ = "0.4.0"
-__schema_version__ = "0.1.0"
+__schema_version__ = "0.1.1"
 
 
 lgr = logging.getLogger("con-duct")
@@ -121,10 +121,11 @@ class RecordTypes(str, Enum):
 
 @dataclass
 class SystemInfo:
-    uid: str | None
-    memory_total: int
     cpu_total: int
+    memory_total: int
     hostname: str | None
+    uid: int
+    user: str | None
 
 
 @dataclass
@@ -381,12 +382,12 @@ class Report:
 
     def get_system_info(self) -> None:
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
-        uid = os.environ.get("USER")
-        hostname = socket.gethostname()
-        memory_total = os.sysconf("SC_PAGESIZE") * os.sysconf("SC_PHYS_PAGES")
-        cpu_total = os.sysconf("SC_NPROCESSORS_CONF")
         self.system_info = SystemInfo(
-            uid=uid, memory_total=memory_total, cpu_total=cpu_total, hostname=hostname
+            cpu_total=os.sysconf("SC_NPROCESSORS_CONF"),
+            memory_total=os.sysconf("SC_PAGESIZE") * os.sysconf("SC_PHYS_PAGES"),
+            hostname=socket.gethostname(),
+            uid=os.getuid(),
+            user=os.environ.get("USER"),
         )
         # GPU information
         if shutil.which("nvidia-smi") is not None:
