@@ -1,3 +1,17 @@
+# v0.5.0 (Wed Oct 02 2024)
+
+#### 🚀 Enhancement
+
+- Report $USER as .user, and store actual numeric UID as .uid [#195](https://github.com/con/duct/pull/195) ([@yarikoptic](https://github.com/yarikoptic))
+- Move all logic into single file [#191](https://github.com/con/duct/pull/191) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 2
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.4.0 (Mon Sep 30 2024)
 
 #### 🚀 Enhancement
