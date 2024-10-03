@@ -310,7 +310,11 @@ def test_aggregation_many_samples(
     # Ensure nothing strange happens after many updates
     for _ in range(100):
         report.update_from_sample(sample1)
-    # TODO Python 3.10+ added Counter.totals()
+
+    report.current_sample = cast(
+        Sample, report.current_sample
+    )  # So mypy is convcinced it is not None
+    assert report.current_sample is not None
     # Assert that there is exactly 1 ProcessStat.stat count per update
     assert (
         sum(report.current_sample.stats[pid].stat.values())

@@ -152,7 +152,7 @@ class ProcessStats:
                 cmd = other.cmd
             lgr.debug(f"using {self.cmd}.")
 
-        new_counter = Counter()
+        new_counter: Counter = Counter()
         new_counter.update(self.stat)
         new_counter.update(other.stat)
         return ProcessStats(
