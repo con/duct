@@ -4,10 +4,12 @@ import os
 from pathlib import Path
 import signal
 import subprocess
+import sys
 import threading
 from time import sleep, time
 import pytest
 from utils import assert_files
+import con_duct.__main__ as __main__
 from con_duct.__main__ import SUFFIXES, Arguments, Outputs, execute
 
 TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
@@ -227,6 +229,6 @@ def test_signal_exit(temp_output_dir: str) -> None:
 
 
 def test_duct_as_executable(temp_output_dir: str) -> None:
-    ps_command = f"./src/con_duct/__main__.py -p {temp_output_dir} sleep 0.01"
+    ps_command = f"{sys.executable} {__main__.__file__} -p {temp_output_dir} sleep 0.01"
     # Assert does not raise
     subprocess.check_output(ps_command, shell=True).decode()
