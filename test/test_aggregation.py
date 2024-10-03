@@ -300,7 +300,8 @@ def test_aggregation_many_samples(
     mock_log_paths: mock.MagicMock, stat: ProcessStats
 ) -> None:
     sample1 = Sample()
-    sample1.add_pid(1, deepcopy(stat))
+    pid = 1
+    sample1.add_pid(pid, deepcopy(stat))
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     assert report.current_sample is None
@@ -309,7 +310,13 @@ def test_aggregation_many_samples(
     # Ensure nothing strange happens after many updates
     for _ in range(100):
         report.update_from_sample(sample1)
-    assert report.full_run_stats.averages.num_samples == 100
+    # TODO Python 3.10+ added Counter.totals()
+    # Assert that there is exactly 1 ProcessStat.stat count per update
+    assert (
+        sum(report.current_sample.stats[pid].stat.values())
+        == report.full_run_stats.averages.num_samples
+        == 100
+    )
     assert report.full_run_stats.averages.rss == (stat.rss * 100) / 100.0
     assert report.full_run_stats.averages.vsz == (stat.vsz * 100) / 100.0
     assert report.full_run_stats.averages.pmem == (stat.pmem * 100) / 100.0

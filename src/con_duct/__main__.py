@@ -152,7 +152,9 @@ class ProcessStats:
                 cmd = other.cmd
             lgr.debug(f"using {self.cmd}.")
 
-        self.stat.update(other.stat)
+        new_counter = Counter()
+        new_counter.update(self.stat)
+        new_counter.update(other.stat)
         return ProcessStats(
             pcpu=max(self.pcpu, other.pcpu),
             pmem=max(self.pmem, other.pmem),
@@ -160,7 +162,7 @@ class ProcessStats:
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
             etime=other.etime,  # For the aggregate always take the latest
-            stat=self.stat,
+            stat=new_counter,
             cmd=cmd,
         )
 
@@ -294,7 +296,6 @@ class Sample:
         self.total_pcpu = (self.total_pcpu or 0.0) + stats.pcpu
         self.stats[pid] = stats
         self.timestamp = max(self.timestamp, stats.timestamp)
-        self.stats[pid] = stats
 
     def aggregate(self: Sample, other: Sample) -> Sample:
         output = Sample()
