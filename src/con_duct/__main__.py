@@ -1048,7 +1048,6 @@ def execute(args: Arguments) -> int:
 
     # If we have any extra samples that haven't been written yet, do it now
     if report.current_sample is not None:
-        report.full_run_stats = report.full_run_stats.aggregate(report.current_sample)
         report.write_subreport()
 
     report.process = process
