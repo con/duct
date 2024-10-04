@@ -1,6 +1,7 @@
 import argparse
+from typing import Any
 import unittest
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from con_duct import suite
 
@@ -8,7 +9,7 @@ from con_duct import suite
 class TestSuiteHelpers(unittest.TestCase):
 
     def test_execute_returns_int(self) -> None:
-        def return_non_int(*_args) -> str:
+        def return_non_int(*_args: Any) -> str:
             return "NOPE"
 
         args = argparse.Namespace(
@@ -24,7 +25,7 @@ class TestPPrint(unittest.TestCase):
         "builtins.open", new_callable=mock_open, read_data='{"mock_key": "mock_value"}'
     )
     @patch("con_duct.suite.pprint")
-    def test_pprint_json(self, mock_pprint, mock_open):
+    def test_pprint_json(self, mock_pprint: MagicMock, mock_open: MagicMock) -> None:
         args = argparse.Namespace(
             command="pp", file_path="dummy.json", func=suite.pprint_json
         )
@@ -34,8 +35,7 @@ class TestPPrint(unittest.TestCase):
         mock_pprint.assert_called_once_with({"mock_key": "mock_value"})
 
     @patch("builtins.open", side_effect=FileNotFoundError)
-    def test_file_not_found(self, _mock_open):
-        # Simulate argparse returning the necessary arguments for the 'pp' subcommand
+    def test_file_not_found(self, _mock_open: MagicMock) -> None:
         args = argparse.Namespace(
             command="pp", file_path="dummy.json", func=suite.pprint_json
         )
@@ -43,7 +43,9 @@ class TestPPrint(unittest.TestCase):
 
     @patch("builtins.open", new_callable=mock_open, read_data='{"invalid": "json"')
     @patch("con_duct.suite.pprint")
-    def test_pprint_invalid_json(self, mock_pprint, mock_open):
+    def test_pprint_invalid_json(
+        self, mock_pprint: MagicMock, mock_open: MagicMock
+    ) -> None:
         args = argparse.Namespace(
             command="pp", file_path="dummy.json", func=suite.pprint_json
         )

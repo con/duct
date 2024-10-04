@@ -32,7 +32,7 @@ def execute(args: argparse.Namespace) -> int:
     return result
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog="con-duct",
         description="A command-line tool for managing various tasks.",
@@ -41,8 +41,8 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # Subcommand: pp
-    parser_pp = subparsers.add_parser("pp", help="Pretty print a log")
-    parser_pp.add_argument("file_path", help="File to pretty print")
+    parser_pp = subparsers.add_parser("pp", help="Pretty print a JSON log")
+    parser_pp.add_argument("file_path", help="JSON file to pretty print")
     parser_pp.set_defaults(func=pprint_json)
 
     args = parser.parse_args()
