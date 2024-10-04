@@ -119,3 +119,17 @@ options:
 
 ```
 <!-- END HELP -->
+
+# con-duct suite
+
+In addition to `duct`, this project also includes a set of optional helpers that may use 3rd party
+python libraries.
+
+## Installation
+
+    pip install con-duct[all]
+
+## Extras Helptext
+
+<!-- BEGIN EXTRAS HELP -->
+<!-- END EXTRAS HELP -->
