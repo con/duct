@@ -18,6 +18,7 @@ def pprint_json(args) -> int:
         return 1
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
+        return 1
 
     return 0
 

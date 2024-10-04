@@ -26,3 +26,14 @@ class TestPPrint(unittest.TestCase):
             command="pp", file_path="dummy.json", func=suite.pprint_json
         )
         assert suite.execute(args) == 1
+
+    @patch("builtins.open", new_callable=mock_open, read_data='{"invalid": "json"')
+    @patch("con_duct.suite.pprint")
+    def test_pprint_invalid_json(self, mock_pprint, mock_open):
+        args = argparse.Namespace(
+            command="pp", file_path="dummy.json", func=suite.pprint_json
+        )
+        assert suite.execute(args) == 1
+
+        mock_open.assert_called_with("dummy.json", "r")
+        mock_pprint.assert_not_called()
