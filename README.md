@@ -132,4 +132,19 @@ python libraries.
 ## Extras Helptext
 
 <!-- BEGIN EXTRAS HELP -->
+```shell
+>con-duct --help
+
+usage: con-duct <command> [options]
+
+A command-line tool for managing various tasks.
+
+positional arguments:
+  {pp}        Available subcommands
+    pp        Pretty print a JSON log
+
+options:
+  -h, --help  show this help message and exit
+
+```
 <!-- END EXTRAS HELP -->
