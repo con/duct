@@ -119,3 +119,32 @@ options:
 
 ```
 <!-- END HELP -->
+
+# con-duct suite
+
+In addition to `duct`, this project also includes a set of optional helpers that may use 3rd party
+python libraries.
+
+## Installation
+
+    pip install con-duct[all]
+
+## Extras Helptext
+
+<!-- BEGIN EXTRAS HELP -->
+```shell
+>con-duct --help
+
+usage: con-duct <command> [options]
+
+A command-line tool for managing various tasks.
+
+positional arguments:
+  {pp}        Available subcommands
+    pp        Pretty print a JSON log
+
+options:
+  -h, --help  show this help message and exit
+
+```
+<!-- END EXTRAS HELP -->
