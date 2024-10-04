@@ -1,3 +1,5 @@
+from collections import Counter
+from copy import deepcopy
 from typing import cast
 from unittest import mock
 import pytest
@@ -11,6 +13,7 @@ stat0 = ProcessStats(
     timestamp="2024-06-11T10:09:37-04:00",
     etime="00:00",
     cmd="cmd 0",
+    stat=Counter(["stat0"]),
 )
 
 stat1 = ProcessStats(
@@ -21,6 +24,7 @@ stat1 = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 1",
+    stat=Counter(["stat1"]),
 )
 
 stat2 = ProcessStats(
@@ -31,6 +35,7 @@ stat2 = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 2",
+    stat=Counter(["stat2"]),
 )
 
 stat100 = ProcessStats(
@@ -41,6 +46,7 @@ stat100 = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 100",
+    stat=Counter(["stat100"]),
 )
 stat_big = ProcessStats(
     pcpu=20000.0,
@@ -50,13 +56,14 @@ stat_big = ProcessStats(
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
     cmd="cmd 2",
+    stat=Counter(["statbig"]),
 )
 
 
 @mock.patch("con_duct.__main__.LogPaths")
 def test_aggregation_num_samples_increment(mock_log_paths: mock.MagicMock) -> None:
     ex0 = Sample()
-    ex0.add_pid(1, stat1)
+    ex0.add_pid(1, deepcopy(stat1))
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     assert report.current_sample is None
@@ -79,9 +86,9 @@ def test_aggregation_num_samples_increment(mock_log_paths: mock.MagicMock) -> No
 @mock.patch("con_duct.__main__.LogPaths")
 def test_aggregation_single_sample_sanity(mock_log_paths: mock.MagicMock) -> None:
     ex0 = Sample()
-    ex0.add_pid(0, stat0)
-    ex0.add_pid(1, stat1)
-    ex0.add_pid(2, stat2)
+    ex0.add_pid(0, deepcopy(stat0))
+    ex0.add_pid(1, deepcopy(stat1))
+    ex0.add_pid(2, deepcopy(stat2))
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     assert report.current_sample is None
@@ -115,7 +122,7 @@ def test_aggregation_single_stat_multiple_samples_sanity(
     mock_log_paths: mock.MagicMock, stat: ProcessStats
 ) -> None:
     ex0 = Sample()
-    ex0.add_pid(1, stat)
+    ex0.add_pid(1, deepcopy(stat))
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     assert report.current_sample is None
@@ -157,11 +164,11 @@ def test_aggregation_single_stat_multiple_samples_sanity(
 @mock.patch("con_duct.__main__.LogPaths")
 def test_aggregation_averages(mock_log_paths: mock.MagicMock) -> None:
     sample0 = Sample()
-    sample0.add_pid(1, stat0)
+    sample0.add_pid(1, deepcopy(stat0))
     sample1 = Sample()
-    sample1.add_pid(1, stat1)
+    sample1.add_pid(1, deepcopy(stat1))
     sample2 = Sample()
-    sample2.add_pid(1, stat2)
+    sample2.add_pid(1, deepcopy(stat2))
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     assert report.current_sample is None
@@ -226,11 +233,11 @@ def test_aggregation_current_ave_diverges_from_total_ave(
     mock_log_paths: mock.MagicMock,
 ) -> None:
     sample0 = Sample()
-    sample0.add_pid(1, stat0)
+    sample0.add_pid(1, deepcopy(stat0))
     sample1 = Sample()
-    sample1.add_pid(1, stat1)
+    sample1.add_pid(1, deepcopy(stat1))
     sample2 = Sample()
-    sample2.add_pid(1, stat2)
+    sample2.add_pid(1, deepcopy(stat2))
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     assert report.current_sample is None
@@ -293,7 +300,8 @@ def test_aggregation_many_samples(
     mock_log_paths: mock.MagicMock, stat: ProcessStats
 ) -> None:
     sample1 = Sample()
-    sample1.add_pid(1, stat)
+    pid = 1
+    sample1.add_pid(pid, deepcopy(stat))
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
     assert report.current_sample is None
@@ -302,7 +310,17 @@ def test_aggregation_many_samples(
     # Ensure nothing strange happens after many updates
     for _ in range(100):
         report.update_from_sample(sample1)
-    assert report.full_run_stats.averages.num_samples == 100
+
+    report.current_sample = cast(
+        Sample, report.current_sample
+    )  # So mypy is convcinced it is not None
+    assert report.current_sample is not None
+    # Assert that there is exactly 1 ProcessStat.stat count per update
+    assert (
+        sum(report.current_sample.stats[pid].stat.values())
+        == report.full_run_stats.averages.num_samples
+        == 100
+    )
     assert report.full_run_stats.averages.rss == (stat.rss * 100) / 100.0
     assert report.full_run_stats.averages.vsz == (stat.vsz * 100) / 100.0
     assert report.full_run_stats.averages.pmem == (stat.pmem * 100) / 100.0
@@ -310,7 +328,7 @@ def test_aggregation_many_samples(
 
     # Add a stat that is not 0 and check that the average is still correct
     sample2 = Sample()
-    sample2.add_pid(1, stat2)
+    sample2.add_pid(1, deepcopy(stat2))
     report.update_from_sample(sample2)
     assert report.full_run_stats.averages.num_samples == 101
     assert report.full_run_stats.averages.rss == (stat.rss * 100 + stat2.rss) / 101.0
@@ -336,11 +354,11 @@ def test_aggregation_no_false_peak(mock_log_paths: mock.MagicMock) -> None:
     sample2 = Sample()
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
-    sample1.add_pid(1, stat100)
-    sample1.add_pid(2, stat0)
+    sample1.add_pid(1, deepcopy(stat100))
+    sample1.add_pid(2, deepcopy(stat0))
     report.update_from_sample(sample1)
-    sample2.add_pid(1, stat0)
-    sample2.add_pid(2, stat100)
+    sample2.add_pid(1, deepcopy(stat0))
+    sample2.add_pid(2, deepcopy(stat100))
     report.update_from_sample(sample2)
     assert report.current_sample is not None
     assert report.current_sample.total_pcpu == 100

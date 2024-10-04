@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse
+from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -136,6 +137,7 @@ class ProcessStats:
     vsz: int  # Virtual Memory size in Bytes
     timestamp: str
     etime: str
+    stat: Counter
     cmd: str
 
     def aggregate(self, other: ProcessStats) -> ProcessStats:
@@ -150,6 +152,10 @@ class ProcessStats:
                 lgr.debug(f"using {other.cmd}.")
                 cmd = other.cmd
             lgr.debug(f"using {self.cmd}.")
+
+        new_counter: Counter = Counter()
+        new_counter.update(self.stat)
+        new_counter.update(other.stat)
         return ProcessStats(
             pcpu=max(self.pcpu, other.pcpu),
             pmem=max(self.pmem, other.pmem),
@@ -157,8 +163,14 @@ class ProcessStats:
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
             etime=other.etime,  # For the aggregate always take the latest
+            stat=new_counter,
             cmd=cmd,
         )
+
+    def for_json(self) -> dict:
+        ret = asdict(self)
+        ret["stat"] = dict(self.stat)
+        return ret
 
     def __post_init__(self) -> None:
         self._validate()
@@ -285,7 +297,6 @@ class Sample:
         self.total_pcpu = (self.total_pcpu or 0.0) + stats.pcpu
         self.stats[pid] = stats
         self.timestamp = max(self.timestamp, stats.timestamp)
-        self.stats[pid] = stats
 
     def aggregate(self: Sample, other: Sample) -> Sample:
         output = Sample()
@@ -313,7 +324,9 @@ class Sample:
         d = {
             "timestamp": self.timestamp,
             "num_samples": self.averages.num_samples,
-            "processes": {str(pid): asdict(stats) for pid, stats in self.stats.items()},
+            "processes": {
+                str(pid): stats.for_json() for pid, stats in self.stats.items()
+            },
             "totals": {  # total of all processes during this sample
                 "pmem": self.total_pmem,
                 "pcpu": self.total_pcpu,
@@ -441,8 +454,8 @@ class Report:
             )
             for line in output.splitlines()[1:]:
                 if line:
-                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, cmd = line.split(
-                        maxsplit=6,
+                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(
+                        maxsplit=7,
                     )
                     sample.add_pid(
                         int(pid),
@@ -453,6 +466,7 @@ class Report:
                             vsz=int(vsz_kib) * 1024,
                             timestamp=datetime.now().astimezone().isoformat(),
                             etime=etime,
+                            stat=Counter([stat]),
                             cmd=cmd,
                         ),
                     )
@@ -1035,7 +1049,6 @@ def execute(args: Arguments) -> int:
 
     # If we have any extra samples that haven't been written yet, do it now
     if report.current_sample is not None:
-        report.full_run_stats = report.full_run_stats.aggregate(report.current_sample)
         report.write_subreport()
 
     report.process = process
