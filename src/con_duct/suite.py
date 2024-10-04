@@ -4,7 +4,7 @@ from pprint import pprint
 import sys
 
 
-def pprint_json(args) -> int:
+def pprint_json(args: argparse.Namespace) -> int:
     """
     Prints the contents of a JSON file using pprint.
     """
@@ -23,8 +23,13 @@ def pprint_json(args) -> int:
     return 0
 
 
-def execute(args) -> int:
-    return args.func(args)
+def execute(args: argparse.Namespace) -> int:
+    result = args.func(args)
+    if not isinstance(result, int):
+        raise TypeError(
+            f"Each con-duct subcommand must return an int returncode, got {type(result)}"
+        )
+    return result
 
 
 def main():

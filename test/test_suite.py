@@ -1,7 +1,21 @@
 import argparse
 import unittest
 from unittest.mock import mock_open, patch
+import pytest
 from con_duct import suite
+
+
+class TestSuiteHelpers(unittest.TestCase):
+
+    def test_execute_returns_int(self) -> None:
+        def return_non_int(*_args) -> str:
+            return "NOPE"
+
+        args = argparse.Namespace(
+            command="invalid", file_path="dummy.json", func=return_non_int
+        )
+        with pytest.raises(TypeError):
+            suite.execute(args)
 
 
 class TestPPrint(unittest.TestCase):
