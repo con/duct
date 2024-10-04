@@ -1,9 +1,10 @@
 import argparse
 import json
 from pprint import pprint
+import sys
 
 
-def pprint_json(args):
+def pprint_json(args) -> int:
     """
     Prints the contents of a JSON file using pprint.
     """
@@ -14,8 +15,15 @@ def pprint_json(args):
 
     except FileNotFoundError:
         print(f"File not found: {args.file_path}")
+        return 1
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
+
+    return 0
+
+
+def execute(args) -> int:
+    return args.func(args)
 
 
 def main():
@@ -36,4 +44,4 @@ def main():
     if args.command is None:
         parser.print_help()
     else:
-        args.func(args)
+        sys.exit(execute(args))
