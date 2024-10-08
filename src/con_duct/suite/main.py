@@ -1,27 +1,7 @@
 import argparse
-import json
-from pprint import pprint
 import sys
-from con_duct.plot import matplotlib_plot
-
-
-def pprint_json(args: argparse.Namespace) -> int:
-    """
-    Prints the contents of a JSON file using pprint.
-    """
-    try:
-        with open(args.file_path, "r") as file:
-            data = json.load(file)
-        pprint(data)
-
-    except FileNotFoundError:
-        print(f"File not found: {args.file_path}")
-        return 1
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        return 1
-
-    return 0
+from con_duct.suite.plot import matplotlib_plot
+from con_duct.suite.pprint_json import pprint_json
 
 
 def execute(args: argparse.Namespace) -> int:
