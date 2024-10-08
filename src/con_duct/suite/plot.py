@@ -8,11 +8,16 @@ import numpy as np
 
 def matplotlib_plot(args: argparse.Namespace):
     data = []
-    # TODO catch FileNotFoundError
-    # TODO catch JSONDecodeError
-    with open(args.file_path, "r") as file:
-        for line in file:
-            data.append(json.loads(line))
+    try:
+        with open(args.file_path, "r") as file:
+            for line in file:
+                data.append(json.loads(line))
+    except FileNotFoundError:
+        print(f"File {args.file_path} was not found.")
+        return 1
+    except json.JSONDecodeError:
+        print(f"File {args.file_path} contained invalid JSON.")
+        return 1
 
     # Convert timestamps to datetime objects
     timestamps = [datetime.fromisoformat(entry["timestamp"]) for entry in data]
