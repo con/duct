@@ -51,6 +51,11 @@ def main() -> None:
         "plot", help="Plot resource usage for an execution."
     )
     parser_plot.add_argument("file_path", help="duct-produced usage.json file plot.")
+    parser_plot.add_argument(
+        "--output",
+        help="Output path for the png file. If not passed, show the file but do not save.",
+        default=None,
+    )
     # parser_plot.add_argument(
     #     "-b",
     #     "--backend",

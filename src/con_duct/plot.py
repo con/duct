@@ -44,15 +44,13 @@ def matplotlib_plot(args):
 
     plt.title("Resource Usage Over Time")
 
-    # TODO accept -o
-    output_path = "resource_usage.png"
-    print(
-        f"Successfully rendered input file: {args.file_path} to output {output_path}."
-    )
-    plt.savefig(output_path)
-
-    # TODO accept --show
-    plt.show()
+    if args.output is not None:
+        plt.savefig(args.output)
+        print(
+            f"Successfully rendered input file: {args.file_path} to output {args.output}.png"
+        )
+    else:
+        plt.show()
 
     # Exit code
     return 0
