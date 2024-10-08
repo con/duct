@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
+import argparse
 from datetime import datetime
 import json
 import matplotlib.pyplot as plt
 import numpy as np
 
 
-def matplotlib_plot(args):
+def matplotlib_plot(args: argparse.Namespace):
     data = []
     # TODO catch FileNotFoundError
     # TODO catch JSONDecodeError
