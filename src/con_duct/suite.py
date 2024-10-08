@@ -2,6 +2,7 @@ import argparse
 import json
 from pprint import pprint
 import sys
+from con_duct.plot import matplotlib_plot
 
 
 def pprint_json(args: argparse.Namespace) -> int:
@@ -44,6 +45,20 @@ def main() -> None:
     parser_pp = subparsers.add_parser("pp", help="Pretty print a JSON log")
     parser_pp.add_argument("file_path", help="JSON file to pretty print")
     parser_pp.set_defaults(func=pprint_json)
+
+    # Subcommand: plot
+    parser_plot = subparsers.add_parser(
+        "plot", help="Plot resource usage for an execution."
+    )
+    parser_plot.add_argument("file_path", help="duct-produced usage.json file plot.")
+    # parser_plot.add_argument(
+    #     "-b",
+    #     "--backend",
+    #     default=DEFAULT_PLOT_BACKEND,
+    #     choices=("matplotlib",)
+    #     help="which backend to plot with
+    # )
+    parser_plot.set_defaults(func=matplotlib_plot)
 
     args = parser.parse_args()
 
