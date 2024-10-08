@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
 from datetime import datetime
 import json
-import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
 
-def main():
-    if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <path-to-usage.ndjson>")
-        sys.exit(1)
-
-    usage_file_path = sys.argv[1]
-
+def matplotlib_plot(args):
     data = []
-    with open(usage_file_path, "r") as file:
+    # TODO catch FileNotFoundError
+    # TODO catch JSONDecodeError
+    with open(args.file_path, "r") as file:
         for line in file:
             data.append(json.loads(line))
 
@@ -48,8 +43,16 @@ def main():
     ax2.legend(loc="upper right")
 
     plt.title("Resource Usage Over Time")
-    plt.savefig("resource_usage.png")
 
+    # TODO accept -o
+    output_path = "resource_usage.png"
+    print(
+        f"Successfully rendered input file: {args.file_path} to output {output_path}."
+    )
+    plt.savefig(output_path)
 
-if __name__ == "__main__":
-    main()
+    # TODO accept --show
+    plt.show()
+
+    # Exit code
+    return 0
