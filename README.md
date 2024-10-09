@@ -86,9 +86,7 @@ options:
                         Usage (VSZ): {average_vsz!S} Memory Peak Percentage:
                         {peak_pmem!N}% Memory Average Percentage:
                         {average_pmem!N}% CPU Peak Usage: {peak_pcpu!N}%
-                        Average CPU Usage: {average_pcpu!N}% Samples
-                        Collected: {num_samples!X} Reports Written:
-                        {num_reports!X} )
+                        Average CPU Usage: {average_pcpu!N}% )
   --colors              Use colors in duct output. (default: False)
   --clobber             Replace log files if they already exist. (default:
                         False)

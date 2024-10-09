@@ -22,7 +22,7 @@ import time
 from typing import IO, Any, Optional, TextIO
 
 __version__ = "0.6.0"
-__schema_version__ = "0.2.1"
+__schema_version__ = "0.2.0"
 
 
 lgr = logging.getLogger("con-duct")
