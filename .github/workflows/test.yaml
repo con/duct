@@ -31,20 +31,18 @@ jobs:
           # - windows-latest
           - ubuntu-latest
         python-version:
-          - '3.8'
           - '3.9'
           - '3.10'
           - '3.11'
           - '3.12'
-          - 'pypy-3.8'
           - 'pypy-3.9'
           - 'pypy-3.10'
         toxenv: [py]
         include:
-          - python-version: '3.8'
+          - python-version: '3.9'
             toxenv: lint
             os: ubuntu-latest
-          - python-version: '3.8'
+          - python-version: '3.9'
             toxenv: typing
             os: ubuntu-latest
     steps:
