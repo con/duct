@@ -22,7 +22,7 @@ import time
 from typing import IO, Any, Optional, TextIO
 
 __version__ = "0.5.0"
-__schema_version__ = "0.1.1"
+__schema_version__ = "0.2.1"
 
 
 lgr = logging.getLogger("con-duct")
@@ -49,8 +49,6 @@ EXECUTION_SUMMARY_FORMAT = (
     "Memory Average Percentage: {average_pmem!N}%\n"
     "CPU Peak Usage: {peak_pcpu!N}%\n"
     "Average CPU Usage: {average_pcpu!N}%\n"
-    "Samples Collected: {num_samples!X}\n"
-    "Reports Written: {num_reports!X}\n"
 )
 
 
