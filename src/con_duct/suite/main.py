@@ -13,7 +13,7 @@ def execute(args: argparse.Namespace) -> int:
     return result
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover
     parser = argparse.ArgumentParser(
         prog="con-duct",
         description="A command-line tool for managing various tasks.",
