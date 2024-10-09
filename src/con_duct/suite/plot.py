@@ -42,7 +42,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     ax1.legend(loc="upper left")
 
     # Create a second y-axis for rss and vsz
-    ax2 = ax1.twinx()
+    ax2 = ax1.twinx()  # type: ignore[attr-defined]
     ax2.plot(elapsed_time, rss_kb, label="rss (B)", color="tab:green")
     ax2.plot(elapsed_time, vsz_kb, label="vsz (B)", color="tab:red")
     ax2.set_ylabel("B")
