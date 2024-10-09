@@ -3,7 +3,7 @@ from typing import Any
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 import pytest
-from con_duct.suite import main, pprint_json
+from con_duct.suite import main, plot, pprint_json
 
 
 class TestSuiteHelpers(unittest.TestCase):
@@ -53,3 +53,45 @@ class TestPPrint(unittest.TestCase):
 
         mock_open.assert_called_with("dummy.json", "r")
         mock_pprint.assert_not_called()
+
+
+class TestPlotMatplotlib(unittest.TestCase):
+
+    @patch("con_duct.suite.plot.plt.savefig")
+    def test_matplotlib_plot_sanity(self, mock_plot_save: MagicMock) -> None:
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output="outfile",
+            func=plot.matplotlib_plot,
+        )
+        assert main.execute(args) == 0
+        mock_plot_save.assert_called_once_with("outfile")
+
+    @patch("con_duct.suite.plot.plt.savefig")
+    @patch("builtins.open", side_effect=FileNotFoundError)
+    def test_matplotlib_plot_file_not_found(
+        self, _mock_open: MagicMock, mock_plot_save: MagicMock
+    ) -> None:
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output="outfile",
+            func=plot.matplotlib_plot,
+        )
+        assert main.execute(args) == 1
+        mock_plot_save.assert_not_called()
+
+    @patch("con_duct.suite.plot.plt.savefig")
+    @patch("builtins.open", new_callable=mock_open, read_data='{"invalid": "json"')
+    def test_matplotlib_plot_invalid_json(
+        self, _mock_open: MagicMock, mock_plot_save: MagicMock
+    ) -> None:
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output="outfile",
+            func=plot.matplotlib_plot,
+        )
+        assert main.execute(args) == 1
+        mock_plot_save.assert_not_called()
