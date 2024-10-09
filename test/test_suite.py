@@ -18,6 +18,46 @@ class TestSuiteHelpers(unittest.TestCase):
         with pytest.raises(TypeError):
             main.execute(args)
 
+    @patch("con_duct.suite.main.argparse.ArgumentParser")
+    def test_parser_mock_sanity(self, mock_parser) -> None:
+        mock_args = MagicMock
+        mock_args.command = None
+        mock_parser.parse_args.return_value = mock_args
+        argv = ["/path/to/con-duct", "plot", "--help"]
+        main.main(argv)
+        mock_parser.return_value.print_help.assert_called_once()
+
+    @patch("con_duct.suite.main.sys.exit", new_callable=MagicMock)
+    @patch("con_duct.suite.main.sys.stderr", new_callable=MagicMock)
+    @patch("con_duct.suite.main.sys.stdout", new_callable=MagicMock)
+    def test_parser_sanity_green(self, mock_stdout, mock_stderr, mock_exit) -> None:
+        argv = ["--help"]
+        main.main(argv)
+        # [0][1][0]: [first call][positional args set(0 is self)][first positional]
+        out = mock_stdout.write.mock_calls[0][1][0]
+        assert "usage: con-duct <command> [options]" in out
+        mock_stderr.write.assert_not_called()
+        mock_exit.assert_called_once_with(0)
+
+    @patch("con_duct.suite.main.sys.exit", new_callable=MagicMock)
+    @patch("con_duct.suite.main.sys.stderr", new_callable=MagicMock)
+    @patch("con_duct.suite.main.sys.stdout", new_callable=MagicMock)
+    def test_parser_sanity_red(self, mock_stdout, mock_stderr, mock_exit) -> None:
+        argv = ["--fakehelp"]
+        main.main(argv)
+        # [0][1][0]: [first call][positional args set(0 is self)][first positional]
+        out = mock_stdout.write.mock_calls[0][1][0]
+        assert "usage: con-duct <command> [options]" in out
+        mock_stderr.write.ssert_not_called()
+        # First call
+        assert (
+            "usage: con-duct <command> [options]"
+            in mock_stderr.write.mock_calls[0][1][0]
+        )
+        # second call
+        assert "--fakehelp" in mock_stderr.write.mock_calls[1][1][0]
+        mock_exit.assert_called_once_with(2)
+
 
 class TestPPrint(unittest.TestCase):
 

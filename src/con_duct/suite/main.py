@@ -13,7 +13,7 @@ def execute(args: argparse.Namespace) -> int:
     return result
 
 
-def main() -> None:
+def main(argv=None) -> None:
     parser = argparse.ArgumentParser(
         prog="con-duct",
         description="A command-line tool for managing various tasks.",
@@ -45,7 +45,7 @@ def main() -> None:
     # )
     parser_plot.set_defaults(func=matplotlib_plot)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.command is None:
         parser.print_help()
