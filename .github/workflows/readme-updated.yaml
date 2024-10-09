@@ -18,7 +18,7 @@ jobs:
 
       - name: Install duct
         run: |
-          pip install .
+          pip install .[all]
 
       - name: Update README.md helptext
         run: |
