@@ -16,14 +16,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Set up Python environment
-        run: |
-          python3 -m venv ~/venv
-          source ~/venv/bin/activate
-
       - name: Install duct
         run: |
-          pip install .
+          pip install . --user
 
       - name: Update README.md helptext
         run: |
