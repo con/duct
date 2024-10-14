@@ -1,3 +1,23 @@
+# v0.6.0 (Mon Oct 14 2024)
+
+#### 🚀 Enhancement
+
+- Drop Python 3.8, which is EOL [#199](https://github.com/con/duct/pull/199) ([@asmacdo](https://github.com/asmacdo))
+- Create structure for full con-duct suite [#164](https://github.com/con/duct/pull/164) ([@asmacdo](https://github.com/asmacdo))
+- Add ps stat counter [#182](https://github.com/con/duct/pull/182) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- Explicitly mention con-duct command in the summary [#204](https://github.com/con/duct/pull/204) ([@asmacdo](https://github.com/asmacdo))
+- BF: Do not rely on having sources under ./src and __main__.py to be executable [#196](https://github.com/con/duct/pull/196) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 2
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.5.0 (Wed Oct 02 2024)
 
 #### 🚀 Enhancement
