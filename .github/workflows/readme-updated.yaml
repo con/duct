@@ -16,9 +16,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Install duct
         run: |
-          pip install .
+          pip install . --user
 
       - name: Update README.md helptext
         run: |

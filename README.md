@@ -122,8 +122,8 @@ options:
 
 # con-duct suite
 
-In addition to `duct`, this project also includes a set of optional helpers that may use 3rd party
-python libraries.
+In addition to `duct`, this project also includes a set of optional helpers under the `con-duct` command.
+These helpers may use 3rd party python libraries.
 
 ## Installation
 
