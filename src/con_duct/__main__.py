@@ -21,7 +21,7 @@ import threading
 import time
 from typing import IO, Any, Optional, TextIO
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 __schema_version__ = "0.1.1"
 
 
