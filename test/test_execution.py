@@ -222,7 +222,7 @@ def test_signal_exit(temp_output_dir: str) -> None:
             pid = int(ps_output.split()[1])
             break
         except subprocess.CalledProcessError as e:
-            print(f"Attempt {i} failed with msg: {e.msg}", file=sys.stderr)
+            print(f"Attempt {i} failed with msg: {e}", file=sys.stderr)
             sleep(0.1)  # Retry after a short delay
 
     if pid is not None:
