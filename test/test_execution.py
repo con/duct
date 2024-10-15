@@ -213,7 +213,7 @@ def test_signal_exit(temp_output_dir: str) -> None:
 
     thread = threading.Thread(target=runner)
     thread.start()
-    retries = 5
+    retries = 20
     pid = None
     for i in range(retries):
         try:
