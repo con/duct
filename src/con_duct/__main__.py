@@ -515,6 +515,8 @@ class Report:
             "average_pcpu": self.full_run_stats.averages.pcpu,
             "num_samples": self.full_run_stats.averages.num_samples,
             "num_reports": self.number,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
         }
 
     def dump_json(self) -> str:
