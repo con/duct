@@ -212,7 +212,7 @@ class LogPaths:
             raise FileExistsError(
                 "Conflicting files:\n"
                 + "\n".join(f"- {path}" for path in conflicts)
-                + "\nUse --clobber to overrwrite conflicting files."
+                + "\nUse --clobber to overwrite conflicting files."
             )
 
         if self.prefix.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
