@@ -369,6 +369,7 @@ class Report:
         self.current_sample: Optional[Sample] = None
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
+        self.usage_file = open(log_paths.usage, "w")
 
     @property
     def command(self) -> str:
@@ -488,10 +489,7 @@ class Report:
 
     def write_subreport(self) -> None:
         assert self.current_sample is not None
-        with open(self.log_paths.usage, "a") as resource_statistics_log:
-            resource_statistics_log.write(
-                json.dumps(self.current_sample.for_json()) + "\n"
-            )
+        self.usage_file.write(json.dumps(self.current_sample.for_json()) + "\n")
 
     @property
     def execution_summary(self) -> dict[str, Any]:
@@ -985,6 +983,7 @@ def execute(args: Arguments) -> int:
         args.colors,
         args.clobber,
     )
+    files_to_close.append(report.usage_file)
 
     report.start_time = time.time()
     try:
@@ -1063,7 +1062,7 @@ def execute(args: Arguments) -> int:
         lgr.debug("System information collection finished")
 
     if args.record_types.has_system_summary():
-        with open(log_paths.info, "a") as system_logs:
+        with open(log_paths.info, "w") as system_logs:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             system_logs.write(report.dump_json())
     safe_close_files(files_to_close)
