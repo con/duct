@@ -227,7 +227,9 @@ class LogPaths:
                 continue
             elif name == SUFFIXES["stderr"] and not capture_outputs.has_stderr():
                 continue
-            # usage and info should always be created
+            # TODO: AVOID PRECREATION -- would interfere e.g. with git-annex
+            # assistant monitoring new files to be created and committing
+            # as soon as they are closed
             open(path, "w").close()
 
 
@@ -369,7 +371,10 @@ class Report:
         self.current_sample: Optional[Sample] = None
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
-        self.usage_file = open(log_paths.usage, "w")
+        self.usage_file: TextIO | None = None
+
+    def __del__(self) -> None:
+        safe_close_files([self.usage_file])
 
     @property
     def command(self) -> str:
@@ -489,6 +494,8 @@ class Report:
 
     def write_subreport(self) -> None:
         assert self.current_sample is not None
+        if self.usage_file is None:
+            self.usage_file = open(self.log_paths.usage, "w")
         self.usage_file.write(json.dumps(self.current_sample.for_json()) + "\n")
 
     @property
