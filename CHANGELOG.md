@@ -1,3 +1,16 @@
+# v0.8.0 (Thu Oct 24 2024)
+
+#### 🚀 Enhancement
+
+- Add testing for Python 3.13 [#202](https://github.com/con/duct/pull/202) ([@asmacdo](https://github.com/asmacdo))
+- Add `con-duct plot` with matplotlib backend [#198](https://github.com/con/duct/pull/198) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.7.1 (Thu Oct 24 2024)
 
 #### 🐛 Bug Fix
