@@ -1,3 +1,16 @@
+# v0.7.1 (Thu Oct 24 2024)
+
+#### 🐛 Bug Fix
+
+- Persistently open usage file until the end and open info as "w" not "a" [#209](https://github.com/con/duct/pull/209) ([@yarikoptic](https://github.com/yarikoptic) [@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 2
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.7.0 (Thu Oct 24 2024)
 
 #### 🚀 Enhancement
