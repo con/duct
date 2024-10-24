@@ -1,3 +1,16 @@
+# v0.7.0 (Thu Oct 24 2024)
+
+#### 🚀 Enhancement
+
+- Rm num_samples & num_reports from summary_format [#200](https://github.com/con/duct/pull/200) ([@asmacdo](https://github.com/asmacdo))
+- Add start and end time to info.json [#201](https://github.com/con/duct/pull/201) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.6.0 (Mon Oct 14 2024)
 
 #### 🚀 Enhancement
