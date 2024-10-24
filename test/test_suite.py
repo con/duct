@@ -19,7 +19,7 @@ class TestSuiteHelpers(unittest.TestCase):
             main.execute(args)
 
     @patch("con_duct.suite.main.argparse.ArgumentParser")
-    def test_parser_mock_sanity(self, mock_parser) -> None:
+    def test_parser_mock_sanity(self, mock_parser: MagicMock) -> None:
         mock_args = MagicMock
         mock_args.command = None
         mock_parser.parse_args.return_value = mock_args
@@ -30,7 +30,9 @@ class TestSuiteHelpers(unittest.TestCase):
     @patch("con_duct.suite.main.sys.exit", new_callable=MagicMock)
     @patch("con_duct.suite.main.sys.stderr", new_callable=MagicMock)
     @patch("con_duct.suite.main.sys.stdout", new_callable=MagicMock)
-    def test_parser_sanity_green(self, mock_stdout, mock_stderr, mock_exit) -> None:
+    def test_parser_sanity_green(
+        self, mock_stdout: MagicMock, mock_stderr: MagicMock, mock_exit: MagicMock
+    ) -> None:
         argv = ["--help"]
         main.main(argv)
         # [0][1][0]: [first call][positional args set(0 is self)][first positional]
@@ -42,7 +44,9 @@ class TestSuiteHelpers(unittest.TestCase):
     @patch("con_duct.suite.main.sys.exit", new_callable=MagicMock)
     @patch("con_duct.suite.main.sys.stderr", new_callable=MagicMock)
     @patch("con_duct.suite.main.sys.stdout", new_callable=MagicMock)
-    def test_parser_sanity_red(self, mock_stdout, mock_stderr, mock_exit) -> None:
+    def test_parser_sanity_red(
+        self, mock_stdout: MagicMock, mock_stderr: MagicMock, mock_exit: MagicMock
+    ) -> None:
         argv = ["--fakehelp"]
         main.main(argv)
         # [0][1][0]: [first call][positional args set(0 is self)][first positional]

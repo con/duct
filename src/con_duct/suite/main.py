@@ -1,5 +1,6 @@
 import argparse
 import sys
+from typing import List, Optional
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
 
@@ -13,7 +14,7 @@ def execute(args: argparse.Namespace) -> int:
     return result
 
 
-def main(argv=None) -> None:
+def main(argv: Optional[List[str]] = None) -> None:
     parser = argparse.ArgumentParser(
         prog="con-duct",
         description="A command-line tool for managing various tasks.",
