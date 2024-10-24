@@ -217,13 +217,13 @@ def test_signal_exit(temp_output_dir: str) -> None:
     pid = None
     for i in range(retries):
         try:
-            ps_command = "ps aux | grep '[s]leep 60.74016230000801'"  # brackets to not match grep process
+            ps_command = "ps auxww | grep '[s]leep 60.74016230000801'"  # brackets to not match grep process
             ps_output = subprocess.check_output(ps_command, shell=True).decode()
             pid = int(ps_output.split()[1])
             break
         except subprocess.CalledProcessError as e:
             print(f"Attempt {i} failed with msg: {e}", file=sys.stderr)
-            debug_ps_output = subprocess.check_output("ps aux", shell=True).decode()
+            debug_ps_output = subprocess.check_output("ps auxww", shell=True).decode()
             print(f"Output of ps aux: {debug_ps_output}", file=sys.stderr)
             sleep(0.1)  # Retry after a short delay
 
