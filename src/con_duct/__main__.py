@@ -210,7 +210,7 @@ class LogPaths:
             raise FileExistsError(
                 "Conflicting files:\n"
                 + "\n".join(f"- {path}" for path in conflicts)
-                + "\nUse --clobber to overrwrite conflicting files."
+                + "\nUse --clobber to overwrite conflicting files."
             )
 
         if self.prefix.endswith(os.sep):  # If it ends in "/" (for linux) treat as a dir
@@ -225,7 +225,9 @@ class LogPaths:
                 continue
             elif name == SUFFIXES["stderr"] and not capture_outputs.has_stderr():
                 continue
-            # usage and info should always be created
+            # TODO: AVOID PRECREATION -- would interfere e.g. with git-annex
+            # assistant monitoring new files to be created and committing
+            # as soon as they are closed
             open(path, "w").close()
 
 
@@ -367,6 +369,10 @@ class Report:
         self.current_sample: Optional[Sample] = None
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
+        self.usage_file: TextIO | None = None
+
+    def __del__(self) -> None:
+        safe_close_files([self.usage_file])
 
     @property
     def command(self) -> str:
@@ -486,10 +492,9 @@ class Report:
 
     def write_subreport(self) -> None:
         assert self.current_sample is not None
-        with open(self.log_paths.usage, "a") as resource_statistics_log:
-            resource_statistics_log.write(
-                json.dumps(self.current_sample.for_json()) + "\n"
-            )
+        if self.usage_file is None:
+            self.usage_file = open(self.log_paths.usage, "w")
+        self.usage_file.write(json.dumps(self.current_sample.for_json()) + "\n")
 
     @property
     def execution_summary(self) -> dict[str, Any]:
@@ -985,6 +990,7 @@ def execute(args: Arguments) -> int:
         args.colors,
         args.clobber,
     )
+    files_to_close.append(report.usage_file)
 
     report.start_time = time.time()
     try:
@@ -1063,7 +1069,7 @@ def execute(args: Arguments) -> int:
         lgr.debug("System information collection finished")
 
     if args.record_types.has_system_summary():
-        with open(log_paths.info, "a") as system_logs:
+        with open(log_paths.info, "w") as system_logs:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             system_logs.write(report.dump_json())
     safe_close_files(files_to_close)
