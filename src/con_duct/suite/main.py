@@ -1,26 +1,8 @@
 import argparse
-import json
-from pprint import pprint
 import sys
-
-
-def pprint_json(args: argparse.Namespace) -> int:
-    """
-    Prints the contents of a JSON file using pprint.
-    """
-    try:
-        with open(args.file_path, "r") as file:
-            data = json.load(file)
-        pprint(data)
-
-    except FileNotFoundError:
-        print(f"File not found: {args.file_path}")
-        return 1
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        return 1
-
-    return 0
+from typing import List, Optional
+from con_duct.suite.plot import matplotlib_plot
+from con_duct.suite.pprint_json import pprint_json
 
 
 def execute(args: argparse.Namespace) -> int:
@@ -32,7 +14,7 @@ def execute(args: argparse.Namespace) -> int:
     return result
 
 
-def main() -> None:
+def main(argv: Optional[List[str]] = None) -> None:
     parser = argparse.ArgumentParser(
         prog="con-duct",
         description="A command-line tool for managing various tasks.",
@@ -45,7 +27,26 @@ def main() -> None:
     parser_pp.add_argument("file_path", help="JSON file to pretty print")
     parser_pp.set_defaults(func=pprint_json)
 
-    args = parser.parse_args()
+    # Subcommand: plot
+    parser_plot = subparsers.add_parser(
+        "plot", help="Plot resource usage for an execution."
+    )
+    parser_plot.add_argument("file_path", help="duct-produced usage.json file plot.")
+    parser_plot.add_argument(
+        "--output",
+        help="Output path for the png file. If not passed, show the file but do not save.",
+        default=None,
+    )
+    # parser_plot.add_argument(
+    #     "-b",
+    #     "--backend",
+    #     default=DEFAULT_PLOT_BACKEND,
+    #     choices=("matplotlib",)
+    #     help="which backend to plot with
+    # )
+    parser_plot.set_defaults(func=matplotlib_plot)
+
+    args = parser.parse_args(argv)
 
     if args.command is None:
         parser.print_help()

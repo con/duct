@@ -138,8 +138,9 @@ usage: con-duct <command> [options]
 A command-line tool for managing various tasks.
 
 positional arguments:
-  {pp}        Available subcommands
+  {pp,plot}   Available subcommands
     pp        Pretty print a JSON log
+    plot      Plot resource usage for an execution.
 
 options:
   -h, --help  show this help message and exit

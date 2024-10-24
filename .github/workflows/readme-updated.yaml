@@ -22,7 +22,7 @@ jobs:
 
       - name: Install duct
         run: |
-          pip install . --user
+          pip install .[all] --user
 
       - name: Update README.md helptext
         run: |
