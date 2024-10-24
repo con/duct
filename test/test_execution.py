@@ -223,6 +223,8 @@ def test_signal_exit(temp_output_dir: str) -> None:
             break
         except subprocess.CalledProcessError as e:
             print(f"Attempt {i} failed with msg: {e}", file=sys.stderr)
+            debug_ps_output = subprocess.check_output("ps aux", shell=True).decode()
+            print(f"Output of ps aux: {debug_ps_output}", file=sys.stderr)
             sleep(0.1)  # Retry after a short delay
 
     if pid is not None:
