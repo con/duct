@@ -1,11 +1,12 @@
 import argparse
 from datetime import datetime
 import json
-import matplotlib.pyplot as plt
-import numpy as np
 
 
 def matplotlib_plot(args: argparse.Namespace) -> int:
+    import matplotlib.pyplot as plt
+    import numpy as np
+
     data = []
     try:
         with open(args.file_path, "r") as file:
