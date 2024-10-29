@@ -106,11 +106,11 @@ class TestPlotMatplotlib(unittest.TestCase):
         args = argparse.Namespace(
             command="plot",
             file_path="test/data/mriqc-example/usage.json",
-            output="outfile",
+            output="outfile.png",
             func=plot.matplotlib_plot,
         )
         assert main.execute(args) == 0
-        mock_plot_save.assert_called_once_with("outfile")
+        mock_plot_save.assert_called_once_with("outfile.png")
 
     @patch("con_duct.suite.plot.plt.savefig")
     @patch("builtins.open", side_effect=FileNotFoundError)
@@ -120,7 +120,7 @@ class TestPlotMatplotlib(unittest.TestCase):
         args = argparse.Namespace(
             command="plot",
             file_path="test/data/mriqc-example/usage.json",
-            output="outfile",
+            output="outfile.png",
             func=plot.matplotlib_plot,
         )
         assert main.execute(args) == 1
@@ -134,7 +134,7 @@ class TestPlotMatplotlib(unittest.TestCase):
         args = argparse.Namespace(
             command="plot",
             file_path="test/data/mriqc-example/usage.json",
-            output="outfile",
+            output="outfile.png",
             func=plot.matplotlib_plot,
         )
         assert main.execute(args) == 1

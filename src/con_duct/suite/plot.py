@@ -52,7 +52,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     if args.output is not None:
         plt.savefig(args.output)
         print(
-            f"Successfully rendered input file: {args.file_path} to output {args.output}.png"
+            f"Successfully rendered input file: {args.file_path} to output {args.output}"
         )
     else:
         plt.show()
