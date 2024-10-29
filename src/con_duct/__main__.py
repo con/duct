@@ -650,7 +650,7 @@ class SummaryFormatter(string.Formatter):
             return self.NONE
         # if it is a composite :format!conversion, we need to split it
         if "!" in format_spec and format_spec.index("!") > 1:
-            format_spec, conversion = format_spec.split("!")
+            format_spec, conversion = format_spec.split("!", 1)
         else:
             conversion = None
         try:

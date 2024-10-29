@@ -334,3 +334,14 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
         colors=colors,
     )
     assert f"Rendering: {GREEN}nan{STOP}" == report.execution_summary_formatted
+
+    # or if we really provide bad formatting, e.g. the opposite order of conversion and formatting
+    report = Report(
+        "_cmd",
+        [],
+        mock_log_paths,
+        "Rendering: {wall_clock_time!X:.3f}",
+        clobber=False,
+        colors=colors,
+    )
+    assert f"Rendering: {GREEN}nan{STOP}" == report.execution_summary_formatted
