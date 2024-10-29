@@ -17,24 +17,24 @@ def execute(args: argparse.Namespace) -> int:
 def main(argv: Optional[List[str]] = None) -> None:
     parser = argparse.ArgumentParser(
         prog="con-duct",
-        description="A command-line tool for managing various tasks.",
+        description="A suite of commands to manage or manipulate con-duct logs.",
         usage="con-duct <command> [options]",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # Subcommand: pp
-    parser_pp = subparsers.add_parser("pp", help="Pretty print a JSON log")
-    parser_pp.add_argument("file_path", help="JSON file to pretty print")
+    parser_pp = subparsers.add_parser("pp", help="Pretty print a JSON log.")
+    parser_pp.add_argument("file_path", help="JSON file to pretty print.")
     parser_pp.set_defaults(func=pprint_json)
 
     # Subcommand: plot
     parser_plot = subparsers.add_parser(
         "plot", help="Plot resource usage for an execution."
     )
-    parser_plot.add_argument("file_path", help="duct-produced usage.json file plot.")
+    parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
     parser_plot.add_argument(
         "--output",
-        help="Output path for the png file. If not passed, show the file but do not save.",
+        help="Output path for the image file. If not specified, plot will be shown and not saved.",
         default=None,
     )
     # parser_plot.add_argument(
