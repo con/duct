@@ -135,11 +135,11 @@ These helpers may use 3rd party python libraries.
 
 usage: con-duct <command> [options]
 
-A command-line tool for managing various tasks.
+A suite of commands to manage or manipulate con-duct logs.
 
 positional arguments:
   {pp,plot}   Available subcommands
-    pp        Pretty print a JSON log
+    pp        Pretty print a JSON log.
     plot      Plot resource usage for an execution.
 
 options:
