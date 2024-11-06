@@ -45,10 +45,10 @@ EXECUTION_SUMMARY_FORMAT = (
     "Memory Average Usage (RSS): {average_rss!S}\n"
     "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
     "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
-    "Memory Peak Percentage: {peak_pmem!N}%\n"
-    "Memory Average Percentage: {average_pmem!N}%\n"
-    "CPU Peak Usage: {peak_pcpu!N}%\n"
-    "Average CPU Usage: {average_pcpu!N}%\n"
+    "Memory Peak Percentage: {peak_pmem:.2f!N}%\n"
+    "Memory Average Percentage: {average_pmem:.2f!N}%\n"
+    "CPU Peak Usage: {peak_pcpu:.2f!N}%\n"
+    "Average CPU Usage: {average_pcpu:.2f!N}%\n"
 )
 
 
@@ -648,13 +648,21 @@ class SummaryFormatter(string.Formatter):
         if value is None:
             # TODO: could still use our formatter and make it red or smth like that
             return self.NONE
+        # if it is a composite :format!conversion, we need to split it
+        if "!" in format_spec and format_spec.index("!") > 1:
+            format_spec, conversion = format_spec.split("!", 1)
+        else:
+            conversion = None
         try:
-            return super().format_field(value, format_spec)
-        except ValueError:
+            value_ = super().format_field(value, format_spec)
+        except ValueError as exc:
             lgr.warning(
-                f"Value: {value} is invalid for format spec {format_spec}, falling back to `str`"
+                f"Falling back to `str` formatting for {value!r} due to exception: {exc}"
             )
             return str(value)
+        if conversion:
+            return self.convert_field(value_, conversion)
+        return value_
 
 
 @dataclass
