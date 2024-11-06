@@ -101,32 +101,29 @@ class TestPPrint(unittest.TestCase):
 
 class TestPlotMatplotlib(unittest.TestCase):
 
-    @patch("con_duct.suite.plot.plt.savefig")
+    @patch("matplotlib.pyplot.savefig")
     def test_matplotlib_plot_sanity(self, mock_plot_save: MagicMock) -> None:
         args = argparse.Namespace(
             command="plot",
             file_path="test/data/mriqc-example/usage.json",
-            output="outfile",
+            output="outfile.png",
             func=plot.matplotlib_plot,
         )
         assert main.execute(args) == 0
-        mock_plot_save.assert_called_once_with("outfile")
+        mock_plot_save.assert_called_once_with("outfile.png")
 
-    @patch("con_duct.suite.plot.plt.savefig")
-    @patch("builtins.open", side_effect=FileNotFoundError)
-    def test_matplotlib_plot_file_not_found(
-        self, _mock_open: MagicMock, mock_plot_save: MagicMock
-    ) -> None:
+    @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_file_not_found(self, mock_plot_save: MagicMock) -> None:
         args = argparse.Namespace(
             command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output="outfile",
+            file_path="test/data/mriqc-example/usage_not_to_be_found.json",
+            output="outfile.png",
             func=plot.matplotlib_plot,
         )
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
 
-    @patch("con_duct.suite.plot.plt.savefig")
+    @patch("matplotlib.pyplot.savefig")
     @patch("builtins.open", new_callable=mock_open, read_data='{"invalid": "json"')
     def test_matplotlib_plot_invalid_json(
         self, _mock_open: MagicMock, mock_plot_save: MagicMock
@@ -134,7 +131,7 @@ class TestPlotMatplotlib(unittest.TestCase):
         args = argparse.Namespace(
             command="plot",
             file_path="test/data/mriqc-example/usage.json",
-            output="outfile",
+            output="outfile.png",
             func=plot.matplotlib_plot,
         )
         assert main.execute(args) == 1
