@@ -28,6 +28,9 @@ __schema_version__ = "0.2.0"
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
+DUCT_OUTPUT_PREFIX = os.getenv(
+    "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
+)
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
     "stdout": "stdout",
@@ -712,9 +715,7 @@ class Arguments:
             "-p",
             "--output-prefix",
             type=str,
-            default=os.getenv(
-                "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
-            ),
+            default=DUCT_OUTPUT_PREFIX,
             help="File string format to be used as a prefix for the files -- the captured "
             "stdout and stderr and the resource usage logs. The understood variables are "
             "{datetime}, {datetime_filesafe}, and {pid}. "

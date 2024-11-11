@@ -1,6 +1,9 @@
 import argparse
+import os
 import sys
 from typing import List, Optional
+from con_duct.__main__ import DUCT_OUTPUT_PREFIX
+from con_duct.suite.ls import LS_FIELD_CHOICES, ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
 
@@ -45,6 +48,47 @@ def main(argv: Optional[List[str]] = None) -> None:
     #     help="which backend to plot with
     # )
     parser_plot.set_defaults(func=matplotlib_plot)
+
+    parser_ls = subparsers.add_parser(
+        "ls",
+        help="Print execution information for all runs matching DUCT_OUTPUT_PREFIX.",
+    )
+    parser_ls.add_argument(
+        "-f",
+        "--format",
+        choices=("auto", "pyout", "summaries", "json", "json_pp", "yaml"),
+        default="auto",  # TODO dry
+        help="Output format. TODO Fixme. 'auto' chooses 'pyout' if pyout library is installed,"
+        " 'summaries' otherwise.",
+    )
+    parser_ls.add_argument(
+        "-F",
+        "--fields",
+        nargs="+",
+        metavar="FIELD",
+        help=f"List of fields to show. Prefix is always included implicitly as the first field. "
+        f"Available choices: {', '.join(LS_FIELD_CHOICES)}.",
+        choices=LS_FIELD_CHOICES,
+        default=[
+            "command",
+            "exit_code",
+            "wall_clock_time",
+            "peak_rss",
+        ],
+    )
+    parser_ls.add_argument(
+        "--colors",
+        action="store_true",
+        default=os.getenv("DUCT_COLORS", False),
+        help="Use colors in duct output.",
+    )
+    parser_ls.add_argument(
+        "paths",
+        nargs="*",
+        default=[f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*"],
+        help="Path to duct report files, only `info.json` would be considered.",
+    )
+    parser_ls.set_defaults(func=ls)
 
     args = parser.parse_args(argv)
 
