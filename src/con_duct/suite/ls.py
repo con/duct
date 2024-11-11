@@ -23,14 +23,17 @@ LS_SUMMARY_FORMAT = (
 #
 
 
-def ls(_args: argparse.Namespace) -> int:
+def ls(args: argparse.Namespace) -> int:
     pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*_info.json"
     duct_runs = glob.glob(pattern)
-    formatter = SummaryFormatter()  # TODO enable_colors=self.colors)
-    for info_file in duct_runs:
-        with open(info_file) as file:
-            data = json.loads(file.read())
-            # print(json.dumps(data))
-            print(formatter.format(LS_SUMMARY_FORMAT, **data))
-
-    return 0
+    if args.format == "summaries":
+        formatter = SummaryFormatter()  # TODO enable_colors=self.colors)
+        for info_file in duct_runs:
+            with open(info_file) as file:
+                data = json.loads(file.read())
+                # print(json.dumps(data))
+                print(formatter.format(LS_SUMMARY_FORMAT, **data))
+        return 0
+    else:
+        print("Invalid format type")
+        return 1

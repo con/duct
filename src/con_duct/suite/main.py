@@ -51,6 +51,13 @@ def main(argv: Optional[List[str]] = None) -> None:
         "ls",
         help="Print execution information for all runs matching DUCT_OUTPUT_PREFIX.",
     )
+    parser_ls.add_argument(
+        "-f",
+        "--format",
+        choices=("summaries",),
+        default="summaries",  # TODO dry
+        help="Output format. TODO Fixme",
+    )
     parser_ls.set_defaults(func=ls)
 
     args = parser.parse_args(argv)
