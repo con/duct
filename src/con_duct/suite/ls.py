@@ -34,6 +34,3 @@ def ls(args: argparse.Namespace) -> int:
                 # print(json.dumps(data))
                 print(formatter.format(LS_SUMMARY_FORMAT, **data))
         return 0
-    else:
-        print("Invalid format type")
-        return 1
