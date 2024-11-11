@@ -1,6 +1,7 @@
 import argparse
 import glob
 import json
+from pprint import pprint
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
 LS_SUMMARY_FORMAT = (
@@ -33,4 +34,15 @@ def ls(args: argparse.Namespace) -> int:
                 data = json.loads(file.read())
                 # print(json.dumps(data))
                 print(formatter.format(LS_SUMMARY_FORMAT, **data))
+        return 0
+    if args.format == "json":
+        for info_file in duct_runs:
+            with open(info_file) as file:
+                print(file.read())
+        return 0
+    if args.format == "jsonpp":
+        for info_file in duct_runs:
+            with open(info_file, "r") as file:
+                data = json.load(file)
+            pprint(data)
         return 0

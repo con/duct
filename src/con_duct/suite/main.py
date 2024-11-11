@@ -54,7 +54,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_ls.add_argument(
         "-f",
         "--format",
-        choices=("summaries",),
+        choices=("summaries", "json", "jsonpp"),
         default="summaries",  # TODO dry
         help="Output format. TODO Fixme",
     )
