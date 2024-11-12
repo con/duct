@@ -1,6 +1,7 @@
 import argparse
 import glob
 import json
+import sys
 import yaml
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
@@ -30,13 +31,16 @@ def ls(args: argparse.Namespace) -> int:
         formatter = SummaryFormatter()  # TODO enable_colors=self.colors)
         for data in run_data_list:
             print(formatter.format(LS_SUMMARY_FORMAT, **data))
-        return 0
     if args.format == "json":
         print(json.dumps(run_data_list))
-        return 0
     if args.format == "jsonpp":
         print(json.dumps(run_data_list, indent=True))
-        return 0
     if args.format == "yaml":
         print(yaml.dump(run_data_list, default_flow_style=False))
-        return 0
+    else:
+        print(
+            f"Unexpected format encountered: {args.format}. This should have been caught by argparse.",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
