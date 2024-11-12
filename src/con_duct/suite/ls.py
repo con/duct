@@ -12,16 +12,6 @@ LS_SUMMARY_FORMAT = (
     "\tMemory Peak Percentage: {execution_summary[peak_pmem]:.2f!N}%\n"
     "\tCPU Peak Usage: {execution_summary[peak_pcpu]:.2f!N}%\n"
 )
-# "Log files location: {logs_prefix}\n"
-#     "Memory Peak Usage (RSS): {peak_rss!S}\n"
-#     "Memory Average Usage (RSS): {average_rss!S}\n"
-#     "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
-#     "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
-#     "Memory Peak Percentage: {peak_pmem:.2f!N}%\n"
-#     "Memory Average Percentage: {average_pmem:.2f!N}%\n"
-#     "CPU Peak Usage: {peak_pcpu:.2f!N}%\n"
-#     "Average CPU Usage: {average_pcpu:.2f!N}%\n"
-#
 
 
 def ls(args: argparse.Namespace) -> int:
