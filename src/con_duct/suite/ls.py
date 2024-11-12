@@ -2,6 +2,7 @@ import argparse
 import glob
 import json
 from pprint import pprint
+import yaml
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
 LS_SUMMARY_FORMAT = (
@@ -45,4 +46,10 @@ def ls(args: argparse.Namespace) -> int:
             with open(info_file, "r") as file:
                 data = json.load(file)
             pprint(data)
+        return 0
+    if args.format == "yaml":
+        for info_file in duct_runs:
+            with open(info_file) as file:
+                data = json.load(file)
+                print(yaml.dump(data, default_flow_style=False))
         return 0
