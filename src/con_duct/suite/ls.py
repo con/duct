@@ -33,7 +33,7 @@ def ls(args: argparse.Namespace) -> int:
             print(formatter.format(LS_SUMMARY_FORMAT, **data))
     if args.format == "json":
         print(json.dumps(run_data_list))
-    if args.format == "jsonpp":
+    if args.format == "json_pp":
         print(json.dumps(run_data_list, indent=True))
     if args.format == "yaml":
         print(yaml.dump(run_data_list, default_flow_style=False))
