@@ -1,7 +1,6 @@
 import argparse
 import glob
 import json
-from pprint import pprint
 import yaml
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
@@ -45,7 +44,7 @@ def ls(args: argparse.Namespace) -> int:
         for info_file in duct_runs:
             with open(info_file, "r") as file:
                 data = json.load(file)
-            pprint(data)
+            print(json.dumps(data, indent=True))
         return 0
     if args.format == "yaml":
         for info_file in duct_runs:
