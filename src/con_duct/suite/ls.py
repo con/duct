@@ -14,31 +14,29 @@ LS_SUMMARY_FORMAT = (
 )
 
 
+def load_duct_runs(info_files):
+    loaded = []
+    for info_file in info_files:
+        with open(info_file) as file:
+            loaded.append(json.load(file))
+    return loaded
+
+
 def ls(args: argparse.Namespace) -> int:
     pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*_info.json"
-    duct_runs = glob.glob(pattern)
+    info_files = glob.glob(pattern)
+    run_data_list = load_duct_runs(info_files)
     if args.format == "summaries":
         formatter = SummaryFormatter()  # TODO enable_colors=self.colors)
-        for info_file in duct_runs:
-            with open(info_file) as file:
-                data = json.loads(file.read())
-                # print(json.dumps(data))
-                print(formatter.format(LS_SUMMARY_FORMAT, **data))
+        for data in run_data_list:
+            print(formatter.format(LS_SUMMARY_FORMAT, **data))
         return 0
     if args.format == "json":
-        for info_file in duct_runs:
-            with open(info_file) as file:
-                print(file.read())
+        print(json.dumps(run_data_list))
         return 0
     if args.format == "jsonpp":
-        for info_file in duct_runs:
-            with open(info_file, "r") as file:
-                data = json.load(file)
-            print(json.dumps(data, indent=True))
+        print(json.dumps(run_data_list, indent=True))
         return 0
     if args.format == "yaml":
-        for info_file in duct_runs:
-            with open(info_file) as file:
-                data = json.load(file)
-                print(yaml.dump(data, default_flow_style=False))
+        print(yaml.dump(run_data_list, default_flow_style=False))
         return 0
