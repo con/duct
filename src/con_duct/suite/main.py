@@ -1,6 +1,7 @@
 import argparse
 import sys
 from typing import List, Optional
+from con_duct.suite.ls import ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
 
@@ -45,6 +46,19 @@ def main(argv: Optional[List[str]] = None) -> None:
     #     help="which backend to plot with
     # )
     parser_plot.set_defaults(func=matplotlib_plot)
+
+    parser_ls = subparsers.add_parser(
+        "ls",
+        help="Print execution information for all runs matching DUCT_OUTPUT_PREFIX.",
+    )
+    parser_ls.add_argument(
+        "-f",
+        "--format",
+        choices=("summaries", "json", "json_pp", "yaml"),
+        default="summaries",  # TODO dry
+        help="Output format. TODO Fixme",
+    )
+    parser_ls.set_defaults(func=ls)
 
     args = parser.parse_args(argv)
 
