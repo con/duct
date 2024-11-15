@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
+import pytest
 
 ABANDONING_PARENT = str(Path(__file__).with_name("data") / "abandoning_parent.sh")
 
@@ -11,9 +12,9 @@ def test_sanity(temp_output_dir: str) -> None:
     subprocess.check_output(command, shell=True)
 
 
-def test_abandoning_parent(temp_output_dir: str) -> None:
+@pytest.mark.parametrize("num_children", [3, 5, 10, 20])
+def test_abandoning_parent(temp_output_dir: str, num_children: int) -> None:
     duct_prefix = f"{temp_output_dir}log_"
-    num_children = 3
     command = f"duct -p {duct_prefix} {ABANDONING_PARENT} {num_children} sleep 0.1"
     subprocess.check_output(command, shell=True)
 
@@ -25,5 +26,12 @@ def test_abandoning_parent(temp_output_dir: str) -> None:
         if len(max_processes_sample) < len(sample.get("processes")):
             max_processes_sample = sample
 
+    cmds = [proc["cmd"] for _pid, proc in max_processes_sample["processes"].items()]
+
+    # DEBUG
+    from pprint import pprint
+
+    pprint(cmds)
+
     # 1 for each child, 1 for pstree, 1 for parent
-    assert len(max_processes_sample) == num_children + 2
+    assert len(max_processes_sample["processes"]) == num_children + 2
