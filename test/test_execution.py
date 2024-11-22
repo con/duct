@@ -67,6 +67,7 @@ def test_sanity_red(
     args = Arguments.from_argv(
         ["sh", "-c", f"exit {exit_code}"],
         output_prefix=temp_output_dir,
+        fail_time=0,  # keep log files regardless of exit code
     )
     caplog.set_level("INFO")
     assert execute(args) == exit_code
@@ -202,12 +203,15 @@ def test_execute_unknown_command(
     assert_expected_files(temp_output_dir, exists=False)
 
 
-def test_signal_exit(temp_output_dir: str) -> None:
+@pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
+def test_signal_exit(temp_output_dir: str, fail_time: float | None) -> None:
 
     def runner() -> int:
+        kws = {}
+        if fail_time is not None:
+            kws["fail_time"] = fail_time
         args = Arguments.from_argv(
-            ["sleep", "60.74016230000801"],
-            output_prefix=temp_output_dir,
+            ["sleep", "60.74016230000801"], output_prefix=temp_output_dir, **kws
         )
         return execute(args)
 
@@ -231,12 +235,16 @@ def test_signal_exit(temp_output_dir: str) -> None:
         raise RuntimeError("Failed to find sleep process")
 
     thread.join()
-    # Cannot retrieve the exit code from the thread, it is written to the file
-    with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
-        info_data = json.loads(info.read())
 
-    exit_code = info_data["execution_summary"]["exit_code"]
-    assert exit_code == 128 + 15
+    if fail_time is None or fail_time != 0:
+        assert_expected_files(temp_output_dir, exists=False)
+    else:
+        # Cannot retrieve the exit code from the thread, it is written to the file
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+
+        exit_code = info_data["execution_summary"]["exit_code"]
+        assert exit_code == 128 + 15
 
 
 def test_duct_as_executable(temp_output_dir: str) -> None:
