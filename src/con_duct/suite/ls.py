@@ -31,11 +31,11 @@ def ls(args: argparse.Namespace) -> int:
         formatter = SummaryFormatter()  # TODO enable_colors=self.colors)
         for data in run_data_list:
             print(formatter.format(LS_SUMMARY_FORMAT, **data))
-    if args.format == "json":
+    elif args.format == "json":
         print(json.dumps(run_data_list))
-    if args.format == "json_pp":
+    elif args.format == "json_pp":
         print(json.dumps(run_data_list, indent=True))
-    if args.format == "yaml":
+    elif args.format == "yaml":
         print(yaml.dump(run_data_list, default_flow_style=False))
     else:
         print(
