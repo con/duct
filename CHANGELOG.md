@@ -1,3 +1,22 @@
+# v0.9.0 (Tue Dec 03 2024)
+
+#### 🚀 Enhancement
+
+- Add --fail-time option and by default remove all outputs if command fails fast [#227](https://github.com/con/duct/pull/227) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### 🐛 Bug Fix
+
+- Add FAQ with a question on git-annex and large files [#225](https://github.com/con/duct/pull/225) ([@yarikoptic](https://github.com/yarikoptic))
+- Add released auto plugin to mark issues with releases where they were fixed [#216](https://github.com/con/duct/pull/216) ([@yarikoptic](https://github.com/yarikoptic))
+- ENH/BF: render floats only to 2 digits after . . Allow for composing format + conversion [#214](https://github.com/con/duct/pull/214) ([@yarikoptic](https://github.com/yarikoptic))
+- Various enhancements for plot command [#217](https://github.com/con/duct/pull/217) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 1
+
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.8.0 (Thu Oct 24 2024)
 
 #### 🚀 Enhancement
