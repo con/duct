@@ -672,6 +672,7 @@ class Arguments:
     output_prefix: str
     sample_interval: float
     report_interval: float
+    fail_time: float
     clobber: bool
     capture_outputs: Outputs
     outputs: Outputs
@@ -773,6 +774,16 @@ class Arguments:
             help="Interval in seconds at which to report aggregated data.",
         )
         parser.add_argument(
+            "--fail-time",
+            "--f-t",
+            type=float,
+            default=float(os.getenv("DUCT_FAIL_TIME", "3.0")),
+            help="If command fails in less than this specified time, duct would remove logs. "
+            "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
+            "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
+        )
+
+        parser.add_argument(
             "-c",
             "--capture-outputs",
             default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
@@ -807,6 +818,7 @@ class Arguments:
             output_prefix=args.output_prefix,
             sample_interval=args.sample_interval,
             report_interval=args.report_interval,
+            fail_time=args.fail_time,
             capture_outputs=args.capture_outputs,
             outputs=args.outputs,
             record_types=args.record_types,
@@ -954,6 +966,14 @@ def safe_close_files(file_list: Iterable[Any]) -> None:
             pass
 
 
+def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
+    for _, file_path in log_paths:
+        if os.path.exists(file_path):
+            if assert_empty:
+                assert os.stat(file_path).st_size == 0
+            os.remove(file_path)
+
+
 def main() -> None:
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
@@ -1013,10 +1033,7 @@ def execute(args: Arguments) -> int:
         # We should remove log etc files since they are 0-sized
         # degenerates etc
         safe_close_files(files_to_close)
-        for _, file_path in log_paths:
-            if os.path.exists(file_path):
-                assert os.stat(file_path).st_size == 0
-                os.remove(file_path)
+        remove_files(log_paths, assert_empty=True)
         # mimicking behavior of bash and zsh.
         print(f"{args.command}: command not found", file=sys.stderr)
         return 127  # seems what zsh and bash return then
@@ -1081,7 +1098,16 @@ def execute(args: Arguments) -> int:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             system_logs.write(report.dump_json())
     safe_close_files(files_to_close)
-    lgr.info(report.execution_summary_formatted)
+    if process.returncode != 0 and (
+        report.elapsed_time < args.fail_time or args.fail_time < 0
+    ):
+        lgr.info(
+            "Removing log files since command failed%s.",
+            f" in less than {args.fail_time} seconds" if args.fail_time > 0 else "",
+        )
+        remove_files(log_paths)
+    else:
+        lgr.info(report.execution_summary_formatted)
     return report.process.returncode
 
 
