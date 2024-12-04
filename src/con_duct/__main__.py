@@ -778,7 +778,7 @@ class Arguments:
             "--f-t",
             type=float,
             default=float(os.getenv("DUCT_FAIL_TIME", "3.0")),
-            help="If command fails in less than this specified time, duct would remove logs. "
+            help="If command fails in less than this specified time (seconds), duct would remove logs. "
             "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
             "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
         )

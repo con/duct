@@ -106,11 +106,12 @@ options:
                         Interval in seconds at which to report aggregated
                         data. (default: 60.0)
   --fail-time FAIL_TIME, --f-t FAIL_TIME
-                        If command fails in less than this specified time,
-                        duct would remove logs. Set to 0 if you would like to
-                        keep logs for a failing command regardless of its run
-                        time. Set to negative (e.g. -1) if you would like to
-                        not keep logs for any failing command. (default: 3.0)
+                        If command fails in less than this specified time
+                        (seconds), duct would remove logs. Set to 0 if you
+                        would like to keep logs for a failing command
+                        regardless of its run time. Set to negative (e.g. -1)
+                        if you would like to not keep logs for any failing
+                        command. (default: 3.0)
   -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
                         Record stdout, stderr, all, or none to log files. You
                         can also provide value via DUCT_CAPTURE_OUTPUTS env
