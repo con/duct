@@ -15,7 +15,7 @@ def test_sanity(temp_output_dir: str) -> None:
 @pytest.mark.parametrize("num_children", [1, 10, 25, 101])
 def test_abandoning_parent(temp_output_dir: str, num_children: int) -> None:
     duct_prefix = f"{temp_output_dir}log_"
-    command = f"duct --s-i 0.001 --r-i 0.01 -p {duct_prefix} {ABANDONING_PARENT} {num_children} sleep 0.1"
+    command = f"duct --s-i 0.001 --r-i 0.01 -p {duct_prefix} {ABANDONING_PARENT} {num_children} sleep 0.3"
     subprocess.check_output(command, shell=True)
 
     with open(f"{duct_prefix}usage.json") as usage_file:
