@@ -1,7 +1,7 @@
 import argparse
 import glob
 import json
-import sys
+from typing import List
 import yaml
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
@@ -15,7 +15,7 @@ LS_SUMMARY_FORMAT = (
 )
 
 
-def load_duct_runs(info_files):
+def load_duct_runs(info_files: List[str]) -> List[str]:
     loaded = []
     for info_file in info_files:
         with open(info_file) as file:
