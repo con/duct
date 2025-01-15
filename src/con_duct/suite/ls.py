@@ -15,7 +15,7 @@ LS_SUMMARY_FORMAT = (
 )
 
 
-def load_duct_runs(info_files: List[str]) -> List[str]:
+def load_duct_runs(info_files: List[str]) -> List[dict]:
     loaded = []
     for info_file in info_files:
         with open(info_file) as file:
