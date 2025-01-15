@@ -38,9 +38,7 @@ def ls(args: argparse.Namespace) -> int:
     elif args.format == "yaml":
         print(yaml.dump(run_data_list, default_flow_style=False))
     else:
-        print(
+        raise RuntimeError(
             f"Unexpected format encountered: {args.format}. This should have been caught by argparse.",
-            file=sys.stderr,
         )
-        return 1
     return 0
