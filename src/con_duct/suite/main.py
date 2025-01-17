@@ -58,6 +58,12 @@ def main(argv: Optional[List[str]] = None) -> None:
         default="summaries",  # TODO dry
         help="Output format. TODO Fixme",
     )
+    parser_ls.add_argument(
+        "--fields",
+        nargs="+",
+        help="List of fields to show. Nested fields represented via dot syntax ",
+        required=True,
+    )
     parser_ls.set_defaults(func=ls)
 
     args = parser.parse_args(argv)

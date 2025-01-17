@@ -1,4 +1,5 @@
 import argparse
+from collections import OrderedDict
 import glob
 import json
 from typing import List
@@ -36,10 +37,10 @@ def _flatten_dict(d, parent_key="", sep="."):
     return dict(items)
 
 
-def _restrict_row(include_only, row):
-    restricted = {}
+def _restrict_row(field_list, row):
+    restricted = OrderedDict()
     for k, v in row.items():
-        if k in include_only:
+        if k in field_list or k == "output_paths.prefix":
             restricted[k.split(".")[-1]] = v
     return restricted
 
@@ -61,23 +62,26 @@ def pyout_ls(run_data_list):
             ),
         ),
     )
-    include_only = ["command", "execution_summary.exit_code"]
     for row in run_data_list:
-        # table(row)
-        flattened = _flatten_dict(row)
-        table(_restrict_row(include_only, flattened))
+        row.move_to_end("prefix", last=False)
+        table(row)
 
 
 def ls(args: argparse.Namespace) -> int:
     pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*_info.json"
     info_files = glob.glob(pattern)
     run_data_list = load_duct_runs(info_files)
+    output_rows = []
+    for row in run_data_list:
+        flattened = _flatten_dict(row)
+        output_rows.append(_restrict_row(args.fields, flattened))
+
     if args.format == "summaries":
         formatter = SummaryFormatter()  # TODO enable_colors=self.colors)
         for data in run_data_list:
             print(formatter.format(LS_SUMMARY_FORMAT, **data))
     elif args.format == "pyout":
-        pyout_ls(run_data_list)
+        pyout_ls(output_rows)
     elif args.format == "json":
         print(json.dumps(run_data_list))
     elif args.format == "json_pp":
