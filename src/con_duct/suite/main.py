@@ -62,7 +62,12 @@ def main(argv: Optional[List[str]] = None) -> None:
         "--fields",
         nargs="+",
         help="List of fields to show. Nested fields represented via dot syntax ",
-        required=True,
+        default=[
+            "command",
+            "execution_summary.exit_code",
+            "execution_summary.wall_clock_time",
+            "execution_summary.peak_rss",
+        ],
     )
     parser_ls.set_defaults(func=ls)
 
