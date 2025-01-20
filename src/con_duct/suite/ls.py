@@ -40,6 +40,7 @@ def _flatten_dict(d, parent_key="", sep="."):
 def _restrict_row(field_list, row):
     restricted = OrderedDict()
     for k, v in row.items():
+        # output_paths.prefix is the unique key
         if k in field_list or k == "output_paths.prefix":
             restricted[k.split(".")[-1]] = v
     return restricted
@@ -63,6 +64,7 @@ def pyout_ls(run_data_list):
         ),
     )
     for row in run_data_list:
+        # moves to first column, which is unique key.
         row.move_to_end("prefix", last=False)
         table(row)
 
