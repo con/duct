@@ -3,7 +3,7 @@ from collections import OrderedDict
 import glob
 import json
 from typing import List
-import pyout
+import pyout  # type: ignore
 import yaml
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
