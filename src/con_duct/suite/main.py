@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 from typing import List, Optional
 from con_duct.suite.ls import ls
@@ -68,6 +69,12 @@ def main(argv: Optional[List[str]] = None) -> None:
             "execution_summary.wall_clock_time",
             "execution_summary.peak_rss",
         ],
+    )
+    parser_ls.add_argument(
+        "--colors",
+        action="store_true",
+        default=os.getenv("DUCT_COLORS", False),
+        help="Use colors in duct output.",
     )
     parser_ls.set_defaults(func=ls)
 
