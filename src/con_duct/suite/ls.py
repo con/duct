@@ -46,9 +46,10 @@ def _flatten_dict(d):
 
 def _restrict_row(field_list, row):
     restricted = OrderedDict()
+    # prefix is the "primary key", its the only field guaranteed to be unique.
+    restricted["prefix"] = row["prefix"]
     for k, v in row.items():
-        # prefix is the unique key
-        if k in field_list or k == "prefix":
+        if k in field_list and k != "prefix":
             restricted[k.split(".")[-1]] = v
     return restricted
 
@@ -70,8 +71,6 @@ def pyout_ls(run_data_list):
         ),
     )
     for row in run_data_list:
-        # moves to first column, which is unique key.
-        row.move_to_end("prefix", last=False)
         table(row)
 
 
