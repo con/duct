@@ -34,23 +34,21 @@ def process_run_data(
     return output_rows
 
 
-def _flatten_dict(d, parent_key="", sep="."):
-    """Flatten a nested dictionary, creating keys as dot-separated paths."""
+def _flatten_dict(d):
     items = []
     for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
         if isinstance(v, dict):
-            items.extend(_flatten_dict(v, new_key, sep=sep).items())
+            items.extend(_flatten_dict(v).items())
         else:
-            items.append((new_key, v))
+            items.append((k, v))
     return dict(items)
 
 
 def _restrict_row(field_list, row):
     restricted = OrderedDict()
     for k, v in row.items():
-        # output_paths.prefix is the unique key
-        if k in field_list or k == "output_paths.prefix":
+        # prefix is the unique key
+        if k in field_list or k == "prefix":
             restricted[k.split(".")[-1]] = v
     return restricted
 
