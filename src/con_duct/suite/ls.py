@@ -7,14 +7,13 @@ import pyout  # type: ignore
 import yaml
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
-LS_SUMMARY_FORMAT = (
-    "Command: {command}\n"
-    "\tWall Clock Time: {execution_summary[wall_clock_time]:.3f} sec\n"
-    "\tMemory Peak Usage (RSS): {execution_summary[peak_rss]!S}\n"
-    "\tVirtual Memory Peak Usage (VSZ): {execution_summary[peak_vsz]!S}\n"
-    "\tMemory Peak Percentage: {execution_summary[peak_pmem]:.2f!N}%\n"
-    "\tCPU Peak Usage: {execution_summary[peak_pcpu]:.2f!N}%\n"
-)
+LS_SUMMARY_FORMAT = {
+    "prefix": "Prefix: {value}",
+    "command": "\tCommand: {value}",
+    "exit_code": "\tExit Code {value!E}",
+    "wall_clock_time": "\tWall Clock Time: {value:.3f} sec",
+    "peak_rss": "\tMemory Peak Usage (RSS): {value!S}",
+}
 
 
 def load_duct_runs(info_files: List[str]) -> List[dict]:
@@ -80,16 +79,17 @@ def ls(args: argparse.Namespace) -> int:
 
     if args.format == "summaries":
         formatter = SummaryFormatter()  # TODO enable_colors=self.colors)
-        for data in run_data_list:
-            print(formatter.format(LS_SUMMARY_FORMAT, **data))
+        for row in output_rows:
+            for col, value in row.items():
+                print(formatter.format(LS_SUMMARY_FORMAT[col], value=value))
     elif args.format == "pyout":
         pyout_ls(output_rows)
     elif args.format == "json":
-        print(json.dumps(run_data_list))
+        print(json.dumps(output_rows))
     elif args.format == "json_pp":
-        print(json.dumps(run_data_list, indent=True))
+        print(json.dumps(output_rows, indent=True))
     elif args.format == "yaml":
-        print(yaml.dump(run_data_list, default_flow_style=False))
+        print(yaml.dump(output_rows, default_flow_style=False))
     else:
         raise RuntimeError(
             f"Unexpected format encountered: {args.format}. This should have been caught by argparse.",
