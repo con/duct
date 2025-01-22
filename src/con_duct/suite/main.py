@@ -55,9 +55,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_ls.add_argument(
         "-f",
         "--format",
-        choices=("summaries", "json", "json_pp", "yaml", "pyout"),
-        default="summaries",  # TODO dry
-        help="Output format. TODO Fixme",
+        choices=("auto", "pyout", "summaries", "json", "json_pp", "yaml"),
+        default="auto",  # TODO dry
+        help="Output format. TODO Fixme. 'auto' chooses 'pyout' if pyout library is installed,"
+        " 'summaries' otherwise.",
     )
     parser_ls.add_argument(
         "-F",

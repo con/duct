@@ -4,7 +4,11 @@ import glob
 import json
 import logging
 from typing import List
-import pyout  # type: ignore
+
+try:
+    import pyout  # type: ignore
+except ImportError:
+    pyout = None
 import yaml
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
@@ -126,6 +130,9 @@ def ls(args: argparse.Namespace) -> int:
     formatter = SummaryFormatter(enable_colors=args.colors)
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
+    if args.format == "auto":
+        args.format = "summaries" if pyout is None else "pyout"
+
     if args.format == "summaries":
         for row in output_rows:
             for col, value in row.items():
@@ -133,6 +140,8 @@ def ls(args: argparse.Namespace) -> int:
                     col = f"\t{col}"
                 print(f"{col.replace('_', ' ').title()}: {value}")
     elif args.format == "pyout":
+        if pyout is None:
+            raise RuntimeError("Install pyout for pyout output")
         pyout_ls(output_rows)
     elif args.format == "json":
         print(json.dumps(output_rows))
