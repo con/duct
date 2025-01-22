@@ -109,13 +109,14 @@ def _format_row(row, formatter):
 
 def pyout_ls(run_data_list):
     # Generate Tabular table to output
-    table = pyout.Tabular(
+    with pyout.Tabular(
         style=dict(
             header_=dict(bold=True, transform=str.upper),
         ),
-    )
-    for row in run_data_list:
-        table(row)
+        mode="final",
+    ) as table:
+        for row in run_data_list:
+            table(row)
 
 
 def ls(args: argparse.Namespace) -> int:
