@@ -78,9 +78,9 @@ def _restrict_row(field_list, row):
     restricted = OrderedDict()
     # prefix is the "primary key", its the only field guaranteed to be unique.
     restricted["prefix"] = row["prefix"]
-    for k, v in row.items():
-        if k in field_list and k != "prefix":
-            restricted[k.split(".")[-1]] = v
+    for field in field_list:
+        if field != "prefix" and field in row:
+            restricted[field.split(".")[-1]] = row[field]
     return restricted
 
 
