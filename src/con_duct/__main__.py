@@ -1021,93 +1021,102 @@ def execute(args: Arguments) -> int:
     files_to_close.append(report.usage_file)
 
     report.start_time = time.time()
-    try:
-        report.process = process = subprocess.Popen(
-            [str(args.command)] + args.command_args,
-            stdout=stdout_file,
-            stderr=stderr_file,
-            start_new_session=True,
-        )
-    except FileNotFoundError:
-        # We failed to execute due to file not found in PATH
-        # We should remove log etc files since they are 0-sized
-        # degenerates etc
+    try:  # Ctrl-C handling
+        try:
+            report.process = process = subprocess.Popen(
+                [str(args.command)] + args.command_args,
+                stdout=stdout_file,
+                stderr=stderr_file,
+                start_new_session=True,
+            )
+        except FileNotFoundError:
+            # We failed to execute due to file not found in PATH
+            # We should remove log etc files since they are 0-sized
+            # degenerates etc
+            safe_close_files(files_to_close)
+            remove_files(log_paths, assert_empty=True)
+            # mimicking behavior of bash and zsh.
+            print(f"{args.command}: command not found", file=sys.stderr)
+            return 127  # seems what zsh and bash return then
+
+        lgr.info("duct is executing %r...", full_command)
+        lgr.info("Log files will be written to %s", log_paths.prefix)
+        try:
+            report.session_id = os.getsid(
+                process.pid
+            )  # Get session ID of the new process
+        except ProcessLookupError:  # process has already finished
+            # TODO: log this at least.
+            pass
+        stop_event = threading.Event()
+        if args.record_types.has_processes_samples():
+            monitoring_args = [
+                report,
+                process,
+                args.report_interval,
+                args.sample_interval,
+                stop_event,
+            ]
+            monitoring_thread = threading.Thread(
+                target=monitor_process, args=monitoring_args
+            )
+            monitoring_thread.start()
+        else:
+            monitoring_thread = None
+
+        if args.record_types.has_system_summary():
+            env_thread = threading.Thread(target=report.collect_environment)
+            env_thread.start()
+            sys_info_thread = threading.Thread(target=report.get_system_info)
+            sys_info_thread.start()
+        else:
+            env_thread, sys_info_thread = None, None
+
+        process.wait()
+        report.end_time = time.time()
+        lgr.debug("Process ended, setting stop_event to stop monitoring thread")
+        stop_event.set()
+        if monitoring_thread is not None:
+            lgr.debug("Waiting for monitoring thread to finish")
+            monitoring_thread.join()
+            lgr.debug("Monitoring thread finished")
+
+        # If we have any extra samples that haven't been written yet, do it now
+        if report.current_sample is not None:
+            report.write_subreport()
+
+        report.process = process
+        if env_thread is not None:
+            lgr.debug("Waiting for environment collection thread to finish")
+            env_thread.join()
+            lgr.debug("Environment collection finished")
+
+        if sys_info_thread is not None:
+            lgr.debug("Waiting for system information collection thread to finish")
+            sys_info_thread.join()
+            lgr.debug("System information collection finished")
+
+        if args.record_types.has_system_summary():
+            with open(log_paths.info, "w") as system_logs:
+                report.run_time_seconds = f"{report.end_time - report.start_time}"
+                system_logs.write(report.dump_json())
         safe_close_files(files_to_close)
-        remove_files(log_paths, assert_empty=True)
-        # mimicking behavior of bash and zsh.
-        print(f"{args.command}: command not found", file=sys.stderr)
-        return 127  # seems what zsh and bash return then
-
-    lgr.info("duct is executing %r...", full_command)
-    lgr.info("Log files will be written to %s", log_paths.prefix)
-    try:
-        report.session_id = os.getsid(process.pid)  # Get session ID of the new process
-    except ProcessLookupError:  # process has already finished
-        # TODO: log this at least.
-        pass
-    stop_event = threading.Event()
-    if args.record_types.has_processes_samples():
-        monitoring_args = [
-            report,
-            process,
-            args.report_interval,
-            args.sample_interval,
-            stop_event,
-        ]
-        monitoring_thread = threading.Thread(
-            target=monitor_process, args=monitoring_args
-        )
-        monitoring_thread.start()
-    else:
-        monitoring_thread = None
-
-    if args.record_types.has_system_summary():
-        env_thread = threading.Thread(target=report.collect_environment)
-        env_thread.start()
-        sys_info_thread = threading.Thread(target=report.get_system_info)
-        sys_info_thread.start()
-    else:
-        env_thread, sys_info_thread = None, None
-
-    process.wait()
-    report.end_time = time.time()
-    lgr.debug("Process ended, setting stop_event to stop monitoring thread")
-    stop_event.set()
-    if monitoring_thread is not None:
-        lgr.debug("Waiting for monitoring thread to finish")
-        monitoring_thread.join()
-        lgr.debug("Monitoring thread finished")
-
-    # If we have any extra samples that haven't been written yet, do it now
-    if report.current_sample is not None:
-        report.write_subreport()
-
-    report.process = process
-    if env_thread is not None:
-        lgr.debug("Waiting for environment collection thread to finish")
-        env_thread.join()
-        lgr.debug("Environment collection finished")
-
-    if sys_info_thread is not None:
-        lgr.debug("Waiting for system information collection thread to finish")
-        sys_info_thread.join()
-        lgr.debug("System information collection finished")
-
-    if args.record_types.has_system_summary():
-        with open(log_paths.info, "w") as system_logs:
-            report.run_time_seconds = f"{report.end_time - report.start_time}"
-            system_logs.write(report.dump_json())
-    safe_close_files(files_to_close)
-    if process.returncode != 0 and (
-        report.elapsed_time < args.fail_time or args.fail_time < 0
-    ):
-        lgr.info(
-            "Removing log files since command failed%s.",
-            f" in less than {args.fail_time} seconds" if args.fail_time > 0 else "",
-        )
+    except KeyboardInterrupt:
+        lgr.info("Received Ctrl-C, removing log files")
+        safe_close_files(files_to_close)
         remove_files(log_paths)
+        raise
     else:
-        lgr.info(report.execution_summary_formatted)
+        if process.returncode != 0 and (
+            report.elapsed_time < args.fail_time or args.fail_time < 0
+        ):
+            lgr.info(
+                "Removing log files since command failed%s.",
+                f" in less than {args.fail_time} seconds" if args.fail_time > 0 else "",
+            )
+            remove_files(log_paths)
+        else:
+            lgr.info(report.execution_summary_formatted)
     return report.process.returncode
 
 
