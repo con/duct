@@ -2,10 +2,13 @@ import argparse
 from collections import OrderedDict
 import glob
 import json
+import logging
 from typing import List
 import pyout  # type: ignore
 import yaml
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
+
+lgr = logging.getLogger(__name__)
 
 VALUE_TRANSFORMATION_MAP = {
     "exit_code": "{value!E}",
@@ -48,7 +51,11 @@ def load_duct_runs(info_files: List[str]) -> List[dict]:
     loaded = []
     for info_file in info_files:
         with open(info_file) as file:
-            loaded.append(json.load(file))
+            try:
+                loaded.append(json.load(file))
+            except Exception as exc:
+                lgr.warning("Failed to load file %s: %s", file, exc)
+            # TODO: verify first that it is understood record/version before appending
     return loaded
 
 
@@ -58,7 +65,14 @@ def process_run_data(
     output_rows = []
     for row in run_data_list:
         flattened = _flatten_dict(row)
-        restricted = _restrict_row(fields, flattened)
+        try:
+            restricted = _restrict_row(fields, flattened)
+        except KeyError:
+            lgr.warning(
+                "Failed to pick fields of interest from a record, skipping. Record was: %s",
+                list(flattened),
+            )
+            continue
         formatted = _format_row(restricted, formatter)
         output_rows.append(formatted)
     return output_rows
