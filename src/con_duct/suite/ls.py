@@ -11,7 +11,37 @@ VALUE_TRANSFORMATION_MAP = {
     "exit_code": "{value!E}",
     "wall_clock_time": "{value:.3f} sec",
     "peak_rss": "{value!S}",
+    "memory_total": "{value!S}",
+    "average_rss": "{value!S}",
+    "peak_vsz": "{value!S}",
+    "average_vsz": "{value!S}",
+    "peak_pmem": "{value:.2f!N}%",
+    "average_pmem": "{value:.2f!N}%",
+    "peak_pcpu": "{value:.2f!N}%",
+    "average_pcpu": "{value:.2f!N}%",
+    "start_time": "{value:.2f!N}",
+    "end_time": "{value:.2f!N}",
 }
+
+
+NON_TRANSFORMED_FIELDS = [
+    "hostname",
+    "uid",
+    "user",
+    "gpu",
+    "duct_version",
+    "schema_version",
+    "command",
+    "prefix",
+    "num_samples",
+    "num_reports",
+    "stderr",
+    "usage",
+    "info",
+    "prefix",
+]
+
+LS_FIELD_CHOICES = list(VALUE_TRANSFORMATION_MAP.keys()) + NON_TRANSFORMED_FIELDS
 
 
 def load_duct_runs(info_files: List[str]) -> List[dict]:

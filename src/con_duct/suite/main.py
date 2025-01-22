@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 from typing import List, Optional
-from con_duct.suite.ls import ls
+from con_duct.suite.ls import LS_FIELD_CHOICES, ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
 
@@ -62,7 +62,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_ls.add_argument(
         "--fields",
         nargs="+",
-        help="List of fields to show. Nested fields represented via dot syntax ",
+        help="List of fields to show. Prefix is always included implicitly as the first field",
+        choices=LS_FIELD_CHOICES,
         default=[
             "command",
             "exit_code",
