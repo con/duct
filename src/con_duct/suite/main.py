@@ -60,9 +60,12 @@ def main(argv: Optional[List[str]] = None) -> None:
         help="Output format. TODO Fixme",
     )
     parser_ls.add_argument(
+        "-F",
         "--fields",
         nargs="+",
-        help="List of fields to show. Prefix is always included implicitly as the first field",
+        metavar="FIELD",
+        help=f"List of fields to show. Prefix is always included implicitly as the first field. "
+        f"Available choices: {', '.join(LS_FIELD_CHOICES)}.",
         choices=LS_FIELD_CHOICES,
         default=[
             "command",
