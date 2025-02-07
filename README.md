@@ -146,12 +146,14 @@ usage: con-duct <command> [options]
 A suite of commands to manage or manipulate con-duct logs.
 
 positional arguments:
-  {pp,plot}   Available subcommands
-    pp        Pretty print a JSON log.
-    plot      Plot resource usage for an execution.
+  {pp,plot,ls}  Available subcommands
+    pp          Pretty print a JSON log.
+    plot        Plot resource usage for an execution.
+    ls          Print execution information for all runs matching
+                DUCT_OUTPUT_PREFIX.
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help    show this help message and exit
 
 ```
 <!-- END EXTRAS HELP -->
