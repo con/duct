@@ -54,7 +54,7 @@ LS_FIELD_CHOICES: List[str] = (
 MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
-def load_duct_runs(info_files: List[str]) -> List[Dict[str, Any]]:
+def load_duct_runs(info_files: List[str], args) -> List[Dict[str, Any]]:
     loaded: List[Dict[str, Any]] = []
     for info_file in info_files:
         with open(info_file) as file:
@@ -63,6 +63,10 @@ def load_duct_runs(info_files: List[str]) -> List[Dict[str, Any]]:
                 # this["prefix"] is the path at execution time, could have moved
                 this["prefix"] = info_file.split("info.json")[0]
                 if Version(this["schema_version"]) >= Version(MINIMUM_SCHEMA_VERSION):
+                    if args.eval_filter and not eval(
+                        args.eval_filter, _flatten_dict(this)
+                    ):
+                        continue
                     loaded.append(this)
                 else:
                     # TODO lower log level once --log-level is respected
@@ -148,7 +152,7 @@ def ls(args: argparse.Namespace) -> int:
         args.paths = [p for p in glob.glob(pattern)]
 
     info_files = [path for path in args.paths if path.endswith("info.json")]
-    run_data_raw = load_duct_runs(info_files)
+    run_data_raw = load_duct_runs(info_files, args)
     formatter = SummaryFormatter(enable_colors=args.colors)
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
