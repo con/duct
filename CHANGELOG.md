@@ -1,3 +1,15 @@
+# v0.10.1 (Fri Feb 07 2025)
+
+#### 🐛 Bug Fix
+
+- bf: show ls results when no positional args given [#240](https://github.com/con/duct/pull/240) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.10.0 (Fri Feb 07 2025)
 
 #### 🚀 Enhancement
