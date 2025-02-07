@@ -149,8 +149,7 @@ positional arguments:
   {pp,plot,ls}  Available subcommands
     pp          Pretty print a JSON log.
     plot        Plot resource usage for an execution.
-    ls          Print execution information for all runs matching
-                DUCT_OUTPUT_PREFIX.
+    ls          Print execution information for all matching runs.
 
 options:
   -h, --help    show this help message and exit
