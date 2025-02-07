@@ -2,7 +2,6 @@ import argparse
 import os
 import sys
 from typing import List, Optional
-from con_duct.__main__ import DUCT_OUTPUT_PREFIX
 from con_duct.suite.ls import LS_FIELD_CHOICES, ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
@@ -51,7 +50,7 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     parser_ls = subparsers.add_parser(
         "ls",
-        help="Print execution information for all runs matching DUCT_OUTPUT_PREFIX.",
+        help="Print execution information for all matching runs.",
     )
     parser_ls.add_argument(
         "-f",
@@ -85,8 +84,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_ls.add_argument(
         "paths",
         nargs="*",
-        default=[f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*"],
-        help="Path to duct report files, only `info.json` would be considered.",
+        help="Path to duct report files, only `info.json` would be considered. "
+        "If not provided, the program will glob for files that match DUCT_OUTPUT_PREFIX.",
     )
     parser_ls.set_defaults(func=ls)
 

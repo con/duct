@@ -149,6 +149,8 @@ class TestLS(unittest.TestCase):
     def setUp(self) -> None:
         """Create a temporary directory and test files."""
         self.temp_dir = tempfile.TemporaryDirectory()
+        self.old_cwd = os.getcwd()
+        os.chdir(self.temp_dir.name)
         self.files = {
             "file1_info.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
@@ -163,13 +165,20 @@ class TestLS(unittest.TestCase):
                 "schema_version": MINIMUM_SCHEMA_VERSION,
                 "prefix": "no_match",
             },
+            ".duct/logs/default_logpath_info.json": {
+                "schema_version": MINIMUM_SCHEMA_VERSION,
+                "prefix": "default_file1",
+            },
         }
         for filename, content in self.files.items():
-            with open(os.path.join(self.temp_dir.name, filename), "w") as f:
+            full_path = os.path.join(self.temp_dir.name, filename)
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            with open(full_path, "w") as f:
                 json.dump(content, f)
 
     def tearDown(self) -> None:
         """Clean up the temporary directory."""
+        os.chdir(self.old_cwd)
         self.temp_dir.cleanup()
 
     def _run_ls(self, paths: list[str], fmt: str) -> str:
@@ -200,6 +209,23 @@ class TestLS(unittest.TestCase):
         ]
         assert len(prefixes) == 1
         assert any("file1" in p for p in prefixes)
+
+    def test_ls_no_pos_args(self) -> None:
+        result = self._run_ls([], "summaries")
+
+        assert "Prefix:" in result
+        prefixes = [
+            line.split(":", 1)[1].strip()
+            for line in result.splitlines()
+            if line.startswith("Prefix:")
+        ]
+        assert len(prefixes) == 1
+        assert any("default_logpath" in p for p in prefixes)
+
+        assert "file1" not in result
+        assert "file2" not in result
+        assert "file3" not in result
+        assert "not_matching.json" not in result
 
     def test_ls_multiple_paths(self) -> None:
         """Basic sanity test to ensure ls() runs without crashing."""
