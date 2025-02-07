@@ -1,3 +1,22 @@
+# v0.10.0 (Fri Feb 07 2025)
+
+#### 🚀 Enhancement
+
+- con-duct ls [#224](https://github.com/con/duct/pull/224) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- Test abandoning parent [#226](https://github.com/con/duct/pull/226) ([@asmacdo](https://github.com/asmacdo) [@yarikoptic](https://github.com/yarikoptic))
+- Fix issue where pillow fails to install on pypy 3.9 [#233](https://github.com/con/duct/pull/233) ([@asmacdo](https://github.com/asmacdo))
+- Add Fail time unit [#229](https://github.com/con/duct/pull/229) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 2
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.9.0 (Tue Dec 03 2024)
 
 #### 🚀 Enhancement
