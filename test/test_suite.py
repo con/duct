@@ -155,10 +155,12 @@ class TestLS(unittest.TestCase):
             "file1_info.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
                 "prefix": "test1",
+                "filter_this": "yes",
             },
             "file2_info.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
                 "prefix": "test2",
+                "filter_this": "no",
             },
             "file3_info.json": {"schema_version": "0.1.0", "prefix": "old_version"},
             "not_matching.json": {
@@ -181,15 +183,19 @@ class TestLS(unittest.TestCase):
         os.chdir(self.old_cwd)
         self.temp_dir.cleanup()
 
-    def _run_ls(self, paths: list[str], fmt: str) -> str:
+    def _run_ls(
+        self, paths: list[str], fmt: str, args: argparse.Namespace = None
+    ) -> str:
         """Helper function to run ls() and capture stdout."""
-        args = argparse.Namespace(
-            paths=[os.path.join(self.temp_dir.name, path) for path in paths],
-            colors=False,
-            fields=["prefix", "schema_version"],
-            format=fmt,
-            func=ls,
-        )
+        if args is None:
+            args = argparse.Namespace(
+                paths=[os.path.join(self.temp_dir.name, path) for path in paths],
+                colors=False,
+                fields=["prefix", "schema_version"],
+                eval_filter=None,
+                format=fmt,
+                func=ls,
+            )
         buf = StringIO()
         with contextlib.redirect_stdout(buf):
             exit_code = ls(args)
@@ -209,6 +215,30 @@ class TestLS(unittest.TestCase):
         ]
         assert len(prefixes) == 1
         assert any("file1" in p for p in prefixes)
+
+    def test_ls_with_filter(self) -> None:
+        """Basic sanity test to ensure ls() runs without crashing."""
+        paths = ["file1_info.json", "file2_info.json"]
+        args = argparse.Namespace(
+            paths=[os.path.join(self.temp_dir.name, path) for path in paths],
+            colors=False,
+            fields=["prefix", "schema_version"],
+            eval_filter="filter_this=='yes'",
+            format="summaries",
+            func=ls,
+        )
+        result = self._run_ls(paths, "summaries", args)
+
+        assert "Prefix:" in result
+        prefixes = [
+            line.split(":", 1)[1].strip()
+            for line in result.splitlines()
+            if line.startswith("Prefix:")
+        ]
+        assert len(prefixes) == 1
+        assert any("file1" in p for p in prefixes)
+        # filter_this == 'no'
+        assert "file2" not in result
 
     def test_ls_no_pos_args(self) -> None:
         result = self._run_ls([], "summaries")
