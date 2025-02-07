@@ -1,5 +1,6 @@
 import argparse
 from collections import OrderedDict
+import glob
 import json
 import logging
 from typing import Any, Dict, List, Optional
@@ -10,7 +11,7 @@ try:
 except ImportError:
     pyout = None
 import yaml
-from con_duct.__main__ import SummaryFormatter
+from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
 lgr = logging.getLogger(__name__)
 
@@ -141,6 +142,11 @@ def pyout_ls(run_data_list: List[OrderedDict[str, Any]]) -> None:
 
 
 def ls(args: argparse.Namespace) -> int:
+
+    if not args.paths:
+        pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*"
+        args.paths = [p for p in glob.glob(pattern)]
+
     info_files = [path for path in args.paths if path.endswith("info.json")]
     run_data_raw = load_duct_runs(info_files)
     formatter = SummaryFormatter(enable_colors=args.colors)
