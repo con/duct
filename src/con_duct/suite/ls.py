@@ -55,7 +55,9 @@ LS_FIELD_CHOICES: List[str] = (
 MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
-def load_duct_runs(info_files: List[str], eval_filter: str) -> List[Dict[str, Any]]:
+def load_duct_runs(
+    info_files: List[str], eval_filter: Optional[str] = None
+) -> List[Dict[str, Any]]:
     loaded: List[Dict[str, Any]] = []
     for info_file in info_files:
         with open(info_file) as file:
@@ -70,7 +72,7 @@ def load_duct_runs(info_files: List[str], eval_filter: str) -> List[Dict[str, An
                         f"is below minimum schema version {MINIMUM_SCHEMA_VERSION}."
                     )
                     continue
-                if eval_filter and not eval(
+                if eval_filter is not None and not eval(
                     eval_filter, _flatten_dict(this), dict(re=re)
                 ):
                     continue

@@ -4,7 +4,7 @@ from io import StringIO
 import json
 import os
 import tempfile
-from typing import Any
+from typing import Any, Optional
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 import pytest
@@ -184,7 +184,7 @@ class TestLS(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def _run_ls(
-        self, paths: list[str], fmt: str, args: argparse.Namespace = None
+        self, paths: list[str], fmt: str, args: Optional[argparse.Namespace] = None
     ) -> str:
         """Helper function to run ls() and capture stdout."""
         if args is None:
