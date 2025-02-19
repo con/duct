@@ -87,6 +87,10 @@ def main(argv: Optional[List[str]] = None) -> None:
         help="Path to duct report files, only `info.json` would be considered. "
         "If not provided, the program will glob for files that match DUCT_OUTPUT_PREFIX.",
     )
+    parser_ls.add_argument(
+        "-e",
+        "--eval-filter",
+    )
     parser_ls.set_defaults(func=ls)
 
     args = parser.parse_args(argv)
