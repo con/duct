@@ -3,6 +3,7 @@ from collections import OrderedDict
 import glob
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional
 from packaging.version import Version
 
@@ -54,7 +55,9 @@ LS_FIELD_CHOICES: List[str] = (
 MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
-def load_duct_runs(info_files: List[str]) -> List[Dict[str, Any]]:
+def load_duct_runs(
+    info_files: List[str], eval_filter: Optional[str] = None
+) -> List[Dict[str, Any]]:
     loaded: List[Dict[str, Any]] = []
     for info_file in info_files:
         with open(info_file) as file:
@@ -62,14 +65,20 @@ def load_duct_runs(info_files: List[str]) -> List[Dict[str, Any]]:
                 this: Dict[str, Any] = json.load(file)
                 # this["prefix"] is the path at execution time, could have moved
                 this["prefix"] = info_file.split("info.json")[0]
-                if Version(this["schema_version"]) >= Version(MINIMUM_SCHEMA_VERSION):
-                    loaded.append(this)
-                else:
+                if Version(this["schema_version"]) < Version(MINIMUM_SCHEMA_VERSION):
                     # TODO lower log level once --log-level is respected
                     lgr.warning(
                         f"Skipping {this['prefix']}, schema version {this['schema_version']} "
                         f"is below minimum schema version {MINIMUM_SCHEMA_VERSION}."
                     )
+                    continue
+                if eval_filter is not None and not (eval_results := eval(
+                    eval_filter, _flatten_dict(this), dict(re=re)
+                )):
+                    lgr.debug("Filtering out %s due to filter results matching: %s", this, eval_results)
+                    continue
+
+                loaded.append(this)
             except Exception as exc:
                 lgr.warning("Failed to load file %s: %s", file, exc)
     return loaded
@@ -148,7 +157,7 @@ def ls(args: argparse.Namespace) -> int:
         args.paths = [p for p in glob.glob(pattern)]
 
     info_files = [path for path in args.paths if path.endswith("info.json")]
-    run_data_raw = load_duct_runs(info_files)
+    run_data_raw = load_duct_runs(info_files, args.eval_filter)
     formatter = SummaryFormatter(enable_colors=args.colors)
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 

@@ -66,7 +66,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         nargs="+",
         metavar="FIELD",
         help=f"List of fields to show. Prefix is always included implicitly as the first field. "
-        f"Available choices: {', '.join(LS_FIELD_CHOICES)}.",
+        f"Available choices: {', '.join(sorted(LS_FIELD_CHOICES))}.",
         choices=LS_FIELD_CHOICES,
         default=[
             "command",
@@ -86,6 +86,15 @@ def main(argv: Optional[List[str]] = None) -> None:
         nargs="*",
         help="Path to duct report files, only `info.json` would be considered. "
         "If not provided, the program will glob for files that match DUCT_OUTPUT_PREFIX.",
+    )
+    parser_ls.add_argument(
+        "-e",
+        "--eval-filter",
+        help=f"Python expression to filter results based on available fields. "
+        f"The expression is evaluated for each entry, and only those that return True are included. "
+        f"Available fields: {', '.join(sorted(LS_FIELD_CHOICES))}. "
+        f"Example: --eval-filter \"filter_this=='yes'\" filters entries where 'filter_this' is 'yes'. "
+        f"You can use 're' for regex operations (e.g., --eval-filter \"re.search('2025.02.09.*', prefix)\").",
     )
     parser_ls.set_defaults(func=ls)
 
