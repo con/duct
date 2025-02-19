@@ -102,6 +102,7 @@ def process_run_data(
     return output_rows
 
 
+# TODO(asmacdo) move to util BEFORE merge
 def _flatten_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     items: List[tuple[str, Any]] = []
     for k, v in d.items():
