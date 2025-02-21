@@ -72,10 +72,14 @@ def load_duct_runs(
                         f"is below minimum schema version {MINIMUM_SCHEMA_VERSION}."
                     )
                     continue
-                if eval_filter is not None and not (eval_results := eval(
-                    eval_filter, _flatten_dict(this), dict(re=re)
-                )):
-                    lgr.debug("Filtering out %s due to filter results matching: %s", this, eval_results)
+                if eval_filter is not None and not (
+                    eval_results := eval(eval_filter, _flatten_dict(this), dict(re=re))
+                ):
+                    lgr.debug(
+                        "Filtering out %s due to filter results matching: %s",
+                        this,
+                        eval_results,
+                    )
                     continue
 
                 loaded.append(this)
