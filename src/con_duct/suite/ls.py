@@ -4,15 +4,21 @@ import glob
 import json
 import logging
 import re
+from types import ModuleType
 from typing import Any, Dict, List, Optional
 from packaging.version import Version
+from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
 
 try:
     import pyout  # type: ignore
 except ImportError:
     pyout = None
-import yaml
-from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
+
+try:
+    import yaml
+except ImportError:
+    yaml: Optional[ModuleType] = None  # type: ignore
+
 
 lgr = logging.getLogger(__name__)
 
@@ -183,6 +189,8 @@ def ls(args: argparse.Namespace) -> int:
     elif args.format == "json_pp":
         print(json.dumps(output_rows, indent=2))
     elif args.format == "yaml":
+        if yaml is None:
+            raise RuntimeError("Install PyYaml yaml output")
         plain_rows = [dict(row) for row in output_rows]
         print(yaml.dump(plain_rows, default_flow_style=False))
     else:
