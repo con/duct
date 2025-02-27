@@ -90,11 +90,11 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_ls.add_argument(
         "-e",
         "--eval-filter",
-        help=f"Python expression to filter results based on available fields. "
-        f"The expression is evaluated for each entry, and only those that return True are included. "
-        f"Available fields: {', '.join(sorted(LS_FIELD_CHOICES))}. "
-        f"Example: --eval-filter \"filter_this=='yes'\" filters entries where 'filter_this' is 'yes'. "
-        f"You can use 're' for regex operations (e.g., --eval-filter \"re.search('2025.02.09.*', prefix)\").",
+        help="Python expression to filter results based on available fields. "
+        "The expression is evaluated for each entry, and only those that return True are included. "
+        "See --fields for all supported fields. "
+        "Example: --eval-filter \"filter_this=='yes'\" filters entries where 'filter_this' is 'yes'. "
+        "You can use 're' for regex operations (e.g., --eval-filter \"re.search('2025.02.09.*', prefix)\").",
     )
     parser_ls.set_defaults(func=ls)
 
