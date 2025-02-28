@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import sys
 from typing import List, Optional
@@ -6,8 +7,17 @@ from con_duct.suite.ls import LS_FIELD_CHOICES, ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
 
+lgr = logging.getLogger("con-duct")
+DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
+
 
 def execute(args: argparse.Namespace) -> int:
+
+    if args.log_level == "NONE":
+        logging.disable(logging.CRITICAL)
+    else:
+        logging.basicConfig(level=args.log_level)
+
     result = args.func(args)
     if not isinstance(result, int):
         raise TypeError(
@@ -21,6 +31,14 @@ def main(argv: Optional[List[str]] = None) -> None:
         prog="con-duct",
         description="A suite of commands to manage or manipulate con-duct logs.",
         usage="con-duct <command> [options]",
+    )
+    parser.add_argument(
+        "-l",
+        "--log-level",
+        default=DEFAULT_LOG_LEVEL,
+        choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
+        type=str.upper,
+        help="Level of log output to stderr, use NONE to entirely disable.",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 

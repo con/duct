@@ -76,8 +76,7 @@ def load_duct_runs(
                 if parse_version(this["schema_version"]) < parse_version(
                     MINIMUM_SCHEMA_VERSION
                 ):
-                    # TODO lower log level once --log-level is respected
-                    lgr.warning(
+                    lgr.debug(
                         f"Skipping {this['prefix']}, schema version {this['schema_version']} "
                         f"is below minimum schema version {MINIMUM_SCHEMA_VERSION}."
                     )
