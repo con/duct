@@ -6,8 +6,8 @@ import logging
 import re
 from types import ModuleType
 from typing import Any, Dict, List, Optional
-from packaging.version import Version
 from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
+from con_duct.utils import parse_version
 
 try:
     import pyout  # type: ignore
@@ -73,7 +73,9 @@ def load_duct_runs(
                 this: Dict[str, Any] = json.load(file)
                 # this["prefix"] is the path at execution time, could have moved
                 this["prefix"] = info_file.split("info.json")[0]
-                if Version(this["schema_version"]) < Version(MINIMUM_SCHEMA_VERSION):
+                if parse_version(this["schema_version"]) < parse_version(
+                    MINIMUM_SCHEMA_VERSION
+                ):
                     # TODO lower log level once --log-level is respected
                     lgr.warning(
                         f"Skipping {this['prefix']}, schema version {this['schema_version']} "
