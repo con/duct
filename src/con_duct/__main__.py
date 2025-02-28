@@ -747,7 +747,7 @@ class Arguments:
         )
         parser.add_argument(
             "-l",
-            "--log_level",
+            "--log-level",
             default=DEFAULT_LOG_LEVEL,
             choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
             help="Level of log output to stderr, use NONE to entirely disable.",
