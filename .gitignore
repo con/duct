@@ -9,3 +9,6 @@ coverage.*
 build/
 dist/
 venvs/
+
+# Produced by versioningit
+src/con_duct/_version.py
