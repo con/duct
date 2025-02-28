@@ -25,6 +25,18 @@ def test_parse_version_green(lesser: str, greater: str) -> None:
         "5.4.3.2.1",  # Five is right out
     ],
 )
-def test_parse_version_format(invalid: str) -> None:
+def test_parse_version_invalid_length(invalid: str) -> None:
     with pytest.raises(ValueError, match="Invalid version format"):
+        parse_version(invalid)
+
+
+@pytest.mark.parametrize(
+    ("invalid"),
+    [
+        "a.b.c",
+        "1.2.3a1",
+    ],
+)
+def test_parse_version_invalid_type(invalid: str) -> None:
+    with pytest.raises(ValueError, match="invalid literal for int"):
         parse_version(invalid)
