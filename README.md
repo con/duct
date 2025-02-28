@@ -93,7 +93,7 @@ options:
   --colors              Use colors in duct output. (default: False)
   --clobber             Replace log files if they already exist. (default:
                         False)
-  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log_level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
                         Level of log output to stderr, use NONE to entirely
                         disable. (default: INFO)
   -q, --quiet           [deprecated, use log level NONE] Disable duct logging
