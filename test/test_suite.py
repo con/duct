@@ -20,7 +20,10 @@ class TestSuiteHelpers(unittest.TestCase):
             return "NOPE"
 
         args = argparse.Namespace(
-            command="invalid", file_path="dummy.json", func=return_non_int
+            command="invalid",
+            file_path="dummy.json",
+            func=return_non_int,
+            log_level="NONE",
         )
         with pytest.raises(TypeError):
             main.execute(args)
@@ -78,7 +81,10 @@ class TestPPrint(unittest.TestCase):
     @patch("con_duct.suite.pprint_json.pprint")
     def test_pprint_json(self, mock_pprint: MagicMock, mock_open: MagicMock) -> None:
         args = argparse.Namespace(
-            command="pp", file_path="dummy.json", func=pprint_json.pprint_json
+            command="pp",
+            file_path="dummy.json",
+            func=pprint_json.pprint_json,
+            log_level="NONE",
         )
         assert main.execute(args) == 0
 
@@ -88,7 +94,10 @@ class TestPPrint(unittest.TestCase):
     @patch("builtins.open", side_effect=FileNotFoundError)
     def test_file_not_found(self, _mock_open: MagicMock) -> None:
         args = argparse.Namespace(
-            command="pp", file_path="dummy.json", func=pprint_json.pprint_json
+            command="pp",
+            file_path="dummy.json",
+            func=pprint_json.pprint_json,
+            log_level="NONE",
         )
         assert main.execute(args) == 1
 
@@ -98,7 +107,10 @@ class TestPPrint(unittest.TestCase):
         self, mock_pprint: MagicMock, mock_open: MagicMock
     ) -> None:
         args = argparse.Namespace(
-            command="pp", file_path="dummy.json", func=pprint_json.pprint_json
+            command="pp",
+            file_path="dummy.json",
+            func=pprint_json.pprint_json,
+            log_level="NONE",
         )
         assert main.execute(args) == 1
 
@@ -115,6 +127,7 @@ class TestPlotMatplotlib(unittest.TestCase):
             file_path="test/data/mriqc-example/usage.json",
             output="outfile.png",
             func=plot.matplotlib_plot,
+            log_level="NONE",
         )
         assert main.execute(args) == 0
         mock_plot_save.assert_called_once_with("outfile.png")
@@ -126,6 +139,7 @@ class TestPlotMatplotlib(unittest.TestCase):
             file_path="test/data/mriqc-example/usage_not_to_be_found.json",
             output="outfile.png",
             func=plot.matplotlib_plot,
+            log_level="NONE",
         )
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
@@ -140,6 +154,7 @@ class TestPlotMatplotlib(unittest.TestCase):
             file_path="test/data/mriqc-example/usage.json",
             output="outfile.png",
             func=plot.matplotlib_plot,
+            log_level="NONE",
         )
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()

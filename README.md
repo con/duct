@@ -93,7 +93,7 @@ options:
   --colors              Use colors in duct output. (default: False)
   --clobber             Replace log files if they already exist. (default:
                         False)
-  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log_level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
                         Level of log output to stderr, use NONE to entirely
                         disable. (default: INFO)
   -q, --quiet           [deprecated, use log level NONE] Disable duct logging
@@ -148,13 +148,16 @@ usage: con-duct <command> [options]
 A suite of commands to manage or manipulate con-duct logs.
 
 positional arguments:
-  {pp,plot,ls}  Available subcommands
-    pp          Pretty print a JSON log.
-    plot        Plot resource usage for an execution.
-    ls          Print execution information for all matching runs.
+  {pp,plot,ls}          Available subcommands
+    pp                  Pretty print a JSON log.
+    plot                Plot resource usage for an execution.
+    ls                  Print execution information for all matching runs.
 
 options:
-  -h, --help    show this help message and exit
+  -h, --help            show this help message and exit
+  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+                        Level of log output to stderr, use NONE to entirely
+                        disable.
 
 ```
 <!-- END EXTRAS HELP -->
