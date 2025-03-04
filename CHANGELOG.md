@@ -1,3 +1,26 @@
+# v0.11.0 (Tue Mar 04 2025)
+
+#### 🚀 Enhancement
+
+- Add con-duct --log-levels [#253](https://github.com/con/duct/pull/253) ([@asmacdo](https://github.com/asmacdo))
+- Add --eval-filter [#241](https://github.com/con/duct/pull/241) ([@asmacdo](https://github.com/asmacdo) [@yarikoptic](https://github.com/yarikoptic))
+
+#### 🐛 Bug Fix
+
+- docs: add RRID badge to README [#254](https://github.com/con/duct/pull/254) ([@asmacdo](https://github.com/asmacdo))
+- Implement and use packaging.Version replacement [#247](https://github.com/con/duct/pull/247) ([@asmacdo](https://github.com/asmacdo))
+- Add test: ls field list should contain all info.json fields [#243](https://github.com/con/duct/pull/243) ([@asmacdo](https://github.com/asmacdo))
+- ls --help: list fields only once [#250](https://github.com/con/duct/pull/250) ([@asmacdo](https://github.com/asmacdo))
+- bf: yaml should be optional [#248](https://github.com/con/duct/pull/248) ([@asmacdo](https://github.com/asmacdo))
+- Fixup: blacken [#249](https://github.com/con/duct/pull/249) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 2
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.10.1 (Fri Feb 07 2025)
 
 #### 🐛 Bug Fix
