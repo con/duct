@@ -1,1 +1,3 @@
-from ._version import __version__  # noqa
+from importlib.metadata import version
+
+__version__ = version("con-duct")
