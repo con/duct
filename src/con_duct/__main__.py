@@ -6,6 +6,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
+from importlib.metadata import version
 import json
 import logging
 import math
@@ -21,7 +22,7 @@ import threading
 import time
 from typing import IO, Any, Optional, TextIO
 
-__version__ = "0.11.0"
+__version__ = version("con-duct")
 __schema_version__ = "0.2.0"
 
 

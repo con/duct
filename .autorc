@@ -8,7 +8,6 @@
         [
             "exec",
             {
-                "afterChangelog": "bump2version \"$(printf '%s\n' \"$ARG_0\" | jq -r .bump)\"",
                 "afterRelease": "python -m build && twine upload dist/*"
             }
         ],
