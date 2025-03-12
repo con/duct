@@ -148,14 +148,46 @@ def _format_row(
     return transformed
 
 
-def pyout_ls(run_data_list: List[OrderedDict[str, Any]]) -> None:
+def pyout_ls(run_data_list: List[OrderedDict[str, Any]], enable_colors: bool) -> None:
     """Generate and print a tabular table using pyout."""
     if pyout is None:
         raise RuntimeError("pyout is required for this output format.")
 
+    color_styles = {
+        "E": dict(
+            color=dict(
+                re_lookup=[
+                    ["^0$", "green"],  # if exactly "0", then green
+                    [".*", "red"],  # anything else gets red
+                ]
+            )
+        ),
+        "N": dict(
+            color=dict(
+                re_lookup=[
+                    [f"^{SummaryFormatter.NONE}", "red"],  # if starts with NONE
+                    [".*", "green"],
+                ]
+            )
+        ),
+    }
+    # S is humansize, conversion done, coloring same as N
+    color_styles["S"] = color_styles["N"]
+
+    pattern = re.compile(r"!([A-Z])")
+    conversion_map = (
+        {
+            k: color_styles[match.group(1)]
+            for k, v in VALUE_TRANSFORMATION_MAP.items()
+            if (match := pattern.search(v))
+        }
+        if enable_colors
+        else {}
+    )
     with pyout.Tabular(
         style=dict(
             header_=dict(bold=True, transform=str.upper),
+            **conversion_map,
         ),
         mode="final",
     ) as table:
@@ -164,18 +196,19 @@ def pyout_ls(run_data_list: List[OrderedDict[str, Any]]) -> None:
 
 
 def ls(args: argparse.Namespace) -> int:
-
     if not args.paths:
         pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*"
         args.paths = [p for p in glob.glob(pattern)]
 
-    info_files = [path for path in args.paths if path.endswith("info.json")]
-    run_data_raw = load_duct_runs(info_files, args.eval_filter)
-    formatter = SummaryFormatter(enable_colors=args.colors)
-    output_rows = process_run_data(run_data_raw, args.fields, formatter)
-
     if args.format == "auto":
         args.format = "summaries" if pyout is None else "pyout"
+
+    formatter = SummaryFormatter(
+        enable_colors=False if args.format == "pyout" else args.colors
+    )
+    info_files = [path for path in args.paths if path.endswith("info.json")]
+    run_data_raw = load_duct_runs(info_files, args.eval_filter)
+    output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
     if args.format == "summaries":
         for row in output_rows:
@@ -186,7 +219,7 @@ def ls(args: argparse.Namespace) -> int:
     elif args.format == "pyout":
         if pyout is None:
             raise RuntimeError("Install pyout for pyout output")
-        pyout_ls(output_rows)
+        pyout_ls(output_rows, args.colors)
     elif args.format == "json":
         print(json.dumps(output_rows))
     elif args.format == "json_pp":
