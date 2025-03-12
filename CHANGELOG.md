@@ -1,3 +1,19 @@
+# v0.12.0 (Wed Mar 12 2025)
+
+#### 🚀 Enhancement
+
+- Use versioningit for --version [#251](https://github.com/con/duct/pull/251) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- When using pyout, use pyout color [#257](https://github.com/con/duct/pull/257) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.11.0 (Tue Mar 04 2025)
 
 #### 🚀 Enhancement
