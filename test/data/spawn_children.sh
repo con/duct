@@ -2,21 +2,22 @@
 
 mode=$1
 nchildren=$2
-shift 2
+sleeptime=$3
 
-# Ensure at least one background process for `wait` to track
-"$@" &
+# Ensure at least one background process for `wait` to track, we want this to take longer than the children.
+long_sleep=$(awk "BEGIN {print $sleeptime * 1.5}")
+sleep "$long_sleep" &
 
-for i in $(seq 1 $nchildren); do
+for _ in $(seq 1 "$nchildren"); do
     case "$mode" in
         subshell)
-            ( "$@" & ) ;;
+            ( sleep "$sleeptime" & ) ;;
         nohup)
-            ( nohup "$@" & disown ) & ;;
+            ( nohup sleep "$sleeptime" & disown ) & ;;
         setsid)
-            setsid "$@" & ;;
+            setsid sleep "$sleeptime" & ;;
         plain)
-            "$@" & ;;
+            sleep "$sleeptime" & ;;
         *)
             echo "Unknown mode: $mode" >&2
             exit 1

@@ -18,7 +18,7 @@ def test_sanity(temp_output_dir: str) -> None:
 def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> None:
     duct_prefix = f"{temp_output_dir}log_"
     script_path = TEST_SCRIPT_DIR / "spawn_children.sh"
-    command = f"duct -q --s-i 0.001 --r-i 0.01 -p {duct_prefix} {script_path} {mode} {num_children} sleep 0.2"
+    command = f"duct -q --s-i 0.001 --r-i 0.01 -p {duct_prefix} {script_path} {mode} {num_children} 0.2"
     subprocess.check_output(command, shell=True)
 
     with open(f"{duct_prefix}usage.json") as usage_file:
