@@ -1,5 +1,4 @@
 from __future__ import annotations
-from itertools import chain
 import json
 from pathlib import Path
 import subprocess
@@ -18,16 +17,22 @@ def test_sanity(temp_output_dir: str) -> None:
 def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> None:
     duct_prefix = f"{temp_output_dir}log_"
     script_path = TEST_SCRIPT_DIR / "spawn_children.sh"
-    command = f"duct -q --s-i 0.001 --r-i 0.01 -p {duct_prefix} {script_path} {mode} {num_children} 0.2"
+    dur = "0.2"
+    command = f"duct -q --s-i 0.001 --r-i 0.01 -p {duct_prefix} {script_path} {mode} {num_children} {dur}"
     subprocess.check_output(command, shell=True)
 
     with open(f"{duct_prefix}usage.json") as usage_file:
         all_samples = [json.loads(line) for line in usage_file]
 
-    all_pids = set(chain.from_iterable(sample["processes"] for sample in all_samples))
-
-    # Add 1 for the parent, add 1 for the "hold the door" process, see line 7 of the script
+    # Only count the child sleep processes
+    all_child_pids = set(
+        pid
+        for sample in all_samples
+        for pid, proc in sample["processes"].items()
+        if proc["cmd"].startswith("sleep")
+    )
+    # Add one pid for the hold-the-door process, see spawn_children.sh line 7
     if mode == "setsid":
-        assert len(all_pids) == 2
+        assert len(all_child_pids) == 1
     else:
-        assert len(all_pids) == num_children + 2
+        assert len(all_child_pids) == num_children + 1
