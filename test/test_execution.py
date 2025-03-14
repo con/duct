@@ -12,7 +12,7 @@ from utils import assert_files
 import con_duct.__main__ as __main__
 from con_duct.__main__ import SUFFIXES, Arguments, Outputs, execute
 
-TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
+TEST_SCRIPT_DIR = Path(__file__).with_name("data")
 
 expected_files = [
     SUFFIXES["stdout"],
@@ -78,8 +78,9 @@ def test_sanity_red(
 
 
 def test_outputs_full(temp_output_dir: str) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         # It is our default, but let's be explicit
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
@@ -90,8 +91,9 @@ def test_outputs_full(temp_output_dir: str) -> None:
 
 
 def test_outputs_passthrough(temp_output_dir: str) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         capture_outputs=Outputs.NONE,
         outputs=Outputs.ALL,
         output_prefix=temp_output_dir,
@@ -104,8 +106,9 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
 
 
 def test_outputs_capture(temp_output_dir: str) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
         output_prefix=temp_output_dir,
@@ -117,8 +120,9 @@ def test_outputs_capture(temp_output_dir: str) -> None:
 
 
 def test_outputs_none(temp_output_dir: str) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         capture_outputs=Outputs.NONE,
         outputs=Outputs.NONE,
         output_prefix=temp_output_dir,
@@ -138,8 +142,9 @@ def test_outputs_none_quiet(
     capsys: pytest.CaptureFixture,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
@@ -204,7 +209,7 @@ def test_execute_unknown_command(
 
 
 @pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
-def test_signal_exit(temp_output_dir: str, fail_time: float | None) -> None:
+def test_signal_int(temp_output_dir: str, fail_time: float | None) -> None:
 
     def runner() -> int:
         kws = {}
@@ -232,7 +237,44 @@ def test_signal_exit(temp_output_dir: str, fail_time: float | None) -> None:
             info_data = json.loads(info.read())
 
         command_exit_code = info_data["execution_summary"]["exit_code"]
+        # SIGINT
         assert command_exit_code == 128 + 2
+
+
+@pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
+def test_signal_kill(temp_output_dir: str, fail_time: float | None) -> None:
+
+    def runner() -> int:
+        script_path = str(TEST_SCRIPT_DIR / "signal_ignorer.py")
+        kws = {}
+        if fail_time is not None:
+            kws["fail_time"] = fail_time
+        args = Arguments.from_argv([script_path], output_prefix=temp_output_dir, **kws)
+        return execute(args)
+
+    proc = multiprocessing.Process(target=runner)
+    proc.start()
+    sleep(0.1)
+    os.kill(proc.pid, signal.SIGINT)
+    sleep(0.1)
+    os.kill(proc.pid, signal.SIGINT)
+    sleep(0.1)
+    os.kill(proc.pid, signal.SIGINT)
+    proc.join()
+
+    # Once the command has been killed, duct should exit gracefully with exit code 0
+    assert proc.exitcode == 0
+
+    if fail_time is None or fail_time != 0:
+        assert_expected_files(temp_output_dir, exists=False)
+    else:
+        # proc exit code should Cannot retrieve the exit code from the thread, it is written to the file
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+
+        command_exit_code = info_data["execution_summary"]["exit_code"]
+        # SIGKILL
+        assert command_exit_code == 128 + 9
 
 
 def test_duct_as_executable(temp_output_dir: str) -> None:

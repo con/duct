@@ -1003,7 +1003,7 @@ class ProcessSignalHandler:
             lgr.info("Received second SIGINT, again passing to command")
             os.kill(self.pid, signal.SIGINT)
         elif self.sigcount == 3:
-            lgr.warn("Received third SIGINT, forcefully killing command process")
+            lgr.warning("Received third SIGINT, forcefully killing command process")
             os.kill(self.pid, signal.SIGKILL)
         elif self.sigcount >= 4:
             lgr.critical("Exiting duct, skipping cleanup")
