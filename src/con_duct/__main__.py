@@ -13,6 +13,7 @@ import math
 import os
 import re
 import shutil
+import signal
 import socket
 import string
 import subprocess
@@ -20,6 +21,7 @@ import sys
 import textwrap
 import threading
 import time
+from types import FrameType
 from typing import IO, Any, Optional, TextIO
 
 __version__ = version("con-duct")
@@ -987,6 +989,27 @@ def main() -> None:
     sys.exit(execute(args))
 
 
+class ProcessSignalHandler:
+    def __init__(self, pid: int) -> None:
+        self.pid: int = pid
+        self.sigcount: int = 0
+
+    def handle_signal(self, _sig: int, _frame: Optional[FrameType]) -> None:
+        self.sigcount += 1
+        if self.sigcount == 1:
+            lgr.info("Received SIGINT, passing to command")
+            os.kill(self.pid, signal.SIGINT)
+        elif self.sigcount == 2:
+            lgr.info("Received second SIGINT, again passing to command")
+            os.kill(self.pid, signal.SIGINT)
+        elif self.sigcount == 3:
+            lgr.warning("Received third SIGINT, forcefully killing command process")
+            os.kill(self.pid, signal.SIGKILL)
+        elif self.sigcount >= 4:
+            lgr.critical("Exiting duct, skipping cleanup")
+            os._exit(1)
+
+
 def execute(args: Arguments) -> int:
     """A wrapper to execute a command, monitor and log the process details.
 
@@ -1041,6 +1064,8 @@ def execute(args: Arguments) -> int:
         print(f"{args.command}: command not found", file=sys.stderr)
         return 127  # seems what zsh and bash return then
 
+    handler = ProcessSignalHandler(process.pid)
+    signal.signal(signal.SIGINT, handler.handle_signal)
     lgr.info("duct is executing %r...", full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
