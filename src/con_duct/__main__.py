@@ -21,6 +21,7 @@ import sys
 import textwrap
 import threading
 import time
+from types import FrameType
 from typing import IO, Any, Optional, TextIO
 
 __version__ = version("con-duct")
@@ -989,21 +990,21 @@ def main() -> None:
 
 
 class ProcessSignalHandler:
-    def __init__(self, pid):
-        self.pid = pid
-        self.sigcount = 0
+    def __init__(self, pid: int) -> None:
+        self.pid: int = pid
+        self.sigcount: int = 0
 
-    def handle_signal(self, _sig, _frame):
+    def handle_signal(self, _sig: int, _frame: Optional[FrameType]) -> None:
         self.sigcount += 1
         if self.sigcount == 1:
             lgr.info("Received SIGINT, passing to command")
-            # os.kill(self.pid, signal.SIGINT)
+            os.kill(self.pid, signal.SIGINT)
         elif self.sigcount == 2:
-            lgr.info("Received second SIGINT, passing to command")
-            # os.kill(self.pid, signal.SIGINT)
+            lgr.info("Received second SIGINT, again passing to command")
+            os.kill(self.pid, signal.SIGINT)
         elif self.sigcount == 3:
             lgr.warn("Received third SIGINT, forcefully killing command process")
-            # os.kill(self.pid, signal.SIGKILL)
+            os.kill(self.pid, signal.SIGKILL)
         elif self.sigcount >= 4:
             lgr.critical("Exiting duct, skipping cleanup")
             os._exit(1)
