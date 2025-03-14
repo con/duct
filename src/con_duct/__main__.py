@@ -993,23 +993,19 @@ class ProcessSignalHandler:
         self.pid = pid
         self.sigcount = 0
 
-    def handle_signal(self, sig, _frame):
-        print(f"Received signal {sig}")
-        # TODO only increment on SIGINT?
+    def handle_signal(self, _sig, _frame):
         self.sigcount += 1
-        print(f"signal count {self.sigcount}")
         if self.sigcount == 1:
-            print("politely passing interrupt to command (SIGINT)")
-            os.kill(self.pid, signal.SIGINT)
+            lgr.info("Received SIGINT, passing to command")
+            # os.kill(self.pid, signal.SIGINT)
         elif self.sigcount == 2:
-            # TODO or maybe we should just pas SIGINT again, the command might be able to handle
-            # multiple SIGINTS? What does datalad do?
-            os.kill(self.pid, signal.SIGINT)
-        elif self.sigcount >= 3:
-            print("forcefully shutting down command SIGKILL")
-            os.kill(self.pid, signal.SIGKILL)
+            lgr.info("Received second SIGINT, passing to command")
+            # os.kill(self.pid, signal.SIGINT)
+        elif self.sigcount == 3:
+            lgr.warn("Received third SIGINT, forcefully killing command process")
+            # os.kill(self.pid, signal.SIGKILL)
         elif self.sigcount >= 4:
-            print("Force exiting duct-- will not cleanup")
+            lgr.critical("Exiting duct, skipping cleanup")
             os._exit(1)
 
 
