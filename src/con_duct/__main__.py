@@ -13,6 +13,7 @@ import math
 import os
 import re
 import shutil
+import signal
 import socket
 import string
 import subprocess
@@ -987,6 +988,31 @@ def main() -> None:
     sys.exit(execute(args))
 
 
+class ProcessSignalHandler:
+    def __init__(self, pid):
+        self.pid = pid
+        self.sigcount = 0
+
+    def handle_signal(self, sig, _frame):
+        print(f"Received signal {sig}")
+        # TODO only increment on SIGINT?
+        self.sigcount += 1
+        print(f"signal count {self.sigcount}")
+        if self.sigcount == 1:
+            print("politely passing interrupt to command (SIGINT)")
+            os.kill(self.pid, signal.SIGINT)
+        elif self.sigcount == 2:
+            # TODO or maybe we should just pas SIGINT again, the command might be able to handle
+            # multiple SIGINTS? What does datalad do?
+            os.kill(self.pid, signal.SIGINT)
+        elif self.sigcount >= 3:
+            print("forcefully shutting down command SIGKILL")
+            os.kill(self.pid, signal.SIGKILL)
+        elif self.sigcount >= 4:
+            print("Force exiting duct-- will not cleanup")
+            os._exit(1)
+
+
 def execute(args: Arguments) -> int:
     """A wrapper to execute a command, monitor and log the process details.
 
@@ -1041,6 +1067,8 @@ def execute(args: Arguments) -> int:
         print(f"{args.command}: command not found", file=sys.stderr)
         return 127  # seems what zsh and bash return then
 
+    handler = ProcessSignalHandler(process.pid)
+    signal.signal(signal.SIGINT, handler.handle_signal)
     lgr.info("duct is executing %r...", full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
