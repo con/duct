@@ -223,6 +223,7 @@ def test_signal_int(temp_output_dir: str, fail_time: float | None) -> None:
     proc = multiprocessing.Process(target=runner)
     proc.start()
     sleep(0.01)
+    assert proc.pid is not None, "Process PID should not be None"  # for mypy
     os.kill(proc.pid, signal.SIGINT)
     proc.join()
 
@@ -252,13 +253,15 @@ def test_signal_kill(temp_output_dir: str, fail_time: float | None) -> None:
         args = Arguments.from_argv([script_path], output_prefix=temp_output_dir, **kws)
         return execute(args)
 
+    wait_time = 0.3
     proc = multiprocessing.Process(target=runner)
     proc.start()
-    sleep(0.1)
+    sleep(wait_time)
+    assert proc.pid is not None, "Process PID should not be None"  # for mypy
     os.kill(proc.pid, signal.SIGINT)
-    sleep(0.1)
+    sleep(wait_time)
     os.kill(proc.pid, signal.SIGINT)
-    sleep(0.1)
+    sleep(wait_time)
     os.kill(proc.pid, signal.SIGINT)
     proc.join()
 

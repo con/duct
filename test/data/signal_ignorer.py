@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import signal
 import time
+from types import FrameType
+from typing import Optional
 
 
-def handle_signal(sig, _frame):
+def handle_signal(sig: int, _frame: Optional[FrameType]) -> None:
     print(f"Received {sig}")
 
 
