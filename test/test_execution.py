@@ -1,11 +1,11 @@
 from __future__ import annotations
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import signal
 import subprocess
 import sys
-import threading
 from time import sleep, time
 import pytest
 from utils import assert_files
@@ -215,36 +215,24 @@ def test_signal_exit(temp_output_dir: str, fail_time: float | None) -> None:
         )
         return execute(args)
 
-    thread = threading.Thread(target=runner)
-    thread.start()
-    retries = 20
-    pid = None
-    for i in range(retries):
-        try:
-            ps_command = "ps auxww | grep '[s]leep 60.74016230000801'"  # brackets to not match grep process
-            ps_output = subprocess.check_output(ps_command, shell=True).decode()
-            pid = int(ps_output.split()[1])
-            break
-        except subprocess.CalledProcessError as e:
-            print(f"Attempt {i} failed with msg: {e}", file=sys.stderr)
-            sleep(0.1)  # Retry after a short delay
+    proc = multiprocessing.Process(target=runner)
+    proc.start()
+    sleep(0.01)
+    os.kill(proc.pid, signal.SIGINT)
+    proc.join()
 
-    if pid is not None:
-        os.kill(pid, signal.SIGTERM)
-    else:
-        raise RuntimeError("Failed to find sleep process")
-
-    thread.join()
+    # Once the command has been killed, duct should exit gracefully with exit code 0
+    assert proc.exitcode == 0
 
     if fail_time is None or fail_time != 0:
         assert_expected_files(temp_output_dir, exists=False)
     else:
-        # Cannot retrieve the exit code from the thread, it is written to the file
+        # proc exit code should Cannot retrieve the exit code from the thread, it is written to the file
         with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
             info_data = json.loads(info.read())
 
-        exit_code = info_data["execution_summary"]["exit_code"]
-        assert exit_code == 128 + 15
+        command_exit_code = info_data["execution_summary"]["exit_code"]
+        assert command_exit_code == 128 + 2
 
 
 def test_duct_as_executable(temp_output_dir: str) -> None:
