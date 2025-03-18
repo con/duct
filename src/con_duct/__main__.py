@@ -67,6 +67,12 @@ Resource usage is determined by polling (at a sample-interval).
 During execution, duct produces a JSON lines (see https://jsonlines.org) file
 with one data point recorded for each report (at a report-interval).
 
+limitations:
+  Duct uses session id to track the command process and its children, so it
+  cannot handle the situation where a process creates a new session.
+  If a command spawns child processes, duct will collect data on them, but
+  duct exits as soon as the primary process exits.
+
 environment variables:
   Many duct options can be configured by environment variables (which are
   overridden by command line options).
