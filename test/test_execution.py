@@ -1,18 +1,18 @@
 from __future__ import annotations
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import signal
 import subprocess
 import sys
-import threading
 from time import sleep, time
 import pytest
 from utils import assert_files
 import con_duct.__main__ as __main__
 from con_duct.__main__ import SUFFIXES, Arguments, Outputs, execute
 
-TEST_SCRIPT = str(Path(__file__).with_name("data") / "test_script.py")
+TEST_SCRIPT_DIR = Path(__file__).with_name("data")
 
 expected_files = [
     SUFFIXES["stdout"],
@@ -78,8 +78,9 @@ def test_sanity_red(
 
 
 def test_outputs_full(temp_output_dir: str) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         # It is our default, but let's be explicit
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
@@ -90,8 +91,9 @@ def test_outputs_full(temp_output_dir: str) -> None:
 
 
 def test_outputs_passthrough(temp_output_dir: str) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         capture_outputs=Outputs.NONE,
         outputs=Outputs.ALL,
         output_prefix=temp_output_dir,
@@ -104,8 +106,9 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
 
 
 def test_outputs_capture(temp_output_dir: str) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
         output_prefix=temp_output_dir,
@@ -117,8 +120,9 @@ def test_outputs_capture(temp_output_dir: str) -> None:
 
 
 def test_outputs_none(temp_output_dir: str) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         capture_outputs=Outputs.NONE,
         outputs=Outputs.NONE,
         output_prefix=temp_output_dir,
@@ -138,8 +142,9 @@ def test_outputs_none_quiet(
     capsys: pytest.CaptureFixture,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
-        [TEST_SCRIPT, "--duration", "1"],
+        [script_path, "--duration", "1"],
         output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
@@ -204,7 +209,7 @@ def test_execute_unknown_command(
 
 
 @pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
-def test_signal_exit(temp_output_dir: str, fail_time: float | None) -> None:
+def test_signal_int(temp_output_dir: str, fail_time: float | None) -> None:
 
     def runner() -> int:
         kws = {}
@@ -215,39 +220,76 @@ def test_signal_exit(temp_output_dir: str, fail_time: float | None) -> None:
         )
         return execute(args)
 
-    thread = threading.Thread(target=runner)
-    thread.start()
-    retries = 20
-    pid = None
-    for i in range(retries):
-        try:
-            ps_command = "ps auxww | grep '[s]leep 60.74016230000801'"  # brackets to not match grep process
-            ps_output = subprocess.check_output(ps_command, shell=True).decode()
-            pid = int(ps_output.split()[1])
-            break
-        except subprocess.CalledProcessError as e:
-            print(f"Attempt {i} failed with msg: {e}", file=sys.stderr)
-            sleep(0.1)  # Retry after a short delay
+    wait_time = 0.3
+    proc = multiprocessing.Process(target=runner)
+    proc.start()
+    sleep(wait_time)
+    assert proc.pid is not None, "Process PID should not be None"  # for mypy
+    os.kill(proc.pid, signal.SIGINT)
+    proc.join()
 
-    if pid is not None:
-        os.kill(pid, signal.SIGTERM)
-    else:
-        raise RuntimeError("Failed to find sleep process")
-
-    thread.join()
+    # Once the command has been killed, duct should exit gracefully with exit code 0
+    assert proc.exitcode == 0
 
     if fail_time is None or fail_time != 0:
         assert_expected_files(temp_output_dir, exists=False)
     else:
-        # Cannot retrieve the exit code from the thread, it is written to the file
+        # proc exit code should Cannot retrieve the exit code from the thread, it is written to the file
         with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
             info_data = json.loads(info.read())
 
-        exit_code = info_data["execution_summary"]["exit_code"]
-        assert exit_code == 128 + 15
+        command_exit_code = info_data["execution_summary"]["exit_code"]
+        # SIGINT
+        assert command_exit_code == 128 + 2
+
+
+@pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
+def test_signal_kill(temp_output_dir: str, fail_time: float | None) -> None:
+
+    def runner() -> int:
+        script_path = str(TEST_SCRIPT_DIR / "signal_ignorer.py")
+        kws = {}
+        if fail_time is not None:
+            kws["fail_time"] = fail_time
+        args = Arguments.from_argv([script_path], output_prefix=temp_output_dir, **kws)
+        return execute(args)
+
+    wait_time = 0.6
+    proc = multiprocessing.Process(target=runner)
+    proc.start()
+    sleep(wait_time)
+    assert proc.pid is not None, "Process PID should not be None"  # for mypy
+    os.kill(proc.pid, signal.SIGINT)
+    sleep(wait_time)
+    os.kill(proc.pid, signal.SIGINT)
+    sleep(wait_time)
+    os.kill(proc.pid, signal.SIGINT)
+    proc.join()
+
+    # Once the command has been killed, duct should exit gracefully with exit code 0
+    assert proc.exitcode == 0
+
+    if fail_time is None or fail_time != 0:
+        assert_expected_files(temp_output_dir, exists=False)
+    else:
+        # Cannot retrieve the command exit code from the thread, get from duct log
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+
+        command_exit_code = info_data["execution_summary"]["exit_code"]
+        # SIGKILL
+        assert command_exit_code == 128 + 9
 
 
 def test_duct_as_executable(temp_output_dir: str) -> None:
-    ps_command = f"{sys.executable} {__main__.__file__} -p {temp_output_dir} sleep 0.01"
+    ps_command = [
+        sys.executable,
+        __main__.__file__,
+        "-p",
+        temp_output_dir,
+        "-q",
+        "sleep",
+        "0.01",
+    ]
     # Assert does not raise
-    subprocess.check_output(ps_command, shell=True).decode()
+    subprocess.check_output(ps_command, shell=False).decode()
