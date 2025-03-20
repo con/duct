@@ -282,8 +282,14 @@ def test_signal_kill(temp_output_dir: str, fail_time: float | None) -> None:
 
 
 def test_duct_as_executable(temp_output_dir: str) -> None:
-    ps_command = (
-        f"{sys.executable} {__main__.__file__} -p {temp_output_dir} -q sleep 0.01"
-    )
+    ps_command = [
+        sys.executable,
+        __main__.__file__,
+        "-p",
+        temp_output_dir,
+        "-q",
+        "sleep",
+        "0.01",
+    ]
     # Assert does not raise
-    subprocess.check_output(ps_command, shell=True).decode()
+    subprocess.check_output(ps_command, shell=False).decode()
