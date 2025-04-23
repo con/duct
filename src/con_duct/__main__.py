@@ -25,7 +25,7 @@ from types import FrameType
 from typing import IO, Any, Optional, TextIO
 
 __version__ = version("con-duct")
-__schema_version__ = "0.2.0"
+__schema_version__ = "0.2.1"
 
 
 lgr = logging.getLogger("con-duct")
@@ -382,6 +382,7 @@ class Report:
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
         self.usage_file: TextIO | None = None
+        self.working_directory: str = os.getcwd()
 
     def __del__(self) -> None:
         safe_close_files([self.usage_file])
@@ -532,6 +533,7 @@ class Report:
             "num_reports": self.number,
             "start_time": self.start_time,
             "end_time": self.end_time,
+            "working_directory": self.working_directory,
         }
 
     def dump_json(self) -> str:
@@ -547,6 +549,7 @@ class Report:
                 "schema_version": __schema_version__,
                 "execution_summary": self.execution_summary,
                 "output_paths": asdict(self.log_paths),
+                "working_directory": self.working_directory,
             }
         )
 

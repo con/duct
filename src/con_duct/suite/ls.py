@@ -55,12 +55,13 @@ NON_TRANSFORMED_FIELDS: List[str] = [
     "uid",
     "usage",
     "user",
+    "working_directory",
 ]
 
 LS_FIELD_CHOICES: List[str] = (
     list(VALUE_TRANSFORMATION_MAP.keys()) + NON_TRANSFORMED_FIELDS
 )
-MINIMUM_SCHEMA_VERSION: str = "0.2.0"
+MINIMUM_SCHEMA_VERSION: str = "0.2.1"
 
 
 def load_duct_runs(

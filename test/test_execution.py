@@ -58,6 +58,7 @@ def test_execution_summary(temp_output_dir: str) -> None:
     assert execution_summary["average_pcpu"] < 10
     assert execution_summary["peak_pcpu"] < 10
     assert execution_summary["exit_code"] == 0
+    assert execution_summary["working_directory"] == os.getcwd()
 
 
 @pytest.mark.parametrize("exit_code", [1, 2, 128])
