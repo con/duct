@@ -4,6 +4,7 @@
 [![PyPI version](https://badge.fury.io/py/con-duct.svg)](https://badge.fury.io/py/con-duct)
 [![RRID](https://img.shields.io/badge/RRID-SCR__025436-blue)](https://identifiers.org/RRID:SCR_025436)
 
+Also see our [Datalad Blog Post](https://blog.datalad.org/posts/intro-duct-tion/) for a hands on example.
 
 ## Installation
 
