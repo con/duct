@@ -359,6 +359,7 @@ class Report:
         arguments: list[str],
         log_paths: LogPaths,
         summary_format: str,
+        working_directory: str,
         colors: bool = False,
         clobber: bool = False,
         process: subprocess.Popen | None = None,
@@ -382,7 +383,7 @@ class Report:
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
         self.usage_file: TextIO | None = None
-        self.working_directory: str = os.getcwd()
+        self.working_directory: str = working_directory
 
     def __del__(self) -> None:
         safe_close_files([self.usage_file])
@@ -1042,6 +1043,7 @@ def execute(args: Arguments) -> int:
     else:
         stderr_file = stderr
 
+    working_directory = os.getcwd()
     full_command = " ".join([str(args.command)] + args.command_args)
     files_to_close = [stdout_file, stdout, stderr_file, stderr]
 
@@ -1050,6 +1052,7 @@ def execute(args: Arguments) -> int:
         args.command_args,
         log_paths,
         args.summary_format,
+        working_directory,
         args.colors,
         args.clobber,
     )
@@ -1062,6 +1065,7 @@ def execute(args: Arguments) -> int:
             stdout=stdout_file,
             stderr=stderr_file,
             start_new_session=True,
+            cwd=report.working_directory,
         )
     except FileNotFoundError:
         # We failed to execute due to file not found in PATH

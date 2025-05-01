@@ -1,3 +1,4 @@
+import os
 from unittest import mock
 import pytest
 from con_duct.__main__ import Report, SummaryFormatter
@@ -13,7 +14,10 @@ def test_execution_summary_formatted_wall_clock_time_nan(
 ) -> None:
     mock_log_paths.prefix = "mock_prefix"
     wall_clock_format_string = "Wall Clock Time: {wall_clock_time:.3f} sec\n"
-    report = Report("_cmd", [], mock_log_paths, wall_clock_format_string, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, wall_clock_format_string, cwd, clobber=False
+    )
     # It should not crash and it would render even where no wallclock time yet
     assert report.execution_summary_formatted is not None
     assert "wall clock time: nan" in report.execution_summary_formatted.lower()
@@ -34,7 +38,10 @@ def test_execution_summary_formatted_wall_clock_time_rounded(
 ) -> None:
     mock_log_paths.prefix = "mock_prefix"
     wall_clock_format_string = "{wall_clock_time:.3f}"
-    report = Report("_cmd", [], mock_log_paths, wall_clock_format_string, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, wall_clock_format_string, cwd, clobber=False
+    )
     report.process = mock_popen
     report.process.returncode = 0
     report.start_time = 1727221840.0486171
@@ -303,11 +310,13 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
 ) -> None:
     mock_log_paths.prefix = "mock_prefix"
     wall_clock_format_string = "Rendering: {wall_clock_time:.3f!X}"
+    cwd = os.getcwd()
     report = Report(
         "_cmd",
         [],
         mock_log_paths,
         wall_clock_format_string,
+        cwd,
         clobber=False,
         colors=colors,
     )
@@ -330,6 +339,7 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
         [],
         mock_log_paths,
         wall_clock_format_string,
+        cwd,
         clobber=False,
         colors=colors,
     )
@@ -341,6 +351,7 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
         [],
         mock_log_paths,
         "Rendering: {wall_clock_time!X:.3f}",
+        cwd,
         clobber=False,
         colors=colors,
     )

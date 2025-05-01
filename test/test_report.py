@@ -221,7 +221,10 @@ def test_process_stats_red(
 @mock.patch("con_duct.__main__.LogPaths")
 def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     report.get_system_info()
     assert report.system_info is not None
     assert report.system_info.hostname
@@ -241,7 +244,10 @@ def test_gpu_parsing_green(
         "index, name, pci.bus_id, driver_version, memory.total [MiB], compute_mode\n"
         "0, NVIDIA RTX A5500 Laptop GPU, 00000000:01:00.0, 535.183.01, 16384 MiB, Default"
     ).encode("utf-8")
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     report.get_system_info()
     assert report.gpus is not None
     assert report.gpus == [
@@ -267,7 +273,10 @@ def test_gpu_call_error(
     mlgr: mock.MagicMock,
 ) -> None:
     mock_sp.side_effect = subprocess.CalledProcessError(1, "errrr")
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     report.get_system_info()
     assert report.gpus is None
     mlgr.warning.assert_called_once()
@@ -287,7 +296,10 @@ def test_gpu_parse_error(
         "index, name, pci.bus_id, driver_version, memory.total [MiB], compute_mode\n"
         "not-enough-values, 535.183.01, 16384 MiB, Default"
     ).encode("utf-8")
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     report.get_system_info()
     assert report.gpus is None
     mlgr.warning.assert_called_once()
