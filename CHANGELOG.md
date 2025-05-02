@@ -1,3 +1,21 @@
+# v0.13.0 (Fri May 02 2025)
+
+#### 🚀 Enhancement
+
+- Collect working directory for execution summary [#264](https://github.com/con/duct/pull/264) ([@asmacdo](https://github.com/asmacdo))
+- Pass Ctrl+c interrupt to executed command [#260](https://github.com/con/duct/pull/260) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- Add blog link to README [#265](https://github.com/con/duct/pull/265) ([@asmacdo](https://github.com/asmacdo))
+- test: test various spawned children e2e cases [#258](https://github.com/con/duct/pull/258) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.12.0 (Wed Mar 12 2025)
 
 #### 🚀 Enhancement
