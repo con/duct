@@ -25,7 +25,7 @@ from types import FrameType
 from typing import IO, Any, Optional, TextIO
 
 __version__ = version("con-duct")
-__schema_version__ = "0.2.0"
+__schema_version__ = "0.2.1"
 
 
 lgr = logging.getLogger("con-duct")
@@ -359,6 +359,7 @@ class Report:
         arguments: list[str],
         log_paths: LogPaths,
         summary_format: str,
+        working_directory: str,
         colors: bool = False,
         clobber: bool = False,
         process: subprocess.Popen | None = None,
@@ -382,6 +383,7 @@ class Report:
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
         self.usage_file: TextIO | None = None
+        self.working_directory: str = working_directory
 
     def __del__(self) -> None:
         safe_close_files([self.usage_file])
@@ -532,6 +534,7 @@ class Report:
             "num_reports": self.number,
             "start_time": self.start_time,
             "end_time": self.end_time,
+            "working_directory": self.working_directory,
         }
 
     def dump_json(self) -> str:
@@ -547,6 +550,7 @@ class Report:
                 "schema_version": __schema_version__,
                 "execution_summary": self.execution_summary,
                 "output_paths": asdict(self.log_paths),
+                "working_directory": self.working_directory,
             }
         )
 
@@ -1039,6 +1043,7 @@ def execute(args: Arguments) -> int:
     else:
         stderr_file = stderr
 
+    working_directory = os.getcwd()
     full_command = " ".join([str(args.command)] + args.command_args)
     files_to_close = [stdout_file, stdout, stderr_file, stderr]
 
@@ -1047,6 +1052,7 @@ def execute(args: Arguments) -> int:
         args.command_args,
         log_paths,
         args.summary_format,
+        working_directory,
         args.colors,
         args.clobber,
     )
@@ -1059,6 +1065,7 @@ def execute(args: Arguments) -> int:
             stdout=stdout_file,
             stderr=stderr_file,
             start_new_session=True,
+            cwd=report.working_directory,
         )
     except FileNotFoundError:
         # We failed to execute due to file not found in PATH

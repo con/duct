@@ -1,5 +1,6 @@
 from collections import Counter
 from copy import deepcopy
+import os
 from typing import cast
 from unittest import mock
 import pytest
@@ -65,7 +66,10 @@ def test_aggregation_num_samples_increment(mock_log_paths: mock.MagicMock) -> No
     ex0 = Sample()
     ex0.add_pid(1, deepcopy(stat1))
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
     report.update_from_sample(ex0)
@@ -90,7 +94,10 @@ def test_aggregation_single_sample_sanity(mock_log_paths: mock.MagicMock) -> Non
     ex0.add_pid(1, deepcopy(stat1))
     ex0.add_pid(2, deepcopy(stat2))
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
     report.update_from_sample(ex0)
@@ -124,7 +131,10 @@ def test_aggregation_single_stat_multiple_samples_sanity(
     ex0 = Sample()
     ex0.add_pid(1, deepcopy(stat))
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
     report.update_from_sample(ex0)
@@ -170,7 +180,10 @@ def test_aggregation_averages(mock_log_paths: mock.MagicMock) -> None:
     sample2 = Sample()
     sample2.add_pid(1, deepcopy(stat2))
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
     report.update_from_sample(sample0)
@@ -239,7 +252,10 @@ def test_aggregation_current_ave_diverges_from_total_ave(
     sample2 = Sample()
     sample2.add_pid(1, deepcopy(stat2))
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
     report.update_from_sample(sample0)
@@ -303,7 +319,10 @@ def test_aggregation_many_samples(
     pid = 1
     sample1.add_pid(pid, deepcopy(stat))
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
 
@@ -341,7 +360,10 @@ def test_aggregation_many_samples(
 def test_aggregation_sample_no_pids(mock_log_paths: mock.MagicMock) -> None:
     sample0 = Sample()
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     # When there are no pids, finalization should be triggered because the exe is finished,
     # so a Sample with no PIDs should never be passed to update_from_sample.
     with pytest.raises(AssertionError):
@@ -353,7 +375,10 @@ def test_aggregation_no_false_peak(mock_log_paths: mock.MagicMock) -> None:
     sample1 = Sample()
     sample2 = Sample()
     mock_log_paths.prefix = "mock_prefix"
-    report = Report("_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, clobber=False)
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
     sample1.add_pid(1, deepcopy(stat100))
     sample1.add_pid(2, deepcopy(stat0))
     report.update_from_sample(sample1)
