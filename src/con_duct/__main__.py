@@ -463,6 +463,7 @@ class Report:
             output = subprocess.check_output(
                 [
                     "ps",
+                    "-w",
                     "-s",
                     str(self.session_id),
                     "-o",
