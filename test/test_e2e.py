@@ -29,7 +29,7 @@ def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> N
         pid
         for sample in all_samples
         for pid, proc in sample["processes"].items()
-        if proc["cmd"].startswith("sleep")
+        if "sleep" in proc["cmd"]
     )
     # Add one pid for the hold-the-door process, see spawn_children.sh line 7
     if mode == "setsid":
