@@ -1,3 +1,16 @@
+# v0.13.1 (Tue May 06 2025)
+
+#### 🐛 Bug Fix
+
+- Test fix conda feedstock [#268](https://github.com/con/duct/pull/268) ([@asmacdo](https://github.com/asmacdo))
+- Bugfix: do not truncate ps output [#267](https://github.com/con/duct/pull/267) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.13.0 (Fri May 02 2025)
 
 #### 🚀 Enhancement
