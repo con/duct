@@ -1,9 +1,10 @@
 import json
 from unittest.mock import mock_open, patch
-from con_duct.__main__ import SummaryFormatter
+from con_duct.__main__ import SummaryFormatter, __schema_version__
 from con_duct.suite.ls import (
     _flatten_dict,
     _restrict_row,
+    ensure_compliant_schema,
     load_duct_runs,
     process_run_data,
 )
@@ -71,3 +72,21 @@ def test_process_run_data() -> None:
     assert result[0]["prefix"] == "/test/path"
     assert "exit_code" not in result[0]
     assert result[0]["wall_clock_time"] == "0.123 sec"
+
+
+def test_ensure_compliant_schema_noop_for_current_version():
+    info = {"schema_version": __schema_version__, "execution_summary": {}}
+    ensure_compliant_schema(info)
+    assert "working_directory" not in info["execution_summary"]
+
+
+def test_ensure_compliant_schema_adds_field_for_old_version():
+    info = {"schema_version": "0.2.0", "execution_summary": {}}
+    ensure_compliant_schema(info)
+    assert info["execution_summary"]["working_directory"] == ""
+
+
+def test_ensure_compliant_schema_ignores_unexpected_future_version():
+    info = {"schema_version": "99.0.0", "execution_summary": {}}
+    ensure_compliant_schema(info)
+    assert "working_directory" not in info["execution_summary"]
