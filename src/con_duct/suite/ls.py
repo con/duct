@@ -99,7 +99,7 @@ def load_duct_runs(
     return loaded
 
 
-def ensure_compliant_schema(info_dict):
+def ensure_compliant_schema(info_dict: dict) -> None:
     if parse_version(info_dict["schema_version"]) == parse_version(__schema_version__):
         return
     # working_directory added in 0.2.1

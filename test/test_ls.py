@@ -1,4 +1,5 @@
 import json
+from typing import Any, Dict
 from unittest.mock import mock_open, patch
 from con_duct.__main__ import SummaryFormatter, __schema_version__
 from con_duct.suite.ls import (
@@ -74,19 +75,22 @@ def test_process_run_data() -> None:
     assert result[0]["wall_clock_time"] == "0.123 sec"
 
 
-def test_ensure_compliant_schema_noop_for_current_version():
-    info = {"schema_version": __schema_version__, "execution_summary": {}}
+def test_ensure_compliant_schema_noop_for_current_version() -> None:
+    info: Dict[str, Any] = {
+        "schema_version": __schema_version__,
+        "execution_summary": {},
+    }
     ensure_compliant_schema(info)
     assert "working_directory" not in info["execution_summary"]
 
 
-def test_ensure_compliant_schema_adds_field_for_old_version():
-    info = {"schema_version": "0.2.0", "execution_summary": {}}
+def test_ensure_compliant_schema_adds_field_for_old_version() -> None:
+    info: Dict[str, Any] = {"schema_version": "0.2.0", "execution_summary": {}}
     ensure_compliant_schema(info)
     assert info["execution_summary"]["working_directory"] == ""
 
 
-def test_ensure_compliant_schema_ignores_unexpected_future_version():
-    info = {"schema_version": "99.0.0", "execution_summary": {}}
+def test_ensure_compliant_schema_ignores_unexpected_future_version() -> None:
+    info: Dict[str, Any] = {"schema_version": "99.0.0", "execution_summary": {}}
     ensure_compliant_schema(info)
     assert "working_directory" not in info["execution_summary"]
