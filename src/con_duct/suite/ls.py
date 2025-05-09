@@ -103,9 +103,8 @@ def ensure_compliant_schema(info_dict):
     if parse_version(info_dict["schema_version"]) == parse_version(__schema_version__):
         return
     # working_directory added in 0.2.1
-    elif parse_version(info_dict["schema_version"]) < parse_version("0.2.1"):
+    if parse_version(info_dict["schema_version"]) < parse_version("0.2.1"):
         info_dict["execution_summary"]["working_directory"] = ""
-        return
 
 
 def process_run_data(
