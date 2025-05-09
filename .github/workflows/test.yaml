@@ -65,9 +65,13 @@ jobs:
           python -m pip install --upgrade --upgrade-strategy=eager tox
           sudo apt-get install -y libjpeg-dev
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage and mergify reporting
         if: matrix.toxenv == 'py'
-        run: tox -e py -- -vv --cov-report=xml
+        env:
+          MERGIFY_TOKEN: ${{ secrets.MERGIFY_TOKEN }}
+        run: |
+          pip install pytest-mergify
+          tox -e py -- -vv --cov-report=xml
 
       - name: Run generic tests
         if: matrix.toxenv != 'py'
