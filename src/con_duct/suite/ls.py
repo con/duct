@@ -6,7 +6,7 @@ import logging
 import re
 from types import ModuleType
 from typing import Any, Dict, List, Optional
-from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter
+from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter, __schema_version__
 from con_duct.utils import parse_version
 
 try:
@@ -61,7 +61,7 @@ NON_TRANSFORMED_FIELDS: List[str] = [
 LS_FIELD_CHOICES: List[str] = (
     list(VALUE_TRANSFORMATION_MAP.keys()) + NON_TRANSFORMED_FIELDS
 )
-MINIMUM_SCHEMA_VERSION: str = "0.2.1"
+MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
 def load_duct_runs(
@@ -82,6 +82,7 @@ def load_duct_runs(
                         f"is below minimum schema version {MINIMUM_SCHEMA_VERSION}."
                     )
                     continue
+                ensure_compliant_schema(this)
                 if eval_filter is not None and not (
                     eval_results := eval(eval_filter, _flatten_dict(this), dict(re=re))
                 ):
@@ -96,6 +97,14 @@ def load_duct_runs(
             except Exception as exc:
                 lgr.warning("Failed to load file %s: %s", file, exc)
     return loaded
+
+
+def ensure_compliant_schema(info_dict: dict) -> None:
+    if parse_version(info_dict["schema_version"]) == parse_version(__schema_version__):
+        return
+    # working_directory added in 0.2.1
+    if parse_version(info_dict["schema_version"]) < parse_version("0.2.1"):
+        info_dict["execution_summary"]["working_directory"] = ""
 
 
 def process_run_data(

@@ -169,21 +169,29 @@ class TestLS(unittest.TestCase):
         self.files = {
             "file1_info.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
+                "execution_summary": {},
                 "prefix": "test1",
                 "filter_this": "yes",
             },
             "file2_info.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
+                "execution_summary": {},
                 "prefix": "test2",
                 "filter_this": "no",
             },
-            "file3_info.json": {"schema_version": "0.1.0", "prefix": "old_version"},
+            "file3_info.json": {
+                "schema_version": "0.1.0",
+                "execution_summary": {},
+                "prefix": "old_version",
+            },
             "not_matching.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
+                "execution_summary": {},
                 "prefix": "no_match",
             },
             ".duct/logs/default_logpath_info.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
+                "execution_summary": {},
                 "prefix": "default_file1",
             },
         }
