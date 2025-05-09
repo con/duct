@@ -68,7 +68,7 @@ jobs:
       - name: Run tests with coverage and mergify reporting
         if: matrix.toxenv == 'py'
         env:
-          MERGIFY_TOKEN: ${{ secrets.MERGIFY_TOKEN }}
+          MERGIFY_TOKEN: ${{ secrets.MERGIFY_CIINSIGHTS_TOKEN }}
         run: |
           tox -e pyci -- -vv --cov-report=xml
 
