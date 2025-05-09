@@ -1,3 +1,17 @@
+# v0.13.2 (Fri May 09 2025)
+
+#### 🐛 Bug Fix
+
+- Allow con-duct ls to function back to schema 0.2.0 [#269](https://github.com/con/duct/pull/269) ([@asmacdo](https://github.com/asmacdo))
+- Bolt on mergify support to get summaries from CI reported [#270](https://github.com/con/duct/pull/270) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 2
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.13.1 (Tue May 06 2025)
 
 #### 🐛 Bug Fix
