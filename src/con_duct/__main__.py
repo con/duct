@@ -2,22 +2,22 @@
 from __future__ import annotations
 import argparse
 from collections import Counter
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from collections.abc import Iterable, Iterator
 from importlib.metadata import version
 import json
+import logging
 import math
 import os
 import re
-import logging
 import shutil
+import signal
 import socket
 import string
 import subprocess
 import sys
-import signal
 import textwrap
 import threading
 import time
@@ -35,7 +35,12 @@ DUCT_OUTPUT_PREFIX = os.getenv(
     "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
 )
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
-SUFFIXES = {"stdout": "stdout", "stderr": "stderr", "usage": "usage.json", "info": "info.json"}
+SUFFIXES = {
+    "stdout": "stdout",
+    "stderr": "stderr",
+    "usage": "usage.json",
+    "info": "info.json",
+}
 EXECUTION_SUMMARY_FORMAT = (
     "Summary:\n"
     "Exit Code: {exit_code!E}\n"
