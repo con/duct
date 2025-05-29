@@ -36,12 +36,12 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
+
           # Use datalad run to apply fixes and auto-commit (only if changes occur)
           datalad run \
             --message "Auto-fix: Update formatting and README help text" \
             --output . \
             'pre-commit install && pre-commit run --all-files || true && ./.update-readme-help.py'
-          
+
           # Push any commits that were created (will trigger fresh CI)
           git push
