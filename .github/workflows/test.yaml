@@ -68,10 +68,9 @@ jobs:
       - name: Run tests with coverage and mergify reporting
         if: matrix.toxenv == 'py'
         env:
-          MERGIFY_TOKEN: ${{ secrets.MERGIFY_TOKEN }}
+          MERGIFY_TOKEN: ${{ secrets.MERGIFY_CIINSIGHTS_TOKEN }}
         run: |
-          pip install pytest-mergify
-          tox -e py -- -vv --cov-report=xml
+          tox -e pyci -- -vv --cov-report=xml
 
       - name: Run generic tests
         if: matrix.toxenv != 'py'
