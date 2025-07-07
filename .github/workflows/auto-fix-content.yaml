@@ -1,0 +1,47 @@
+---
+name: Auto-fix content changes
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+    # Only run on non-fork PRs (where GitHub Actions has write access to push changes)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITMATE_GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          # Fetch full history for versioningit to generate proper version numbers
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .[all] --user
+          pip install pre-commit datalad
+
+      - name: Apply content fixes with datalad run
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Use datalad run to apply fixes and auto-commit (only if changes occur)
+          datalad run \
+            --message "Auto-fix: Update formatting and README help text" \
+            --output . \
+            'pre-commit install && pre-commit run --all-files || true && ./.update-readme-help.py'
+
+          # Push any commits that were created (will trigger fresh CI)
+          git push
