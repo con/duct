@@ -35,7 +35,12 @@ DUCT_OUTPUT_PREFIX = os.getenv(
     "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
 )
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
-SUFFIXES = {"stdout": "stdout","stderr": "stderr","usage": "usage.json","info": "info.json",}
+SUFFIXES = {
+    "stdout": "stdout",
+    "stderr": "stderr",
+    "usage": "usage.json",
+    "info": "info.json",
+}
 EXECUTION_SUMMARY_FORMAT = (
     "Summary:\n"
     "Exit Code: {exit_code!E}\n"
