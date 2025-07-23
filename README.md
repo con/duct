@@ -166,6 +166,7 @@ options:
   -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
                         Level of log output to stderr, use NONE to entirely
                         disable.
+  --version             show program's version number and exit
 
 ```
 <!-- END EXTRAS HELP -->

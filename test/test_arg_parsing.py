@@ -1,3 +1,4 @@
+import re
 import subprocess
 import pytest
 
@@ -5,6 +6,22 @@ import pytest
 def test_duct_help() -> None:
     out = subprocess.check_output(["duct", "--help", "ps"])
     assert "usage: duct [-h]" in str(out)
+
+
+def test_duct_version() -> None:
+    out = subprocess.check_output(["duct", "--version"])
+    output_str = out.decode("utf-8").strip()
+    assert output_str.startswith("duct ")
+    # Check that it has a version pattern
+    assert re.match(r"duct \d+\.\d+\.\d+", output_str)
+
+
+def test_con_duct_version() -> None:
+    out = subprocess.check_output(["con-duct", "--version"])
+    output_str = out.decode("utf-8").strip()
+    assert output_str.startswith("con-duct ")
+    # Check that it has a version pattern
+    assert re.match(r"con-duct \d+\.\d+\.\d+", output_str)
 
 
 def test_cmd_help() -> None:

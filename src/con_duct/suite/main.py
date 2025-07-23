@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 from typing import List, Optional
+from con_duct import __version__
 from con_duct.suite.ls import LS_FIELD_CHOICES, ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
@@ -39,6 +40,9 @@ def main(argv: Optional[List[str]] = None) -> None:
         choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
         type=str.upper,
         help="Level of log output to stderr, use NONE to entirely disable.",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
     )
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
