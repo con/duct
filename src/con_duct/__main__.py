@@ -59,7 +59,6 @@ EXECUTION_SUMMARY_FORMAT = (
 
 
 ABOUT_DUCT = """
-THIS IS A CHANGE!
 duct is a lightweight wrapper that collects execution data for an arbitrary
 command.  Execution data includes execution time, system information, and
 resource usage statistics of the command and all its child processes. It is
