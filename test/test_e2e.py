@@ -2,6 +2,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import subprocess
+import time
 import pytest
 
 TEST_SCRIPT_DIR = Path(__file__).with_name("data")
@@ -77,31 +78,73 @@ def test_session_modes(temp_output_dir: str, session_mode: str) -> None:
 
 def test_session_mode_behavior_difference(temp_output_dir: str) -> None:
     """Test that new-session and current-session modes behave differently."""
-    # Test new-session mode with a command that exits quickly
-    new_session_prefix = f"{temp_output_dir}new_"
-    current_session_prefix = f"{temp_output_dir}current_"
 
-    # Run same command with both modes
-    subprocess.check_output(
-        f"duct -q --s-i 0.01 --r-i 0.05 --mode new-session -p {new_session_prefix} echo test",
-        shell=True,
-    )
-    subprocess.check_output(
-        f"duct -q --s-i 0.01 --r-i 0.05 --mode current-session -p {current_session_prefix} echo test",
-        shell=True,
+    # Start a unique background process in the current session
+    background_process = subprocess.Popen(
+        ["python", "-c", "print('DUCT_TEST_MARKER'); import time; time.sleep(10)"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
     )
 
-    # Read usage data from both
-    with open(f"{new_session_prefix}usage.json") as f:
-        new_session_samples = [json.loads(line) for line in f]
+    try:
+        # Give background process time to start
+        time.sleep(0.1)
 
-    with open(f"{current_session_prefix}usage.json") as f:
-        current_session_samples = [json.loads(line) for line in f]
+        new_session_prefix = f"{temp_output_dir}new_"
+        current_session_prefix = f"{temp_output_dir}current_"
 
-    # current-session mode should typically collect more process data
-    # because it tracks the session where duct itself is running
-    # new-session mode with echo often collects no data because echo exits too quickly
+        # Run duct with new-session mode - should NOT see background process
+        subprocess.check_output(
+            f"duct -q --s-i 0.01 --r-i 0.05 --mode new-session -p {new_session_prefix} sleep 2",
+            shell=True,
+        )
 
-    # At minimum, both should have created files successfully
-    assert isinstance(new_session_samples, list)
-    assert isinstance(current_session_samples, list)
+        # Run duct with current-session mode - should see background process
+        subprocess.check_output(
+            f"duct -q --s-i 0.01 --r-i 0.05 --mode current-session -p {current_session_prefix} sleep 2",
+            shell=True,
+        )
+
+        # Read usage data from both
+        with open(f"{new_session_prefix}usage.json") as f:
+            new_session_samples = [json.loads(line) for line in f]
+
+        with open(f"{current_session_prefix}usage.json") as f:
+            current_session_samples = [json.loads(line) for line in f]
+
+        # Check for our unique background process
+        new_session_has_marker = any(
+            any(
+                "DUCT_TEST_MARKER" in str(proc.get("cmd", ""))
+                for proc in sample["processes"].values()
+            )
+            for sample in new_session_samples
+        )
+
+        current_session_has_marker = any(
+            any(
+                "DUCT_TEST_MARKER" in str(proc.get("cmd", ""))
+                for proc in sample["processes"].values()
+            )
+            for sample in current_session_samples
+        )
+
+        # new-session should NOT see the background process
+        assert (
+            not new_session_has_marker
+        ), "new-session mode should not track background process"
+
+        # current-session should see the background process
+        assert (
+            current_session_has_marker
+        ), "current-session mode should track background process"
+
+    finally:
+        # Explicit cleanup of background process
+        if background_process.poll() is None:
+            background_process.terminate()
+            try:
+                background_process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                background_process.kill()
+                background_process.wait()
