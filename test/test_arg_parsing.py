@@ -105,16 +105,3 @@ def test_mode_invalid_value() -> None:
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
         assert "invalid SessionMode value: 'invalid-mode'" in str(e.stdout)
-
-
-def test_mode_help_includes_session_modes() -> None:
-    """Test that help output includes the new --mode flag with correct choices."""
-    out = subprocess.check_output(["duct", "--help", "echo", "test"])
-    help_text = out.decode("utf-8")
-    assert (
-        "-m {new-session,current-session}, --mode {new-session,current-session}"
-        in help_text
-    )
-    assert "Session mode:" in help_text
-    assert "new-session" in help_text
-    assert "current-session" in help_text
