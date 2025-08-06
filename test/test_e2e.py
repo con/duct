@@ -44,7 +44,7 @@ def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> N
 def test_session_modes(temp_output_dir: str, session_mode: str) -> None:
     """Test that both session modes work correctly and collect appropriate data."""
     duct_prefix = f"{temp_output_dir}log_"
-    command = f"duct -q --s-i 0.01 --r-i 0.05 --mode {session_mode} -p {duct_prefix} sleep 0.1"
+    command = f"duct -q --s-i 0.01 --r-i 0.05 --mode {session_mode} -p {duct_prefix} sleep 0.3"
     subprocess.check_output(command, shell=True)
 
     # Check that log files were created
