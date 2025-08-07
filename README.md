@@ -32,8 +32,8 @@ usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
             [--sample-interval SAMPLE_INTERVAL]
             [--report-interval REPORT_INTERVAL] [--fail-time FAIL_TIME]
             [-c {all,none,stdout,stderr}] [-o {all,none,stdout,stderr}]
-            [-t {all,system-summary,processes-samples}]
-            [-m {new-session,current-session}]
+            [-t {all,system-summary,processes-samples}] [-m MESSAGE]
+            [--mode {new-session,current-session}]
             command [command_args ...] ...
 
 duct is a lightweight wrapper that collects execution data for an arbitrary
@@ -62,6 +62,7 @@ environment variables:
   DUCT_SAMPLE_INTERVAL: see --sample-interval
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
+  DUCT_MESSAGE: see --message
 
 positional arguments:
   command [command_args ...]
@@ -132,7 +133,11 @@ options:
   -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
                         Record system-summary, processes-samples, or all
                         (default: all)
-  -m {new-session,current-session}, --mode {new-session,current-session}
+  -m MESSAGE, --message MESSAGE
+                        Record a descriptive message about the purpose of this
+                        execution. You can also provide value via DUCT_MESSAGE
+                        env variable. (default: )
+  --mode {new-session,current-session}
                         Session mode: 'new-session' creates a new session for
                         the command (default), 'current-session' tracks the
                         current session instead of starting a new one. Useful

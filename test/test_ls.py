@@ -88,6 +88,7 @@ def test_ensure_compliant_schema_adds_field_for_old_version() -> None:
     info: Dict[str, Any] = {"schema_version": "0.2.0", "execution_summary": {}}
     ensure_compliant_schema(info)
     assert info["execution_summary"]["working_directory"] == ""
+    assert info["message"] == ""
 
 
 def test_ensure_compliant_schema_ignores_unexpected_future_version() -> None:

@@ -25,7 +25,7 @@ from types import FrameType
 from typing import IO, Any, Optional, TextIO
 
 __version__ = version("con-duct")
-__schema_version__ = "0.2.1"
+__schema_version__ = "0.2.2"
 
 
 lgr = logging.getLogger("con-duct")
@@ -85,6 +85,7 @@ environment variables:
   DUCT_SAMPLE_INTERVAL: see --sample-interval
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
+  DUCT_MESSAGE: see --message
 """
 
 
@@ -371,6 +372,7 @@ class Report:
         colors: bool = False,
         clobber: bool = False,
         process: subprocess.Popen | None = None,
+        message: str = "",
     ) -> None:
         self._command = command
         self.arguments = arguments
@@ -378,6 +380,7 @@ class Report:
         self.summary_format: str = summary_format
         self.clobber = clobber
         self.colors = colors
+        self.message = message
         # Defaults to be set later
         self.start_time: float | None = None
         self.process = process
@@ -561,6 +564,7 @@ class Report:
                 "execution_summary": self.execution_summary,
                 "output_paths": asdict(self.log_paths),
                 "working_directory": self.working_directory,
+                "message": self.message,
             }
         )
 
@@ -741,6 +745,7 @@ class Arguments:
     log_level: str
     quiet: bool
     session_mode: SessionMode
+    message: str = ""
 
     def __post_init__(self) -> None:
         if self.report_interval < self.sample_interval:
@@ -869,6 +874,13 @@ class Arguments:
         )
         parser.add_argument(
             "-m",
+            "--message",
+            type=str,
+            default=os.getenv("DUCT_MESSAGE", ""),
+            help="Record a descriptive message about the purpose of this execution. "
+            "You can also provide value via DUCT_MESSAGE env variable.",
+        )
+        parser.add_argument(
             "--mode",
             default="new-session",
             choices=list(SessionMode),
@@ -897,6 +909,7 @@ class Arguments:
             log_level=args.log_level,
             quiet=args.quiet,
             session_mode=args.mode,
+            message=args.message,
         )
 
 
@@ -1110,6 +1123,7 @@ def execute(args: Arguments) -> int:
         working_directory,
         args.colors,
         args.clobber,
+        message=args.message,
     )
     files_to_close.append(report.usage_file)
 

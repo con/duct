@@ -294,3 +294,36 @@ def test_duct_as_executable(temp_output_dir: str) -> None:
     ]
     # Assert does not raise
     subprocess.check_output(ps_command, shell=False).decode()
+
+
+def test_message_in_json_output(temp_output_dir: str) -> None:
+    """Test that message appears in JSON output when provided."""
+    test_message = "Electrolytes, its what plants crave"
+    args = Arguments.from_argv(
+        ["-m", test_message, "echo", "hello"],
+        output_prefix=temp_output_dir,
+    )
+    assert execute(args) == 0
+
+    # Check that message appears in info.json
+    with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+        info_dict = json.loads(info.read())
+
+    assert "message" in info_dict
+    assert info_dict["message"] == test_message
+
+
+def test_no_message_in_json_output(temp_output_dir: str) -> None:
+    """Test that message field is empty string when not provided."""
+    args = Arguments.from_argv(
+        ["echo", "hello"],
+        output_prefix=temp_output_dir,
+    )
+    assert execute(args) == 0
+
+    # Check that message field is empty string in info.json
+    with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+        info_dict = json.loads(info.read())
+
+    assert "message" in info_dict
+    assert info_dict["message"] == ""
