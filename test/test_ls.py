@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any, Dict
 from unittest.mock import mock_open, patch
 from con_duct.__main__ import SummaryFormatter, __schema_version__
@@ -94,3 +95,57 @@ def test_ensure_compliant_schema_ignores_unexpected_future_version() -> None:
     info: Dict[str, Any] = {"schema_version": "99.0.0", "execution_summary": {}}
     ensure_compliant_schema(info)
     assert "working_directory" not in info["execution_summary"]
+
+
+def test_load_duct_runs_handles_empty_json_files(caplog) -> None:
+    """Test desired behavior: empty JSON files produce debug logs and are skipped."""
+    with patch("builtins.open", mock_open(read_data="")):
+        with caplog.at_level(logging.DEBUG):
+            result = load_duct_runs(["/test/empty_info.json"])
+
+    # empty files result in empty list
+    assert len(result) == 0
+    # empty files result in debug level log (not warning)
+    debug_records = [r for r in caplog.records if r.levelname == "DEBUG"]
+    warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(debug_records) == 1
+    assert len(warning_records) == 0
+    assert "Skipping empty file" in caplog.text
+
+
+def test_load_duct_runs_handles_invalid_json_files(caplog) -> None:
+    """Test current behavior: invalid JSON files produce warnings and are skipped."""
+    with patch("builtins.open", mock_open(read_data="not json at all")):
+        with caplog.at_level(logging.WARNING):
+            result = load_duct_runs(["/test/invalid_info.json"])
+
+    assert len(result) == 0
+    assert len(caplog.records) == 1
+    assert "Failed to load file" in caplog.text
+
+
+def test_load_duct_runs_mixed_empty_and_valid_files(caplog) -> None:
+    """Test behavior with mix of empty and valid JSON files."""
+    valid_json = json.dumps(
+        {"schema_version": "0.2.1", "prefix": "/test/path_", "command": "echo hello"}
+    )
+
+    def side_effect(filename):
+        if "empty" in filename:
+            return mock_open(read_data="")()
+        else:
+            return mock_open(read_data=valid_json)()
+
+    with patch("builtins.open", side_effect=side_effect):
+        with caplog.at_level(logging.DEBUG):
+            result = load_duct_runs(["/test/empty_info.json", "/test/valid_info.json"])
+
+    # only valid file is loaded
+    assert len(result) == 1
+    assert result[0]["prefix"] == "/test/valid_"
+    # debug log for empty file, no warning
+    debug_records = [r for r in caplog.records if r.levelname == "DEBUG"]
+    warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert len(debug_records) == 1
+    assert len(warning_records) == 0
+    assert "Skipping empty file" in caplog.text
