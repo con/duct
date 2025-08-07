@@ -49,6 +49,12 @@ def main(argv: Optional[List[str]] = None) -> None:
     # Subcommand: pp
     parser_pp = subparsers.add_parser("pp", help="Pretty print a JSON log.")
     parser_pp.add_argument("file_path", help="JSON file to pretty print.")
+    parser_pp.add_argument(
+        "-H",
+        "--humanize",
+        action="store_true",
+        help="Convert numeric values to human-readable format",
+    )
     parser_pp.set_defaults(func=pprint_json)
 
     # Subcommand: plot
