@@ -85,6 +85,7 @@ class TestPPrint(unittest.TestCase):
             file_path="dummy.json",
             func=pprint_json.pprint_json,
             log_level="NONE",
+            humanize=False,
         )
         assert main.execute(args) == 0
 
@@ -98,6 +99,7 @@ class TestPPrint(unittest.TestCase):
             file_path="dummy.json",
             func=pprint_json.pprint_json,
             log_level="NONE",
+            humanize=False,
         )
         assert main.execute(args) == 1
 
@@ -111,6 +113,7 @@ class TestPPrint(unittest.TestCase):
             file_path="dummy.json",
             func=pprint_json.pprint_json,
             log_level="NONE",
+            humanize=False,
         )
         assert main.execute(args) == 1
 
