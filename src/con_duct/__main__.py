@@ -644,6 +644,20 @@ class SummaryFormatter(string.Formatter):
             return "%s%s%s" % (self.COLOR_SEQ % color, s, self.RESET_SEQ)
         return s
 
+    def _format_duration(self, value: float) -> str:
+        """Format a duration in seconds to human-readable format."""
+        if value >= 3600:  # >= 1 hour
+            hours = int(value // 3600)
+            minutes = int((value % 3600) // 60)
+            seconds = value % 60
+            return f"{hours}h {minutes}m {seconds:.1f}s"
+        elif value >= 60:  # >= 1 minute
+            minutes = int(value // 60)
+            seconds = value % 60
+            return f"{minutes}m {seconds:.1f}s"
+        else:
+            return f"{value:.2f}s"
+
     def convert_field(self, value: str | None, conversion: str | None) -> Any:
         if conversion == "S":  # Human size
             if value is not None:
@@ -663,6 +677,25 @@ class SummaryFormatter(string.Formatter):
                 return self.color_word(self.NONE, self.RED)
             else:
                 return self.color_word(value, self.GREEN)
+        elif conversion == "P":  # Percentage
+            if value is not None:
+                return f"{float(value):.2f}%"
+            else:
+                return self.color_word(self.NONE, self.RED)
+        elif conversion == "T":  # Time duration
+            if value is not None:
+                return self._format_duration(float(value))
+            else:
+                return self.color_word(self.NONE, self.RED)
+        elif conversion == "D":  # DateTime from timestamp
+            if value is not None:
+                try:
+                    dt = datetime.fromtimestamp(float(value))
+                    return dt.strftime("%b %d, %Y %I:%M %p")
+                except (ValueError, OSError):
+                    return str(value)
+            else:
+                return self.color_word(self.NONE, self.RED)
 
         return super().convert_field(value, conversion)
 

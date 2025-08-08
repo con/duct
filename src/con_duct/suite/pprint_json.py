@@ -1,63 +1,67 @@
 import argparse
-from datetime import datetime
 import json
 from pprint import pprint
-from typing import Any, Union
+from typing import Any
 from con_duct.__main__ import SummaryFormatter
 
 
-def humanize_value(
-    key: str, value: Any, formatter: SummaryFormatter
-) -> Union[str, Any]:
+def get_field_conversion_mapping() -> dict[str, str]:
     """
-    Convert numeric values to human-readable formats based on field names.
+    Map field names to SummaryFormatter conversion types.
+    """
+    return {
+        # CPU percentage fields -> !P conversion
+        "cpu": "!P",
+        "pcpu": "!P",
+        # Memory fields -> !S conversion (bytes to human-readable)
+        "rss": "!S",
+        "memory": "!S",
+        "mem": "!S",
+        "vsz": "!S",
+        # Duration fields -> !T conversion
+        "wall_clock_time": "!T",
+        # Timestamp fields -> !D conversion
+        "start_time": "!D",
+        "end_time": "!D",
+    }
+
+
+def _apply_conversion(
+    key: str, value: Any, field_mapping: dict[str, str], formatter: SummaryFormatter
+) -> Any:
+    """
+    Apply SummaryFormatter conversion to a value based on field name.
     """
     if not isinstance(value, (int, float)):
         return value
 
-    # CPU percentage fields
-    if "cpu" in key.lower() or "pcpu" in key.lower():
-        return f"{value:.2f}%"
+    # Check for exact key match first
+    conversion = field_mapping.get(key.lower())
 
-    # Memory fields (convert bytes to human-readable format)
-    if any(mem_field in key.lower() for mem_field in ["rss", "memory", "mem", "vsz"]):
-        return formatter.naturalsize(value)
+    # If no exact match, check for partial matches
+    if conversion is None:
+        for field_key, field_conversion in field_mapping.items():
+            if field_key in key.lower():
+                conversion = field_conversion
+                break
 
-    # Duration fields - only wall_clock_time for now
-    if key.lower() == "wall_clock_time":
-        if value >= 3600:  # >= 1 hour
-            hours = int(value // 3600)
-            minutes = int((value % 3600) // 60)
-            seconds = value % 60
-            return f"{hours}h {minutes}m {seconds:.1f}s"
-        elif value >= 60:  # >= 1 minute
-            minutes = int(value // 60)
-            seconds = value % 60
-            return f"{minutes}m {seconds:.1f}s"
-        else:
-            return f"{value:.2f}s"
-
-    # Start/end time fields (convert Unix timestamps to readable format)
-    if any(field in key.lower() for field in ["start_time", "end_time"]) and isinstance(
-        value, (int, float)
-    ):
-        try:
-            dt = datetime.fromtimestamp(value)
-            return dt.strftime("%b %d, %Y %I:%M %p")
-        except (ValueError, OSError):
-            # If parsing fails, return original value
-            return value
+    if conversion:
+        return formatter.convert_field(str(value), conversion[1:])  # Remove '!' prefix
 
     return value
 
 
 def humanize_data(data: Any, formatter: SummaryFormatter) -> Any:
     """
-    Recursively humanize numeric values in data structure.
+    Recursively humanize numeric values using SummaryFormatter conversions.
     """
+    field_mapping = get_field_conversion_mapping()
+
     if isinstance(data, dict):
         return {
-            key: humanize_data(humanize_value(key, value, formatter), formatter)
+            key: humanize_data(
+                _apply_conversion(key, value, field_mapping, formatter), formatter
+            )
             for key, value in data.items()
         }
     elif isinstance(data, list):
