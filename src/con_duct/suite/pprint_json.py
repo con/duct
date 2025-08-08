@@ -10,19 +10,19 @@ def get_field_conversion_mapping() -> dict[str, str]:
     Map field names to SummaryFormatter conversion types.
     """
     return {
-        # CPU percentage fields -> !P conversion
-        "cpu": "!P",
-        "pcpu": "!P",
-        # Memory fields -> !S conversion (bytes to human-readable)
-        "rss": "!S",
-        "memory": "!S",
-        "mem": "!S",
-        "vsz": "!S",
-        # Duration fields -> !T conversion
-        "wall_clock_time": "!T",
-        # Timestamp fields -> !D conversion
-        "start_time": "!D",
-        "end_time": "!D",
+        # CPU percentage fields -> P conversion
+        "cpu": "P",
+        "pcpu": "P",
+        # Memory fields -> S conversion (bytes to human-readable)
+        "rss": "S",
+        "memory": "S",
+        "mem": "S",
+        "vsz": "S",
+        # Duration fields -> T conversion
+        "wall_clock_time": "T",
+        # Timestamp fields -> D conversion
+        "start_time": "D",
+        "end_time": "D",
     }
 
 
@@ -35,18 +35,9 @@ def _apply_conversion(
     if not isinstance(value, (int, float)):
         return value
 
-    # Check for exact key match first
     conversion = field_mapping.get(key.lower())
-
-    # If no exact match, check for partial matches
-    if conversion is None:
-        for field_key, field_conversion in field_mapping.items():
-            if field_key in key.lower():
-                conversion = field_conversion
-                break
-
     if conversion:
-        return formatter.convert_field(str(value), conversion[1:])  # Remove '!' prefix
+        return formatter.convert_field(str(value), conversion)
 
     return value
 
