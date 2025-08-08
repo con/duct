@@ -10,17 +10,13 @@ def get_field_conversion_mapping() -> dict[str, str]:
     Map field names to SummaryFormatter conversion types.
     """
     return {
-        # CPU percentage fields -> P conversion
         "cpu": "P",
         "pcpu": "P",
-        # Memory fields -> S conversion (bytes to human-readable)
         "rss": "S",
         "memory": "S",
         "mem": "S",
         "vsz": "S",
-        # Duration fields -> T conversion
         "wall_clock_time": "T",
-        # Timestamp fields -> D conversion
         "start_time": "D",
         "end_time": "D",
     }
