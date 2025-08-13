@@ -96,11 +96,7 @@ def load_duct_runs(
                 loaded.append(this)
             except json.JSONDecodeError as exc:
                 # Check if this is truly an empty file (no meaningful content)
-                if (
-                    exc.pos == 0
-                    and exc.msg == "Expecting value"
-                    and not exc.doc.strip()
-                ):
+                if exc.pos == 0 and not exc.doc.strip():
                     lgr.debug("Skipping empty file %s", info_file)
                 else:
                     lgr.warning("Failed to load file %s: %s", file, exc)
