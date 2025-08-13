@@ -2,6 +2,7 @@ import json
 import logging
 from typing import Any, Dict
 from unittest.mock import mock_open, patch
+import pytest
 from con_duct.__main__ import SummaryFormatter, __schema_version__
 from con_duct.suite.ls import (
     _flatten_dict,
@@ -97,7 +98,9 @@ def test_ensure_compliant_schema_ignores_unexpected_future_version() -> None:
     assert "working_directory" not in info["execution_summary"]
 
 
-def test_load_duct_runs_handles_empty_json_files(caplog) -> None:
+def test_load_duct_runs_handles_empty_json_files(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Test desired behavior: empty JSON files produce debug logs and are skipped."""
     with patch("builtins.open", mock_open(read_data="")):
         with caplog.at_level(logging.DEBUG):
@@ -113,7 +116,9 @@ def test_load_duct_runs_handles_empty_json_files(caplog) -> None:
     assert "Skipping empty file" in caplog.text
 
 
-def test_load_duct_runs_handles_invalid_json_files(caplog) -> None:
+def test_load_duct_runs_handles_invalid_json_files(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Test current behavior: invalid JSON files produce warnings and are skipped."""
     with patch("builtins.open", mock_open(read_data="not json at all")):
         with caplog.at_level(logging.WARNING):
@@ -124,13 +129,15 @@ def test_load_duct_runs_handles_invalid_json_files(caplog) -> None:
     assert "Failed to load file" in caplog.text
 
 
-def test_load_duct_runs_mixed_empty_and_valid_files(caplog) -> None:
+def test_load_duct_runs_mixed_empty_and_valid_files(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     """Test behavior with mix of empty and valid JSON files."""
     valid_json = json.dumps(
         {"schema_version": "0.2.1", "prefix": "/test/path_", "command": "echo hello"}
     )
 
-    def side_effect(filename):
+    def side_effect(filename: str) -> Any:
         if "empty" in filename:
             return mock_open(read_data="")()
         else:
