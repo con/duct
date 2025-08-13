@@ -131,10 +131,14 @@ class TestPPrintHumanization(unittest.TestCase):
         formatter = SummaryFormatter()
         field_mapping = pprint_json.get_field_conversion_mapping()
 
-        result = pprint_json._apply_conversion("cpu", 85.567, field_mapping, formatter)
+        result = pprint_json._apply_conversion(
+            "average_pcpu", 85.567, field_mapping, formatter
+        )
         assert result == "85.57%"
 
-        result = pprint_json._apply_conversion("rss", 1024000, field_mapping, formatter)
+        result = pprint_json._apply_conversion(
+            "peak_rss", 1024000, field_mapping, formatter
+        )
         assert result == "1.0 MB"
 
         result = pprint_json._apply_conversion(
@@ -155,12 +159,14 @@ class TestPPrintHumanization(unittest.TestCase):
 
         # Test string values (should be returned unchanged)
         result = pprint_json._apply_conversion(
-            "cpu", "unknown", field_mapping, formatter
+            "average_pcpu", "unknown", field_mapping, formatter
         )
         assert result == "unknown"
 
         # Test None values (should be returned unchanged)
-        result = pprint_json._apply_conversion("cpu", None, field_mapping, formatter)
+        result = pprint_json._apply_conversion(
+            "average_pcpu", None, field_mapping, formatter
+        )
         assert result is None
 
     def test_apply_conversion_unmapped_fields(self) -> None:
@@ -185,8 +191,8 @@ class TestPPrintHumanization(unittest.TestCase):
         """Test humanize_data with a simple dictionary"""
 
         data = {
-            "cpu": 85.567,
-            "rss": 1024000,
+            "average_pcpu": 85.567,
+            "average_rss": 1024000,
             "wall_clock_time": 150.75,
             "unknown_field": 42,
             "string_field": "test",
@@ -195,8 +201,8 @@ class TestPPrintHumanization(unittest.TestCase):
         formatter = SummaryFormatter()
         result = pprint_json.humanize_data(data, formatter)
 
-        assert result["cpu"] == "85.57%"
-        assert result["rss"] == "1.0 MB"
+        assert result["average_pcpu"] == "85.57%"
+        assert result["average_rss"] == "1.0 MB"
         assert result["wall_clock_time"] == "2m 30.8s"
         assert result["unknown_field"] == 42  # unchanged
         assert result["string_field"] == "test"  # unchanged
@@ -205,27 +211,30 @@ class TestPPrintHumanization(unittest.TestCase):
         """Test humanize_data with nested dictionaries and lists"""
 
         data = {
-            "process": {"cpu": 75.0, "memory": 512000},
-            "samples": [{"cpu": 80.5, "rss": 2048000}, {"cpu": 90.0, "rss": 3072000}],
+            "process": {"peak_pcpu": 75.0, "average_vsz": 512000},
+            "samples": [
+                {"average_pcpu": 80.5, "peak_rss": 2048000},
+                {"average_pcpu": 90.0, "peak_rss": 3072000},
+            ],
         }
 
         formatter = SummaryFormatter()
         result = pprint_json.humanize_data(data, formatter)
 
         # Check nested dict
-        assert result["process"]["cpu"] == "75.00%"
-        assert result["process"]["memory"] == "512.0 kB"
+        assert result["process"]["peak_pcpu"] == "75.00%"
+        assert result["process"]["average_vsz"] == "512.0 kB"
 
         # Check list of dicts
-        assert result["samples"][0]["cpu"] == "80.50%"
-        assert result["samples"][0]["rss"] == "2.0 MB"
-        assert result["samples"][1]["cpu"] == "90.00%"
-        assert result["samples"][1]["rss"] == "3.1 MB"
+        assert result["samples"][0]["average_pcpu"] == "80.50%"
+        assert result["samples"][0]["peak_rss"] == "2.0 MB"
+        assert result["samples"][1]["average_pcpu"] == "90.00%"
+        assert result["samples"][1]["peak_rss"] == "3.1 MB"
 
     @patch(
         "builtins.open",
         new_callable=mock_open,
-        read_data='{"cpu": 85.567, "rss": 1024000, "wall_clock_time": 150.75}',
+        read_data='{"average_pcpu": 85.567, "average_rss": 1024000, "wall_clock_time": 150.75}',
     )
     @patch("con_duct.suite.pprint_json.pprint")
     def test_pprint_json_with_humanize(
@@ -246,8 +255,8 @@ class TestPPrintHumanization(unittest.TestCase):
 
         # Verify that pprint was called with humanized data
         call_args = mock_pprint.call_args[0][0]
-        assert call_args["cpu"] == "85.57%"
-        assert call_args["rss"] == "1.0 MB"
+        assert call_args["average_pcpu"] == "85.57%"
+        assert call_args["average_rss"] == "1.0 MB"
         assert call_args["wall_clock_time"] == "2m 30.8s"
 
 

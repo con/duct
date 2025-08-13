@@ -10,12 +10,14 @@ def get_field_conversion_mapping() -> dict[str, str]:
     Map field names to SummaryFormatter conversion types.
     """
     return {
-        "cpu": "P",
-        "pcpu": "P",
-        "rss": "S",
-        "memory": "S",
-        "mem": "S",
-        "vsz": "S",
+        "average_pcpu": "P",
+        "average_pmem": "P",
+        "average_rss": "S",
+        "average_vsz": "S",
+        "peak_pcpu": "P",
+        "peak_pmem": "P",
+        "peak_rss": "S",
+        "peak_vsz": "S",
         "wall_clock_time": "T",
         "start_time": "D",
         "end_time": "D",
