@@ -33,6 +33,7 @@ usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
             [--report-interval REPORT_INTERVAL] [--fail-time FAIL_TIME]
             [-c {all,none,stdout,stderr}] [-o {all,none,stdout,stderr}]
             [-t {all,system-summary,processes-samples}]
+            [-m {new-session,current-session}]
             command [command_args ...] ...
 
 duct is a lightweight wrapper that collects execution data for an arbitrary
@@ -131,6 +132,12 @@ options:
   -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
                         Record system-summary, processes-samples, or all
                         (default: all)
+  -m {new-session,current-session}, --mode {new-session,current-session}
+                        Session mode: 'new-session' creates a new session for
+                        the command (default), 'current-session' tracks the
+                        current session instead of starting a new one. Useful
+                        for tracking slurm jobs or other commands that should
+                        run in the current session. (default: new-session)
 
 ```
 <!-- END HELP -->

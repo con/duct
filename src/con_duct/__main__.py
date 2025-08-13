@@ -130,6 +130,14 @@ class RecordTypes(str, Enum):
         return self is RecordTypes.ALL or self is RecordTypes.PROCESSES_SAMPLES
 
 
+class SessionMode(str, Enum):
+    NEW_SESSION = "new-session"
+    CURRENT_SESSION = "current-session"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 @dataclass
 class SystemInfo:
     cpu_total: int
@@ -698,6 +706,7 @@ class Arguments:
     colors: bool
     log_level: str
     quiet: bool
+    session_mode: SessionMode
 
     def __post_init__(self) -> None:
         if self.report_interval < self.sample_interval:
@@ -824,6 +833,16 @@ class Arguments:
             type=RecordTypes,
             help="Record system-summary, processes-samples, or all",
         )
+        parser.add_argument(
+            "-m",
+            "--mode",
+            default="new-session",
+            choices=list(SessionMode),
+            type=SessionMode,
+            help="Session mode: 'new-session' creates a new session for the command (default), "
+            "'current-session' tracks the current session instead of starting a new one. "
+            "Useful for tracking slurm jobs or other commands that should run in the current session.",
+        )
         args = parser.parse_args(
             args=cli_args,
             namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,
@@ -843,6 +862,7 @@ class Arguments:
             colors=args.colors,
             log_level=args.log_level,
             quiet=args.quiet,
+            session_mode=args.mode,
         )
 
 
@@ -1065,7 +1085,7 @@ def execute(args: Arguments) -> int:
             [str(args.command)] + args.command_args,
             stdout=stdout_file,
             stderr=stderr_file,
-            start_new_session=True,
+            start_new_session=(args.session_mode == SessionMode.NEW_SESSION),
             cwd=report.working_directory,
         )
     except FileNotFoundError:
@@ -1083,7 +1103,14 @@ def execute(args: Arguments) -> int:
     lgr.info("duct is executing %r...", full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
-        report.session_id = os.getsid(process.pid)  # Get session ID of the new process
+        if args.session_mode == SessionMode.NEW_SESSION:
+            report.session_id = os.getsid(
+                process.pid
+            )  # Get session ID of the new process
+        else:  # CURRENT_SESSION mode
+            report.session_id = os.getsid(
+                os.getpid()
+            )  # Get session ID of duct's own process
     except ProcessLookupError:  # process has already finished
         # TODO: log this at least.
         pass

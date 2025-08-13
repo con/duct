@@ -73,3 +73,35 @@ def test_abreviation_disabled() -> None:
             e.stdout
         )
         assert "ps [options]" in str(e.stdout)
+
+
+@pytest.mark.parametrize(
+    "mode_arg,expected_mode",
+    [
+        ([], "new-session"),  # default
+        (["--mode", "new-session"], "new-session"),
+        (["--mode", "current-session"], "current-session"),
+        (["-m", "new-session"], "new-session"),
+        (["-m", "current-session"], "current-session"),
+    ],
+)
+def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
+    """Test that --mode argument is parsed correctly with both long and short forms."""
+    # Import here to avoid module loading issues in tests
+    from con_duct.__main__ import Arguments
+
+    cmd_args = mode_arg + ["echo", "test"]
+    args = Arguments.from_argv(cmd_args)
+    assert str(args.session_mode) == expected_mode
+
+
+def test_mode_invalid_value() -> None:
+    """Test that invalid --mode values are rejected."""
+    try:
+        subprocess.check_output(
+            ["duct", "--mode", "invalid-mode", "echo", "test"], stderr=subprocess.STDOUT
+        )
+        pytest.fail("Command should have failed with invalid mode value")
+    except subprocess.CalledProcessError as e:
+        assert e.returncode == 2
+        assert "invalid SessionMode value: 'invalid-mode'" in str(e.stdout)
