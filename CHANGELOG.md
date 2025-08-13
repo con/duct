@@ -1,3 +1,25 @@
+# v0.14.0 (Wed Aug 13 2025)
+
+#### 🚀 Enhancement
+
+- Current session mode [#283](https://github.com/con/duct/pull/283) ([@asmacdo](https://github.com/asmacdo))
+- enh: add --version to con-duct [#280](https://github.com/con/duct/pull/280) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- remove development artifact [#282](https://github.com/con/duct/pull/282) ([@asmacdo](https://github.com/asmacdo))
+- auto push cleanup to PRs [#275](https://github.com/con/duct/pull/275) ([@asmacdo](https://github.com/asmacdo) [@actions-user](https://github.com/actions-user))
+- Reduce flake: increase test_spawn_children sleep dur and add retries [#277](https://github.com/con/duct/pull/277) ([@asmacdo](https://github.com/asmacdo))
+- bf: define pyci environment and there add pytest-mergify as dependency [#271](https://github.com/con/duct/pull/271) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 3
+
+- [@actions-user](https://github.com/actions-user)
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.13.2 (Fri May 09 2025)
 
 #### 🐛 Bug Fix
