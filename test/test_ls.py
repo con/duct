@@ -109,10 +109,8 @@ def test_load_duct_runs_handles_empty_json_files(
     # empty files result in empty list
     assert len(result) == 0
     # empty files result in debug level log (not warning)
-    debug_records = [r for r in caplog.records if r.levelname == "DEBUG"]
-    warning_records = [r for r in caplog.records if r.levelname == "WARNING"]
-    assert len(debug_records) == 1
-    assert len(warning_records) == 0
+    assert len(r for r in caplog.records if r.levelname == "DEBUG") == 1
+    assert not any(r for r in caplog.records if r.levelname == "WARNING")
     assert "Skipping empty file" in caplog.text
 
 
