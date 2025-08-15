@@ -46,6 +46,7 @@ NON_TRANSFORMED_FIELDS: List[str] = [
     "hostname",
     "info",
     "logs_prefix",
+    "message",
     "num_samples",
     "num_reports",
     "prefix",
@@ -111,6 +112,9 @@ def ensure_compliant_schema(info_dict: dict) -> None:
     # working_directory added in 0.2.1
     if parse_version(info_dict["schema_version"]) < parse_version("0.2.1"):
         info_dict["execution_summary"]["working_directory"] = ""
+    # message field added in 0.2.2
+    if parse_version(info_dict["schema_version"]) < parse_version("0.2.2"):
+        info_dict["message"] = ""
 
 
 def process_run_data(

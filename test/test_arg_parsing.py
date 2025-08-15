@@ -1,6 +1,9 @@
+import os
 import re
 import subprocess
+from unittest import mock
 import pytest
+from con_duct.__main__ import Arguments
 
 
 def test_duct_help() -> None:
@@ -81,8 +84,6 @@ def test_abreviation_disabled() -> None:
         ([], "new-session"),  # default
         (["--mode", "new-session"], "new-session"),
         (["--mode", "current-session"], "current-session"),
-        (["-m", "new-session"], "new-session"),
-        (["-m", "current-session"], "current-session"),
     ],
 )
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
@@ -105,3 +106,33 @@ def test_mode_invalid_value() -> None:
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
         assert "invalid SessionMode value: 'invalid-mode'" in str(e.stdout)
+
+
+def test_message_parsing() -> None:
+    """Test that -m/--message flag is correctly parsed."""
+    # Test short flag
+    args = Arguments.from_argv(["-m", "test message", "echo", "hello"])
+    assert args.message == "test message"
+    assert args.command == "echo"
+    assert args.command_args == ["hello"]
+
+    # Test long flag
+    args = Arguments.from_argv(["--message", "another message", "ls"])
+    assert args.message == "another message"
+    assert args.command == "ls"
+
+    # Test without message (should be empty string)
+    args = Arguments.from_argv(["echo", "hello"])
+    assert args.message == ""
+
+
+def test_message_env_variable() -> None:
+    """Test that DUCT_MESSAGE environment variable is used as default."""
+    with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
+        args = Arguments.from_argv(["echo", "hello"])
+        assert args.message == "env message"
+
+    # Command line should override env variable
+    with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
+        args = Arguments.from_argv(["-m", "cli message", "echo", "hello"])
+        assert args.message == "cli message"
