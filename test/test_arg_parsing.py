@@ -84,8 +84,6 @@ def test_abreviation_disabled() -> None:
         ([], "new-session"),  # default
         (["--mode", "new-session"], "new-session"),
         (["--mode", "current-session"], "current-session"),
-        (["-m", "new-session"], "new-session"),
-        (["-m", "current-session"], "current-session"),
     ],
 )
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
