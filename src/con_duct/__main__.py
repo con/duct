@@ -518,6 +518,7 @@ class Report:
         if self.usage_file is None:
             self.usage_file = open(self.log_paths.usage, "w")
         self.usage_file.write(json.dumps(self.current_sample.for_json()) + "\n")
+        self.usage_file.flush()  # Force flush immediately
 
     @property
     def execution_summary(self) -> dict[str, Any]:
