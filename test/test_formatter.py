@@ -356,3 +356,140 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
         colors=colors,
     )
     assert f"Rendering: {GREEN}nan{STOP}" == report.execution_summary_formatted
+
+
+def test_summary_formatter_P_e2e() -> None:
+    """Test percentage conversion (!P)"""
+    formatter = SummaryFormatter()
+
+    # Test without conversion
+    valid_format_string = "test {cpu}"
+    no_p_applied = formatter.format(valid_format_string, **{"cpu": 85.567})
+    assert no_p_applied == "test 85.567"
+
+    # Test with !P conversion
+    p_format_string = "test {cpu!P}"
+    p_applied = formatter.format(p_format_string, **{"cpu": 85.567})
+    assert p_applied == "test 85.57%"
+
+    # Test with integer
+    p_int_applied = formatter.format(p_format_string, **{"cpu": 100})
+    assert p_int_applied == "test 100.00%"
+
+    # Test with None
+    p_none_applied = formatter.format(p_format_string, **{"cpu": None})
+    assert p_none_applied == "test -"
+
+
+def test_summary_formatter_P_e2e_colors() -> None:
+    """Test percentage conversion (!P) with colors"""
+    formatter = SummaryFormatter(enable_colors=True)
+
+    p_format_string = "test {cpu!P}"
+
+    # Test normal value (no color for P conversion)
+    p_applied = formatter.format(p_format_string, **{"cpu": 85.567})
+    assert p_applied == "test 85.57%"
+
+    # Test None (should be red)
+    p_none_applied = formatter.format(p_format_string, **{"cpu": None})
+    assert p_none_applied == f"test {RED_START}-{formatter.RESET_SEQ}"
+
+
+def test_summary_formatter_T_e2e() -> None:
+    """Test time duration conversion (!T)"""
+    formatter = SummaryFormatter()
+
+    # Test without conversion
+    valid_format_string = "test {duration}"
+    no_t_applied = formatter.format(valid_format_string, **{"duration": 3661.5})
+    assert no_t_applied == "test 3661.5"
+
+    # Test with !T conversion - hours
+    t_format_string = "test {duration!T}"
+    t_hours_applied = formatter.format(t_format_string, **{"duration": 3661.5})
+    assert t_hours_applied == "test 1h 1m 1.5s"
+
+    # Test minutes
+    t_minutes_applied = formatter.format(t_format_string, **{"duration": 150.75})
+    assert t_minutes_applied == "test 2m 30.8s"
+
+    # Test seconds only
+    t_seconds_applied = formatter.format(t_format_string, **{"duration": 45.123})
+    assert t_seconds_applied == "test 45.12s"
+
+    # Test with None
+    t_none_applied = formatter.format(t_format_string, **{"duration": None})
+    assert t_none_applied == "test -"
+
+
+def test_summary_formatter_T_e2e_colors() -> None:
+    """Test time duration conversion (!T) with colors"""
+    formatter = SummaryFormatter(enable_colors=True)
+
+    t_format_string = "test {duration!T}"
+
+    # Test normal value (no color for T conversion)
+    t_applied = formatter.format(t_format_string, **{"duration": 3661.5})
+    assert t_applied == "test 1h 1m 1.5s"
+
+    # Test None (should be red)
+    t_none_applied = formatter.format(t_format_string, **{"duration": None})
+    assert t_none_applied == f"test {RED_START}-{formatter.RESET_SEQ}"
+
+
+def test_summary_formatter_D_e2e() -> None:
+    """Test datetime conversion (!D)"""
+    formatter = SummaryFormatter()
+
+    # Test without conversion
+    valid_format_string = "test {timestamp}"
+    no_d_applied = formatter.format(valid_format_string, **{"timestamp": 1625400000})
+    assert no_d_applied == "test 1625400000"
+
+    # Test with !D conversion - use July 4, 2021 12:00 PM UTC (safe from timezone edge cases)
+    d_format_string = "test {timestamp!D}"
+    # This timestamp represents July 4, 2021 12:00:00 UTC
+    result = formatter.format(d_format_string, **{"timestamp": 1625400000})
+    assert "Jul" in result and "2021" in result and ":" in result
+
+    # Test with invalid timestamp (should return as string)
+    d_invalid_applied = formatter.format(d_format_string, **{"timestamp": "invalid"})
+    assert "test invalid" == d_invalid_applied
+
+    # Test with None
+    d_none_applied = formatter.format(d_format_string, **{"timestamp": None})
+    assert d_none_applied == "test -"
+
+
+def test_summary_formatter_D_e2e_colors() -> None:
+    """Test datetime conversion (!D) with colors"""
+    formatter = SummaryFormatter(enable_colors=True)
+
+    d_format_string = "test {timestamp!D}"
+
+    # Test normal value (no color for D conversion)
+    result = formatter.format(d_format_string, **{"timestamp": 1625400000})
+    assert "Jul" in result and "2021" in result
+
+    # Test None (should be red)
+    d_none_applied = formatter.format(d_format_string, **{"timestamp": None})
+    assert d_none_applied == f"test {RED_START}-{formatter.RESET_SEQ}"
+
+
+@pytest.mark.parametrize(
+    "duration,expected",
+    [
+        (0.5, "0.50s"),
+        (30, "30.00s"),
+        (90, "1m 30.0s"),
+        (3600, "1h 0m 0.0s"),
+        (3661.27, "1h 1m 1.3s"),
+        (7323.75, "2h 2m 3.8s"),
+    ],
+)
+def test_summary_formatter_T_duration_formats(duration: float, expected: str) -> None:
+    """Test various duration formatting scenarios"""
+    formatter = SummaryFormatter()
+    result = formatter.format("{duration!T}", duration=duration)
+    assert result == expected
