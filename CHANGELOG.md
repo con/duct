@@ -1,3 +1,17 @@
+# v0.15.0 (Fri Aug 15 2025)
+
+#### 🚀 Enhancement
+
+- add --messsage/-m and store in info.json [#285](https://github.com/con/duct/pull/285) ([@asmacdo](https://github.com/asmacdo))
+- empty info files detected with con-duct ls should have debug message, not warnings [#284](https://github.com/con/duct/pull/284) ([@asmacdo](https://github.com/asmacdo))
+- 228 human readable pp [#286](https://github.com/con/duct/pull/286) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.14.1 (Fri Aug 15 2025)
 
 #### 🐛 Bug Fix
