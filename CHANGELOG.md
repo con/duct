@@ -1,3 +1,15 @@
+# v0.14.1 (Fri Aug 15 2025)
+
+#### 🐛 Bug Fix
+
+- fix: pypy-310 can sometimes produce empty usage files [#287](https://github.com/con/duct/pull/287) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 1
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+
+---
+
 # v0.14.0 (Wed Aug 13 2025)
 
 #### 🚀 Enhancement
