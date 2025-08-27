@@ -302,10 +302,8 @@ class TestPlotMatplotlib(unittest.TestCase):
         mock_plot_save.assert_not_called()
 
     @patch("matplotlib.pyplot.savefig")
-    def test_matplotlib_plot_info_json_conversion(
-        self, mock_plot_save: MagicMock
-    ) -> None:
-        """Test that passing info.json converts to usage.json by reading the info file"""
+    def test_matplotlib_plot_info_json(self, mock_plot_save: MagicMock) -> None:
+        """When user passes info.json, usage.json is retrieved and used"""
         args = argparse.Namespace(
             command="plot",
             file_path="test/data/mriqc-example/info.json",
