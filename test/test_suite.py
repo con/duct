@@ -301,6 +301,21 @@ class TestPlotMatplotlib(unittest.TestCase):
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
 
+    @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_info_json_conversion(
+        self, mock_plot_save: MagicMock
+    ) -> None:
+        """Test that passing info.json converts to usage.json by reading the info file"""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/info.json",
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        assert main.execute(args) == 0
+        mock_plot_save.assert_called_once_with("outfile.png")
+
 
 class TestLS(unittest.TestCase):
     def setUp(self) -> None:
