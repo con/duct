@@ -4,6 +4,9 @@ import json
 
 
 def matplotlib_plot(args: argparse.Namespace) -> int:
+    import matplotlib
+    from matplotlib.backends import backend_registry
+    from matplotlib.backends.registry import BackendFilter
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -77,7 +80,28 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         plt.savefig(args.output)
         print(f"Successfully rendered input file: {file_path} to output {args.output}")
     else:
-        plt.show()
+        # Check if the current backend can display plots interactively
+        current_backend = matplotlib.get_backend()
+        interactive_backends = backend_registry.list_builtin(BackendFilter.INTERACTIVE)
+
+        # Note: This only checks builtin backends. Custom interactive backends
+        # would be incorrectly flagged as non-interactive. If this becomes an
+        # issue, we could fallback to try/except around plt.show()
+        if current_backend in interactive_backends:
+            plt.show()
+        else:
+            print(
+                f"Cannot display plot: your current matplotlib backend is {current_backend} "
+                f"which is a not a known interactive backend."
+            )
+            print(
+                "Either set environment variable MPLBACKEND to an interactive backend or "
+                "use --output to save the plot to a file instead."
+            )
+            print(
+                "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
+            )
+            return 1
 
     # Exit code
     return 0

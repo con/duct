@@ -332,6 +332,23 @@ class TestPlotMatplotlib(unittest.TestCase):
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
 
+    @patch("matplotlib.get_backend", return_value="SomeOtherAgg")
+    def test_matplotlib_plot_non_interactive_backend(
+        self,
+        _mock_get_backend: MagicMock,
+    ) -> None:
+        """Test that plotting without output in non-interactive backend returns error."""
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,  # No output file specified
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        result = main.execute(args)
+        assert result == 1
+
 
 class TestLS(unittest.TestCase):
     def setUp(self) -> None:
