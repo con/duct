@@ -349,6 +349,22 @@ class TestPlotMatplotlib(unittest.TestCase):
         result = main.execute(args)
         assert result == 1
 
+    @patch(
+        "builtins.__import__", side_effect=ImportError("No module named 'matplotlib'")
+    )
+    def test_matplotlib_plot_missing_dependency(self, _mock_import: MagicMock) -> None:
+        """Test that plotting with missing matplotlib shows helpful error."""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+
+        result = main.execute(args)
+        assert result == 1
+
 
 class TestLS(unittest.TestCase):
     def setUp(self) -> None:

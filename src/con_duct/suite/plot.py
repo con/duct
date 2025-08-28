@@ -4,11 +4,15 @@ import json
 
 
 def matplotlib_plot(args: argparse.Namespace) -> int:
-    import matplotlib
-    from matplotlib.backends import backend_registry
-    from matplotlib.backends.registry import BackendFilter
-    import matplotlib.pyplot as plt
-    import numpy as np
+    try:
+        import matplotlib
+        from matplotlib.backends import backend_registry
+        from matplotlib.backends.registry import BackendFilter
+        import matplotlib.pyplot as plt
+        import numpy as np
+    except ImportError as e:
+        print(f"con-duct plot missing required dependency: {e}")
+        return 1
 
     # Handle info.json files by reading the usage path from the file
     file_path = args.file_path
