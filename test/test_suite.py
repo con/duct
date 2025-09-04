@@ -332,12 +332,33 @@ class TestPlotMatplotlib(unittest.TestCase):
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
 
-    @patch("matplotlib.get_backend", return_value="SomeOtherAgg")
+    @patch(
+        "matplotlib.get_backend",
+        side_effect=AttributeError("get_backend not available"),
+    )
+    @patch.dict("matplotlib.rcParams", {"backend": "Agg"})
     def test_matplotlib_plot_non_interactive_backend(
         self,
         _mock_get_backend: MagicMock,
     ) -> None:
         """Test that plotting without output in non-interactive backend returns error."""
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,  # No output file specified
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        result = main.execute(args)
+        assert result == 1
+
+    @patch("matplotlib.get_backend", return_value="Agg")
+    def test_matplotlib_plot_non_interactive_backend_with_get_backend(
+        self,
+        _mock_get_backend: MagicMock,
+    ) -> None:
+        """Test that plotting without output in non-interactive backend returns error using get_backend."""
 
         args = argparse.Namespace(
             command="plot",

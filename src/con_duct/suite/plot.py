@@ -6,7 +6,7 @@ import json
 def matplotlib_plot(args: argparse.Namespace) -> int:
     try:
         import matplotlib
-        from matplotlib.backends import backend_registry
+        from matplotlib.backends import backend_registry  # type: ignore[attr-defined]
         from matplotlib.backends.registry import BackendFilter
         import matplotlib.pyplot as plt
         import numpy as np
@@ -85,7 +85,11 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         print(f"Successfully rendered input file: {file_path} to output {args.output}")
     else:
         # Check if the current backend can display plots interactively
-        current_backend = matplotlib.get_backend()
+        try:
+            current_backend = matplotlib.get_backend()  # type: ignore[attr-defined]
+        except AttributeError:
+            # Fallback for matplotlib < 3.10
+            current_backend = matplotlib.rcParams["backend"]  # type: ignore[attr-defined]
         interactive_backends = backend_registry.list_builtin(BackendFilter.INTERACTIVE)
 
         # Note: This only checks builtin backends. Custom interactive backends
