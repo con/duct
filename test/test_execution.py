@@ -209,20 +209,23 @@ def test_execute_unknown_command(
     assert_expected_files(temp_output_dir, exists=False)
 
 
+def _runner_for_signal_int(temp_output_dir: str, fail_time: float | None) -> int:
+    kws = {}
+    if fail_time is not None:
+        kws["fail_time"] = fail_time
+    args = Arguments.from_argv(
+        ["sleep", "60.74016230000801"], output_prefix=temp_output_dir, **kws
+    )
+    return execute(args)
+
+
 @pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
 def test_signal_int(temp_output_dir: str, fail_time: float | None) -> None:
 
-    def runner() -> int:
-        kws = {}
-        if fail_time is not None:
-            kws["fail_time"] = fail_time
-        args = Arguments.from_argv(
-            ["sleep", "60.74016230000801"], output_prefix=temp_output_dir, **kws
-        )
-        return execute(args)
-
     wait_time = 0.3
-    proc = multiprocessing.Process(target=runner)
+    proc = multiprocessing.Process(
+        target=_runner_for_signal_int, args=(temp_output_dir, fail_time)
+    )
     proc.start()
     sleep(wait_time)
     assert proc.pid is not None, "Process PID should not be None"  # for mypy
@@ -244,19 +247,22 @@ def test_signal_int(temp_output_dir: str, fail_time: float | None) -> None:
         assert command_exit_code == 128 + 2
 
 
+def _runner_for_signal_kill(temp_output_dir: str, fail_time: float | None) -> int:
+    script_path = str(TEST_SCRIPT_DIR / "signal_ignorer.py")
+    kws = {}
+    if fail_time is not None:
+        kws["fail_time"] = fail_time
+    args = Arguments.from_argv([script_path], output_prefix=temp_output_dir, **kws)
+    return execute(args)
+
+
 @pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
 def test_signal_kill(temp_output_dir: str, fail_time: float | None) -> None:
 
-    def runner() -> int:
-        script_path = str(TEST_SCRIPT_DIR / "signal_ignorer.py")
-        kws = {}
-        if fail_time is not None:
-            kws["fail_time"] = fail_time
-        args = Arguments.from_argv([script_path], output_prefix=temp_output_dir, **kws)
-        return execute(args)
-
     wait_time = 0.6
-    proc = multiprocessing.Process(target=runner)
+    proc = multiprocessing.Process(
+        target=_runner_for_signal_kill, args=(temp_output_dir, fail_time)
+    )
     proc.start()
     sleep(wait_time)
     assert proc.pid is not None, "Process PID should not be None"  # for mypy
