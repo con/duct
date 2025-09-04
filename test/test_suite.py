@@ -370,6 +370,26 @@ class TestPlotMatplotlib(unittest.TestCase):
         result = main.execute(args)
         assert result == 1
 
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="tkagg")
+    def test_matplotlib_plot_interactive_backend_with_get_backend(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+    ) -> None:
+        """Test that plotting without output in interactive backend calls plt.show() successfully."""
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,  # No output file specified
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        result = main.execute(args)
+        assert result == 0
+        mock_show.assert_called_once()
+
     @patch(
         "builtins.__import__", side_effect=ImportError("No module named 'matplotlib'")
     )
