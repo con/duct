@@ -1148,7 +1148,7 @@ def execute(args: Arguments) -> int:
 
     handler = ProcessSignalHandler(process.pid)
     signal.signal(signal.SIGINT, handler.handle_signal)
-    lgr.info("duct is executing %r...", full_command)
+    lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
         if args.session_mode == SessionMode.NEW_SESSION:
