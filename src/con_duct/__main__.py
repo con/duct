@@ -720,7 +720,9 @@ class SummaryFormatter(string.Formatter):
             value_ = super().format_field(value, format_spec)
         except ValueError as exc:
             lgr.warning(
-                f"Falling back to `str` formatting for {value!r} due to exception: {exc}"
+                "Falling back to `str` formatting for %r due to exception: %s",
+                value,
+                exc,
             )
             return str(value)
         if conversion:
@@ -1143,7 +1145,7 @@ def execute(args: Arguments) -> int:
         safe_close_files(files_to_close)
         remove_files(log_paths, assert_empty=True)
         # mimicking behavior of bash and zsh.
-        print(f"{args.command}: command not found", file=sys.stderr)
+        lgr.error("%s: command not found", args.command)
         return 127  # seems what zsh and bash return then
 
     handler = ProcessSignalHandler(process.pid)
