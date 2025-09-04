@@ -301,6 +301,37 @@ class TestPlotMatplotlib(unittest.TestCase):
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
 
+    @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_info_json(self, mock_plot_save: MagicMock) -> None:
+        """When user passes info.json, usage.json is retrieved and used"""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/info.json",
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        assert main.execute(args) == 0
+        mock_plot_save.assert_called_once_with("outfile.png")
+
+    @patch("matplotlib.pyplot.savefig")
+    @patch(
+        "builtins.open", new_callable=mock_open, read_data='{"missing": "timestamp"}'
+    )
+    def test_matplotlib_plot_malformed_usage_file(
+        self, _mock_open: MagicMock, mock_plot_save: MagicMock
+    ) -> None:
+        """Test that malformed usage.json files are handled gracefully"""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/malformed_usage.json",
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        assert main.execute(args) == 1
+        mock_plot_save.assert_not_called()
+
 
 class TestLS(unittest.TestCase):
     def setUp(self) -> None:

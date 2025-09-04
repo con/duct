@@ -7,29 +7,52 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     import matplotlib.pyplot as plt
     import numpy as np
 
+    # Handle info.json files by reading the usage path from the file
+    file_path = args.file_path
+    if file_path.endswith("info.json"):
+        try:
+            with open(file_path, "r") as info_file:
+                info_data = json.load(info_file)
+                file_path = info_data["output_paths"]["usage"]
+        except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
+            print(f"Error reading info file {args.file_path}: {e}")
+            return 1
+
     data = []
     try:
-        with open(args.file_path, "r") as file:
+        with open(file_path, "r") as file:
             for line in file:
                 data.append(json.loads(line))
     except FileNotFoundError:
-        print(f"File {args.file_path} was not found.")
+        print(f"File {file_path} was not found.")
         return 1
     except json.JSONDecodeError:
-        print(f"File {args.file_path} contained invalid JSON.")
+        print(f"File {file_path} contained invalid JSON.")
         return 1
 
-    # Convert timestamps to datetime objects
-    timestamps = [datetime.fromisoformat(entry["timestamp"]) for entry in data]
+    try:
+        # Convert timestamps to datetime objects
+        timestamps = [datetime.fromisoformat(entry["timestamp"]) for entry in data]
 
-    # Calculate elapsed time in seconds
-    elapsed_time = np.array([(ts - timestamps[0]).total_seconds() for ts in timestamps])
+        # Calculate elapsed time in seconds
+        elapsed_time = np.array(
+            [(ts - timestamps[0]).total_seconds() for ts in timestamps]
+        )
 
-    # Extract other data
-    pmem = np.array([entry["totals"]["pmem"] for entry in data])
-    pcpu = np.array([entry["totals"]["pcpu"] for entry in data])
-    rss_kb = np.array([entry["totals"]["rss"] for entry in data])
-    vsz_kb = np.array([entry["totals"]["vsz"] for entry in data])
+        # Extract other data
+        pmem = np.array([entry["totals"]["pmem"] for entry in data])
+        pcpu = np.array([entry["totals"]["pcpu"] for entry in data])
+        rss_kb = np.array([entry["totals"]["rss"] for entry in data])
+        vsz_kb = np.array([entry["totals"]["vsz"] for entry in data])
+    except KeyError as e:
+        print(f"Usage file {file_path} is missing required field: {e}")
+        return 1
+    except ValueError as e:
+        print(f"Usage file {file_path} contains invalid data format: {e}")
+        return 1
+    except Exception as e:
+        print(f"Error processing usage file {file_path}: {e}")
+        return 1
 
     # Plotting
     fig, ax1 = plt.subplots()
@@ -52,9 +75,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
 
     if args.output is not None:
         plt.savefig(args.output)
-        print(
-            f"Successfully rendered input file: {args.file_path} to output {args.output}"
-        )
+        print(f"Successfully rendered input file: {file_path} to output {args.output}")
     else:
         plt.show()
 
