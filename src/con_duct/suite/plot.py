@@ -1,6 +1,9 @@
 import argparse
 from datetime import datetime
 import json
+import logging
+
+lgr = logging.getLogger(__name__)
 
 
 def matplotlib_plot(args: argparse.Namespace) -> int:
@@ -11,7 +14,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         import matplotlib.pyplot as plt
         import numpy as np
     except ImportError as e:
-        print(f"con-duct plot missing required dependency: {e}")
+        lgr.error("con-duct plot missing required dependency: %s", e)
         return 1
 
     # Handle info.json files by reading the usage path from the file
@@ -22,7 +25,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                 info_data = json.load(info_file)
                 file_path = info_data["output_paths"]["usage"]
         except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
-            print(f"Error reading info file {args.file_path}: {e}")
+            lgr.error("Error reading info file %s: %s", args.file_path, e)
             return 1
 
     data = []
@@ -31,10 +34,10 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             for line in file:
                 data.append(json.loads(line))
     except FileNotFoundError:
-        print(f"File {file_path} was not found.")
+        lgr.error("File %s was not found.", file_path)
         return 1
     except json.JSONDecodeError:
-        print(f"File {file_path} contained invalid JSON.")
+        lgr.error("File %s contained invalid JSON.", file_path)
         return 1
 
     try:
@@ -52,13 +55,13 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         rss_kb = np.array([entry["totals"]["rss"] for entry in data])
         vsz_kb = np.array([entry["totals"]["vsz"] for entry in data])
     except KeyError as e:
-        print(f"Usage file {file_path} is missing required field: {e}")
+        lgr.error("Usage file %s is missing required field: %s", file_path, e)
         return 1
     except ValueError as e:
-        print(f"Usage file {file_path} contains invalid data format: {e}")
+        lgr.error("Usage file %s contains invalid data format: %s", file_path, e)
         return 1
     except Exception as e:
-        print(f"Error processing usage file {file_path}: {e}")
+        lgr.error("Error processing usage file %s: %s", file_path, e)
         return 1
 
     # Plotting
@@ -82,7 +85,9 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
 
     if args.output is not None:
         plt.savefig(args.output)
-        print(f"Successfully rendered input file: {file_path} to output {args.output}")
+        lgr.info(
+            "Successfully rendered input file: %s to output %s", file_path, args.output
+        )
     else:
         # Check if the current backend can display plots interactively
         try:
@@ -98,15 +103,16 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         if current_backend in interactive_backends:
             plt.show()
         else:
-            print(
-                f"Cannot display plot: your current matplotlib backend is {current_backend} "
-                f"which is a not a known interactive backend."
+            lgr.error(
+                "Cannot display plot: your current matplotlib backend is %s "
+                "which is a not a known interactive backend.",
+                current_backend,
             )
-            print(
+            lgr.error(
                 "Either set environment variable MPLBACKEND to an interactive backend or "
                 "use --output to save the plot to a file instead."
             )
-            print(
+            lgr.error(
                 "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
             )
             return 1

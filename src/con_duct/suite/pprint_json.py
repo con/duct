@@ -1,8 +1,11 @@
 import argparse
 import json
+import logging
 from pprint import pprint
 from typing import Any
 from con_duct.__main__ import SummaryFormatter
+
+lgr = logging.getLogger(__name__)
 
 
 def get_field_conversion_mapping() -> dict[str, str]:
@@ -74,10 +77,10 @@ def pprint_json(args: argparse.Namespace) -> int:
         pprint(data)
 
     except FileNotFoundError:
-        print(f"File not found: {args.file_path}")
+        lgr.error("File not found: %s", args.file_path)
         return 1
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
+        lgr.error("Error decoding JSON: %s", e)
         return 1
 
     return 0

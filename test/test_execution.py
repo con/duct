@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import logging
 import multiprocessing
 import os
 from pathlib import Path
@@ -200,12 +201,13 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
 
 
 def test_execute_unknown_command(
-    temp_output_dir: str, capsys: pytest.CaptureFixture
+    temp_output_dir: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     cmd = "this_command_does_not_exist_123abrakadabra"
     args = Arguments.from_argv([cmd])
-    assert execute(args) == 127
-    assert f"{cmd}: command not found\n" == capsys.readouterr().err
+    with caplog.at_level(logging.ERROR):
+        assert execute(args) == 127
+    assert f"{cmd}: command not found" in caplog.text
     assert_expected_files(temp_output_dir, exists=False)
 
 
