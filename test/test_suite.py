@@ -332,6 +332,80 @@ class TestPlotMatplotlib(unittest.TestCase):
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
 
+    @patch(
+        "matplotlib.get_backend",
+        side_effect=AttributeError("get_backend not available"),
+    )
+    @patch.dict("matplotlib.rcParams", {"backend": "Agg"})
+    def test_matplotlib_plot_non_interactive_backend(
+        self,
+        _mock_get_backend: MagicMock,
+    ) -> None:
+        """Test that plotting without output in non-interactive backend returns error."""
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,  # No output file specified
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        result = main.execute(args)
+        assert result == 1
+
+    @patch("matplotlib.get_backend", return_value="Agg")
+    def test_matplotlib_plot_non_interactive_backend_with_get_backend(
+        self,
+        _mock_get_backend: MagicMock,
+    ) -> None:
+        """Test that plotting without output in non-interactive backend returns error using get_backend."""
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,  # No output file specified
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        result = main.execute(args)
+        assert result == 1
+
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="tkagg")
+    def test_matplotlib_plot_interactive_backend_with_get_backend(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+    ) -> None:
+        """Test that plotting without output in interactive backend calls plt.show() successfully."""
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,  # No output file specified
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        result = main.execute(args)
+        assert result == 0
+        mock_show.assert_called_once()
+
+    @patch(
+        "builtins.__import__", side_effect=ImportError("No module named 'matplotlib'")
+    )
+    def test_matplotlib_plot_missing_dependency(self, _mock_import: MagicMock) -> None:
+        """Test that plotting with missing matplotlib shows helpful error."""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+
+        result = main.execute(args)
+        assert result == 1
+
 
 class TestLS(unittest.TestCase):
     def setUp(self) -> None:
