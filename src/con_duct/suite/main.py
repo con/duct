@@ -63,6 +63,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     )
     parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
     parser_plot.add_argument(
+        "-o",
         "--output",
         help="Output path for the image file. If not specified, plot will be shown and not saved.",
         default=None,
