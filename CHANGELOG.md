@@ -1,3 +1,23 @@
+# v0.16.0 (Fri Sep 05 2025)
+
+#### 🚀 Enhancement
+
+- Change: Replace print statements with logger for error handling [#296](https://github.com/con/duct/pull/296) ([@asmacdo](https://github.com/asmacdo))
+- Handle noninteractive matplotlib backends [#293](https://github.com/con/duct/pull/293) ([@asmacdo](https://github.com/asmacdo))
+- con-duct plot should accept info.json in addition to usage.json [#292](https://github.com/con/duct/pull/292) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- Test against pre-release of 3.14 [#230](https://github.com/con/duct/pull/230) ([@yarikoptic](https://github.com/yarikoptic) [@asmacdo](https://github.com/asmacdo))
+- List a version in "duct is executing" log message [#295](https://github.com/con/duct/pull/295) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 2
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.15.0 (Fri Aug 15 2025)
 
 #### 🚀 Enhancement
