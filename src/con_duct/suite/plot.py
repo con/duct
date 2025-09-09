@@ -101,6 +101,9 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
 
     plt.title("Resource Usage Over Time")
 
+    # Adjust layout to prevent labels from being cut off
+    plt.tight_layout()
+
     if args.output is not None:
         plt.savefig(args.output)
         lgr.info(
