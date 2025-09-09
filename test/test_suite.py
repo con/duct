@@ -260,7 +260,7 @@ class TestPPrintHumanization(unittest.TestCase):
         assert call_args["wall_clock_time"] == "2m 30.8s"
 
 
-class TestPlotMatplotlib(unittest.TestCase):
+class TestPlotMatplotlib:
 
     @patch("matplotlib.pyplot.savefig")
     def test_matplotlib_plot_sanity(self, mock_plot_save: MagicMock) -> None:
@@ -318,31 +318,25 @@ class TestPlotMatplotlib(unittest.TestCase):
 
     @patch("matplotlib.pyplot.savefig")
     def test_matplotlib_plot_info_json_absolute_path(
-        self, mock_plot_save: MagicMock
-    ) -> None:
-        """
-        Test that absolute path to info.json correctly resolves usage.json path
+        self, mock_plot_save: MagicMock, monkeypatch, tmp_path
+    ):
+        """Test that absolute path to info.json correctly resolves usage.json path
         when cwd is not the original execution wd.
         """
+        abs_info_path = os.path.abspath("test/data/mriqc-example/info.json")
 
-        original_cwd = os.getcwd()
-        temp_dir = tempfile.mkdtemp()
-        test_info_path = os.path.abspath("test/data/mriqc-example/info.json")
-        try:
-            os.chdir(temp_dir)  # Change to different directory
+        # change into a pytest-managed temporary directory
+        monkeypatch.chdir(tmp_path)
 
-            args = argparse.Namespace(
-                command="plot",
-                file_path=test_info_path,  # Absolute path to info.json
-                output="outfile.png",
-                func=plot.matplotlib_plot,
-                log_level="NONE",
-            )
-            assert main.execute(args) == 0
-            mock_plot_save.assert_called_once_with("outfile.png")
-        finally:
-            os.chdir(original_cwd)
-            os.rmdir(temp_dir)
+        args = argparse.Namespace(
+            command="plot",
+            file_path=abs_info_path,
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="NONE",
+        )
+        assert main.execute(args) == 0
+        mock_plot_save.assert_called_once_with("outfile.png")
 
     @patch("matplotlib.pyplot.savefig")
     @patch(
