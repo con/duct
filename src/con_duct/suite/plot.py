@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime
 import json
 import logging
+import os
 from typing import Any, List, Optional, Tuple
 
 lgr = logging.getLogger(__name__)
@@ -81,7 +82,13 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         try:
             with open(file_path, "r") as info_file:
                 info_data = json.load(info_file)
-                file_path = info_data["output_paths"]["usage"]
+                rel_usage_path = info_data["output_paths"]["usage"]
+
+                # determine usage abspath
+                rel_info_path = info_data["output_paths"]["info"]
+                abs_info_path = os.path.abspath(file_path)
+                original_wd = abs_info_path[: -len(rel_info_path)].rstrip(os.sep)
+                file_path = os.path.join(original_wd, rel_usage_path)
         except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
             lgr.error("Error reading info file %s: %s", args.file_path, e)
             return 1
