@@ -12,10 +12,15 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         from matplotlib.backends import backend_registry  # type: ignore[attr-defined]
         from matplotlib.backends.registry import BackendFilter
         import matplotlib.pyplot as plt
+        from matplotlib.ticker import FuncFormatter
         import numpy as np
     except ImportError as e:
         lgr.error("con-duct plot missing required dependency: %s", e)
         return 1
+
+    from con_duct.__main__ import SummaryFormatter
+
+    formatter = SummaryFormatter()
 
     # Handle info.json files by reading the usage path from the file
     file_path = args.file_path
@@ -64,22 +69,35 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         lgr.error("Error processing usage file %s: %s", file_path, e)
         return 1
 
+    # Define custom formatters for axes
+    def format_memory(x, _pos):
+        return formatter.naturalsize(x)
+
+    def format_time(x, _pos):
+        return formatter._format_duration(x)
+
     # Plotting
     fig, ax1 = plt.subplots()
 
     # Plot pmem and pcpu on primary y-axis
     ax1.plot(elapsed_time, pmem, label="pmem (%)", color="tab:blue")
     ax1.plot(elapsed_time, pcpu, label="pcpu (%)", color="tab:orange")
-    ax1.set_xlabel("Elapsed Time (s)")
+    ax1.set_xlabel("Elapsed Time")
     ax1.set_ylabel("Percentage")
     ax1.legend(loc="upper left")
 
+    # Apply time formatter to x-axis
+    ax1.xaxis.set_major_formatter(FuncFormatter(format_time))
+
     # Create a second y-axis for rss and vsz
     ax2 = ax1.twinx()  # type: ignore[attr-defined]
-    ax2.plot(elapsed_time, rss_kb, label="rss (B)", color="tab:green")
-    ax2.plot(elapsed_time, vsz_kb, label="vsz (B)", color="tab:red")
-    ax2.set_ylabel("B")
+    ax2.plot(elapsed_time, rss_kb, label="rss", color="tab:green")
+    ax2.plot(elapsed_time, vsz_kb, label="vsz", color="tab:red")
+    ax2.set_ylabel("Memory")
     ax2.legend(loc="upper right")
+
+    # Apply memory formatter to secondary y-axis
+    ax2.yaxis.set_major_formatter(FuncFormatter(format_memory))
 
     plt.title("Resource Usage Over Time")
 
