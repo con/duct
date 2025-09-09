@@ -318,8 +318,8 @@ class TestPlotMatplotlib:
 
     @patch("matplotlib.pyplot.savefig")
     def test_matplotlib_plot_info_json_absolute_path(
-        self, mock_plot_save: MagicMock, monkeypatch, tmp_path
-    ):
+        self, mock_plot_save: MagicMock, monkeypatch: Any, tmp_path: Any
+    ) -> None:
         """Test that absolute path to info.json correctly resolves usage.json path
         when cwd is not the original execution wd.
         """
