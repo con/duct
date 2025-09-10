@@ -2,10 +2,7 @@ import argparse
 from datetime import datetime
 import json
 import logging
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from matplotlib.ticker import Formatter
+from typing import Any, Tuple
 
 lgr = logging.getLogger(__name__)
 
@@ -30,7 +27,7 @@ _MEMORY_UNITS = [
 class HumanizedAxisFormatter:
     """Format units for human-readable plot axes."""
 
-    def __new__(cls, min_ratio: float, units: list) -> "_HumanizedAxisFormatter":
+    def __new__(cls, min_ratio: float, units: list) -> Any:  # noqa: U100
         from matplotlib.ticker import Formatter
 
         class _HumanizedAxisFormatter(Formatter):
@@ -39,8 +36,8 @@ class HumanizedAxisFormatter:
                 self.min_ratio = min_ratio
                 self.units = units
 
-            def pick_unit(self, base_value: float) -> tuple:
-                unit = self.units[0]
+            def pick_unit(self, base_value: float) -> Tuple[str, int]:
+                unit: Tuple[str, int] = self.units[0]
                 for name, divisor in self.units:
                     if base_value / divisor >= self.min_ratio:
                         unit = (name, divisor)
@@ -54,7 +51,7 @@ class HumanizedAxisFormatter:
                 Returns:
                     Formatted human readable unit string
                 """
-                xmin, xmax = self.axis.get_view_interval()
+                xmin, xmax = self.axis.get_view_interval()  # type: ignore[union-attr]
                 span_sec = abs(xmax - xmin) or 1.0
                 name, divisor = self.pick_unit(span_sec)
                 value = x / divisor
@@ -131,7 +128,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     ax1.set_ylabel("Percentage")
     ax1.legend(loc="upper left")
 
-    ax1.xaxis.set_major_formatter(
+    ax1.xaxis.set_major_formatter(  # type: ignore[attr-defined]
         HumanizedAxisFormatter(min_ratio=3.0, units=_TIME_UNITS)
     )
 
@@ -142,14 +139,14 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     ax2.set_ylabel("Memory")
     ax2.legend(loc="upper right")
 
-    ax2.yaxis.set_major_formatter(
+    ax2.yaxis.set_major_formatter(  # type: ignore[attr-defined]
         HumanizedAxisFormatter(min_ratio=3.0, units=_MEMORY_UNITS)
     )
 
     plt.title("Resource Usage Over Time")
 
     # Adjust layout to prevent labels from being cut off
-    plt.tight_layout()
+    plt.tight_layout()  # type: ignore[attr-defined]
 
     if args.output is not None:
         plt.savefig(args.output)
