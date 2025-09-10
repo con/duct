@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 import json
 import logging
-from typing import Any, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 lgr = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ class HumanizedAxisFormatter:
             def __init__(self, min_ratio: float, units: list):
                 super().__init__()
                 self.min_ratio = min_ratio
-                self.units = units
+                self.units: List[Tuple[str, int]] = units
 
             def pick_unit(self, base_value: float) -> Tuple[str, int]:
                 # If min_ratio is -1, always use base unit
