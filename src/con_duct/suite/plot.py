@@ -37,6 +37,10 @@ class HumanizedAxisFormatter:
                 self.units = units
 
             def pick_unit(self, base_value: float) -> Tuple[str, int]:
+                # If min_ratio is -1, always use base unit
+                if self.min_ratio == -1:
+                    return self.units[0]
+
                 unit: Tuple[str, int] = self.units[0]
                 for name, divisor in self.units:
                     if base_value / divisor >= self.min_ratio:
@@ -129,7 +133,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     ax1.legend(loc="upper left")
 
     ax1.xaxis.set_major_formatter(  # type: ignore[attr-defined]
-        HumanizedAxisFormatter(min_ratio=3.0, units=_TIME_UNITS)
+        HumanizedAxisFormatter(min_ratio=args.min_ratio, units=_TIME_UNITS)
     )
 
     # Create a second y-axis for rss and vsz
@@ -140,7 +144,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     ax2.legend(loc="upper right")
 
     ax2.yaxis.set_major_formatter(  # type: ignore[attr-defined]
-        HumanizedAxisFormatter(min_ratio=3.0, units=_MEMORY_UNITS)
+        HumanizedAxisFormatter(min_ratio=args.min_ratio, units=_MEMORY_UNITS)
     )
 
     plt.title("Resource Usage Over Time")

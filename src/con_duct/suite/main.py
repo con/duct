@@ -68,6 +68,13 @@ def main(argv: Optional[List[str]] = None) -> None:
         help="Output path for the image file. If not specified, plot will be shown and not saved.",
         default=None,
     )
+    parser_plot.add_argument(
+        "--min-ratio",
+        type=float,
+        default=3.0,
+        help="Minimum ratio for axis unit selection (default: 3.0). Lower values use larger units sooner. "
+        "Use -1 to always use base units (seconds, bytes).",
+    )
     # parser_plot.add_argument(
     #     "-b",
     #     "--backend",
