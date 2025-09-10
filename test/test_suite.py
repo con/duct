@@ -270,6 +270,7 @@ class TestPlotMatplotlib(unittest.TestCase):
             output="outfile.png",
             func=plot.matplotlib_plot,
             log_level="NONE",
+            min_ratio=3.0,
         )
         assert main.execute(args) == 0
         mock_plot_save.assert_called_once_with("outfile.png")
@@ -310,6 +311,7 @@ class TestPlotMatplotlib(unittest.TestCase):
             output="outfile.png",
             func=plot.matplotlib_plot,
             log_level="NONE",
+            min_ratio=3.0,
         )
         assert main.execute(args) == 0
         mock_plot_save.assert_called_once_with("outfile.png")
@@ -349,6 +351,7 @@ class TestPlotMatplotlib(unittest.TestCase):
             output=None,  # No output file specified
             func=plot.matplotlib_plot,
             log_level="NONE",
+            min_ratio=3.0,
         )
         result = main.execute(args)
         assert result == 1
@@ -366,6 +369,7 @@ class TestPlotMatplotlib(unittest.TestCase):
             output=None,  # No output file specified
             func=plot.matplotlib_plot,
             log_level="NONE",
+            min_ratio=3.0,
         )
         result = main.execute(args)
         assert result == 1
@@ -385,6 +389,7 @@ class TestPlotMatplotlib(unittest.TestCase):
             output=None,  # No output file specified
             func=plot.matplotlib_plot,
             log_level="NONE",
+            min_ratio=3.0,
         )
         result = main.execute(args)
         assert result == 0
