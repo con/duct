@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 import json
 import logging
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 lgr = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class HumanizedAxisFormatter:
                         unit = (name, divisor)
                 return unit
 
-            def __call__(self, x: float, _pos: int | None = 0) -> str:
+            def __call__(self, x: float, _pos: Optional[int] = 0) -> str:
                 """Called by matplotlib to value for axis tick.
                 Args:
                     x: value in base unit
