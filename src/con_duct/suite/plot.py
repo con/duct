@@ -2,8 +2,65 @@ import argparse
 from datetime import datetime
 import json
 import logging
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from matplotlib.ticker import Formatter
 
 lgr = logging.getLogger(__name__)
+
+_TIME_UNITS = [
+    ("s", 1),
+    ("min", 60),
+    ("h", 3600),
+    ("d", 86400),
+]
+
+_MEMORY_UNITS = [
+    ("B", 1),
+    ("KB", 1024**1),
+    ("MB", 1024**2),
+    ("GB", 1024**3),
+    ("TB", 1024**4),
+    ("PB", 1024**5),
+]
+
+
+# Class in a Class to avoid importing matplotlib until we need it.
+class HumanizedAxisFormatter:
+    """Format units for human-readable plot axes."""
+
+    def __new__(cls, min_ratio: float, units: list) -> "_HumanizedAxisFormatter":
+        from matplotlib.ticker import Formatter
+
+        class _HumanizedAxisFormatter(Formatter):
+            def __init__(self, min_ratio: float, units: list):
+                super().__init__()
+                self.min_ratio = min_ratio
+                self.units = units
+
+            def pick_unit(self, base_value: float) -> tuple:
+                unit = self.units[0]
+                for name, divisor in self.units:
+                    if base_value / divisor >= self.min_ratio:
+                        unit = (name, divisor)
+                return unit
+
+            def __call__(self, x: float, _pos: int | None = 0) -> str:
+                """Called by matplotlib to value for axis tick.
+                Args:
+                    x: value in base unit
+
+                Returns:
+                    Formatted human readable unit string
+                """
+                xmin, xmax = self.axis.get_view_interval()
+                span_sec = abs(xmax - xmin) or 1.0
+                name, divisor = self.pick_unit(span_sec)
+                value = x / divisor
+                return f"{value:.1f}{name}"
+
+        return _HumanizedAxisFormatter(min_ratio=min_ratio, units=units)
 
 
 def matplotlib_plot(args: argparse.Namespace) -> int:
@@ -12,15 +69,10 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         from matplotlib.backends import backend_registry  # type: ignore[attr-defined]
         from matplotlib.backends.registry import BackendFilter
         import matplotlib.pyplot as plt
-        from matplotlib.ticker import FuncFormatter
         import numpy as np
     except ImportError as e:
         lgr.error("con-duct plot missing required dependency: %s", e)
         return 1
-
-    from con_duct.__main__ import SummaryFormatter
-
-    formatter = SummaryFormatter()
 
     # Handle info.json files by reading the usage path from the file
     file_path = args.file_path
@@ -69,13 +121,6 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         lgr.error("Error processing usage file %s: %s", file_path, e)
         return 1
 
-    # Define custom formatters for axes
-    def format_memory(x, _pos):
-        return formatter.naturalsize(x)
-
-    def format_time(x, _pos):
-        return formatter._format_duration(x)
-
     # Plotting
     fig, ax1 = plt.subplots()
 
@@ -86,8 +131,9 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     ax1.set_ylabel("Percentage")
     ax1.legend(loc="upper left")
 
-    # Apply time formatter to x-axis
-    ax1.xaxis.set_major_formatter(FuncFormatter(format_time))
+    ax1.xaxis.set_major_formatter(
+        HumanizedAxisFormatter(min_ratio=3.0, units=_TIME_UNITS)
+    )
 
     # Create a second y-axis for rss and vsz
     ax2 = ax1.twinx()  # type: ignore[attr-defined]
@@ -96,8 +142,9 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     ax2.set_ylabel("Memory")
     ax2.legend(loc="upper right")
 
-    # Apply memory formatter to secondary y-axis
-    ax2.yaxis.set_major_formatter(FuncFormatter(format_memory))
+    ax2.yaxis.set_major_formatter(
+        HumanizedAxisFormatter(min_ratio=3.0, units=_MEMORY_UNITS)
+    )
 
     plt.title("Resource Usage Over Time")
 
@@ -138,5 +185,4 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             )
             return 1
 
-    # Exit code
     return 0
