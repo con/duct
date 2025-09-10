@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 lgr = logging.getLogger(__name__)
@@ -76,19 +77,16 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         lgr.error("con-duct plot missing required dependency: %s", e)
         return 1
 
-    # Handle info.json files by reading the usage path from the file
+    # Handle info.json files by determining the abspath to usage file
     file_path = args.file_path
     if file_path.endswith("info.json"):
         try:
             with open(file_path, "r") as info_file:
                 info_data = json.load(info_file)
-                rel_usage_path = info_data["output_paths"]["usage"]
-
-                # determine usage abspath
-                rel_info_path = info_data["output_paths"]["info"]
-                abs_info_path = os.path.abspath(file_path)
-                original_wd = abs_info_path[: -len(rel_info_path)].rstrip(os.sep)
-                file_path = os.path.join(original_wd, rel_usage_path)
+                rel_usage_path = Path(info_data["output_paths"]["usage"])
+                abs_info_path = Path(file_path).resolve()
+                # assume that usage.json in same dir as info.json
+                file_path = abs_info_path.with_name(rel_usage_path.name)
         except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
             lgr.error("Error reading info file %s: %s", args.file_path, e)
             return 1
