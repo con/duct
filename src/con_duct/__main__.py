@@ -97,22 +97,24 @@ class ConfigurableArgumentParser(argparse.ArgumentParser):
 class Config:
     """Simple configuration loader for duct."""
 
-    def __init__(self, config_path: str):
-        """Load configuration from a JSON file.
+    def __init__(self, defaults: dict, config_path: str = None):
+        """Load configuration from a JSON file with defaults.
 
         Args:
-            config_path: Path to the JSON configuration file
+            defaults: Default configuration values (required)
+            config_path: Path to the JSON configuration file (optional)
         """
         self.config_path = config_path
-        self.data = {}
+        self.data = defaults.copy()
 
-        if os.path.exists(config_path):
+        if config_path and os.path.exists(config_path):
             try:
                 with open(config_path) as f:
-                    self.data = json.load(f)
+                    file_data = json.load(f)
+                    self.data.update(file_data)  # File config overrides defaults
             except (json.JSONDecodeError, OSError) as e:
                 print(f"Warning: Could not load config from {config_path}: {e}")
-        else:
+        elif config_path:
             print(f"Config file not found: {config_path}")
 
     def __getattr__(self, key: str) -> Any:
@@ -894,7 +896,7 @@ class Arguments:
             "--output-prefix",
             type=str,
             env_var="DUCT_OUTPUT_PREFIX",
-            default=DUCT_OUTPUT_PREFIX,
+            default=config.output_prefix,
             help="File string format to be used as a prefix for the files -- the captured "
             "stdout and stderr and the resource usage logs. The understood variables are "
             "{datetime}, {datetime_filesafe}, and {pid}. "
@@ -1195,15 +1197,17 @@ def main() -> None:
     )
     pre_args, remaining_args = pre_parser.parse_known_args()
 
-    # Load base config from file (or empty config if no file)
-    if pre_args.config:
-        base_config = Config(pre_args.config)
-    else:
-        # Create empty config
-        empty_config = Config.__new__(Config)
-        empty_config.config_path = None
-        empty_config.data = {}
-        base_config = empty_config
+    # Create default config
+    default_config = {
+        "output_prefix": DUCT_OUTPUT_PREFIX,
+        "summary_format": EXECUTION_SUMMARY_FORMAT,
+        "colors": False,
+        "log_level": DEFAULT_LOG_LEVEL,
+        # Add other defaults as needed
+    }
+
+    # Load base config from file (or defaults only if no file)
+    base_config = Config(default_config, pre_args.config)
 
     # Parse CLI arguments with config providing defaults
     args = Arguments.from_argv(remaining_args, config=base_config)
