@@ -174,9 +174,11 @@ class Config:
                     file_data = json.load(f)
                     self.data.update(file_data)  # File config overrides defaults
             except (json.JSONDecodeError, OSError) as e:
-                print(f"Warning: Could not load config from {config_path}: {e}")
+                lgr.error("Could not load config from %s: %s", config_path, e)
+                sys.exit(1)
         elif config_path:
-            print(f"Config file not found: {config_path}")
+            lgr.error("Config file not found: %s", config_path)
+            sys.exit(1)
 
     def __getattr__(self, key: str) -> Any:
         """Get a configuration value as an attribute.
@@ -1190,6 +1192,13 @@ def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
 
 
 def main() -> None:
+    # Set up basic logging configuration (level will be set properly in execute)
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+        level=getattr(logging, DEFAULT_CONFIG["log_level"]),
+    )
+
     # Pre-parse to get config file path first
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument(
@@ -1201,14 +1210,6 @@ def main() -> None:
     pre_args, remaining_args = pre_parser.parse_known_args()
     config = Config(DEFAULT_CONFIG, pre_args.config)
     args = Arguments.from_argv(remaining_args, config=config)
-
-    # TODO(if this fails we dont have a logger)
-    # Set up basic logging configuration (level will be set properly in execute)
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S%z",
-        level=getattr(logging, config.log_level),
-    )
     sys.exit(execute(args))
 
 
