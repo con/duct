@@ -1,6 +1,6 @@
 """Tests for plot axis humanization features."""
 
-from typing import List, Tuple
+from typing import Any, List, Tuple
 from unittest.mock import Mock
 import pytest
 from con_duct.suite import plot
@@ -33,7 +33,9 @@ def test_pick_unit_with_varying_ratios(
     min_ratio: float, span_seconds: float, expected_unit: str
 ) -> None:
     """Test pick_unit selects appropriate unit based on min_ratio."""
-    formatter = plot.HumanizedAxisFormatter(min_ratio=min_ratio, units=plot._TIME_UNITS)
+    formatter: Any = plot.HumanizedAxisFormatter(
+        min_ratio=min_ratio, units=plot._TIME_UNITS
+    )
     unit_name, _ = formatter.pick_unit(span_seconds)
     assert unit_name == expected_unit
 
@@ -61,7 +63,7 @@ def test_formatter_output(
     expected: str,
 ) -> None:
     """Test HumanizedAxisFormatter formats values correctly for time and memory units."""
-    formatter = plot.HumanizedAxisFormatter(min_ratio=3.0, units=units)
+    formatter: Any = plot.HumanizedAxisFormatter(min_ratio=3.0, units=units)
     formatter.axis = Mock()
     formatter.axis.get_view_interval.return_value = axis_range
     result = formatter(value, 0)
