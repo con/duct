@@ -49,6 +49,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     # Subcommand: pp
     parser_pp = subparsers.add_parser("pp", help="Pretty print a JSON log.")
     parser_pp.add_argument("file_path", help="JSON file to pretty print.")
+    # TODO(add env var and config)
     parser_pp.add_argument(
         "-H",
         "--humanize",
@@ -81,6 +82,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         "ls",
         help="Print execution information for all matching runs.",
     )
+    # TODO(add env var DUCT_LS_FORMAT and config)
     parser_ls.add_argument(
         "-f",
         "--format",
@@ -89,6 +91,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         help="Output format. TODO Fixme. 'auto' chooses 'pyout' if pyout library is installed,"
         " 'summaries' otherwise.",
     )
+    # TODO(add env var DUCT_LS_FIELDS and config)
     parser_ls.add_argument(
         "-F",
         "--fields",
@@ -104,12 +107,14 @@ def main(argv: Optional[List[str]] = None) -> None:
             "peak_rss",
         ],
     )
+    # TODO(already exists todo in __main__ we should use here too)
     parser_ls.add_argument(
         "--colors",
         action="store_true",
         default=os.getenv("DUCT_COLORS", False),
         help="Use colors in duct output.",
     )
+    # TODO(config: not now but we should consider adding
     parser_ls.add_argument(
         "paths",
         nargs="*",

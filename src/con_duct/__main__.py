@@ -31,6 +31,114 @@ __schema_version__ = "0.2.2"
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
+
+class ConfigurableArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser that supports environment variables and config integration."""
+
+    def __init__(self, *args, config=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.config = config
+
+    def add_argument(self, *args, env_var=None, **kwargs):
+        """Add an argument with optional environment variable and config support.
+
+        Args:
+            *args: Positional arguments for argparse.ArgumentParser.add_argument
+            env_var: Environment variable name to use as default (must start with DUCT_)
+            **kwargs: Keyword arguments for argparse.ArgumentParser.add_argument
+        """
+        # Only process if env_var is provided and starts with DUCT_
+        if env_var and env_var.startswith("DUCT_"):
+            config_key = env_var[5:].lower()  # Strip "DUCT_" and lowercase
+
+            # Precedence: original default < config < env var
+
+            # Override with config value if it exists
+            if self.config:
+                try:
+                    config_value = getattr(self.config, config_key)
+                    kwargs["default"] = config_value
+                except AttributeError:
+                    pass
+
+            # Override with env var if it exists (highest precedence)
+            env_value = os.getenv(env_var)
+            if env_value is not None:
+                # Handle type conversion for boolean flags
+                if kwargs.get("action") == "store_true":
+                    kwargs["default"] = env_value.lower() in ("true", "1", "yes")
+                elif "type" in kwargs:
+                    try:
+                        kwargs["default"] = kwargs["type"](env_value)
+                    except (ValueError, TypeError):
+                        kwargs["default"] = env_value
+                else:
+                    kwargs["default"] = env_value
+
+        # Create the argument
+        action = super().add_argument(*args, **kwargs)
+
+        # Store metadata for config integration
+        if hasattr(action, "dest") and env_var and env_var.startswith("DUCT_"):
+            action.env_var = env_var
+            action.config_key = env_var[5:].lower()
+
+        return action
+
+    def get_config_keys(self):
+        """Get a mapping of config keys to argument destinations."""
+        config_map = {}
+        for action in self._actions:
+            if hasattr(action, "config_key") and action.config_key:
+                config_map[action.config_key] = action.dest
+        return config_map
+
+
+class Config:
+    """Simple configuration loader for duct."""
+
+    def __init__(self, config_path: str):
+        """Load configuration from a JSON file.
+
+        Args:
+            config_path: Path to the JSON configuration file
+        """
+        self.config_path = config_path
+        self.data = {}
+
+        if os.path.exists(config_path):
+            try:
+                with open(config_path) as f:
+                    self.data = json.load(f)
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"Warning: Could not load config from {config_path}: {e}")
+        else:
+            print(f"Config file not found: {config_path}")
+
+    def __getattr__(self, key: str) -> Any:
+        """Get a configuration value as an attribute.
+
+        Args:
+            key: Configuration key
+
+        Returns:
+            Configuration value or raises AttributeError
+        """
+        # Simple flat access - just check if key exists in data
+        if key in self.data:
+            return self.data[key]
+
+        # If not found, raise AttributeError (standard for __getattr__)
+        raise AttributeError(f"Config has no attribute '{key}'")
+
+    def __dir__(self):
+        """Return list of available attributes for tab completion."""
+        attrs = set(super().__dir__())  # Get default attributes
+        # Add top-level keys from data
+        attrs.update(self.data.keys())
+        return list(attrs)
+
+
 DUCT_OUTPUT_PREFIX = os.getenv(
     "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
 )
@@ -758,12 +866,16 @@ class Arguments:
 
     @classmethod
     def from_argv(
-        cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
+        cls,
+        cli_args: Optional[list[str]] = None,
+        config: Optional[Any] = None,
+        **cli_kwargs: Any,
     ) -> Arguments:
-        parser = argparse.ArgumentParser(
+        parser = ConfigurableArgumentParser(
             allow_abbrev=False,
             description=ABOUT_DUCT,
             formatter_class=CustomHelpFormatter,
+            config=config,
         )
         parser.add_argument(
             "command",
@@ -776,10 +888,12 @@ class Arguments:
         parser.add_argument(
             "command_args", nargs=argparse.REMAINDER, help="Arguments for the command."
         )
+        # TODO(CONFIG
         parser.add_argument(
             "-p",
             "--output-prefix",
             type=str,
+            env_var="DUCT_OUTPUT_PREFIX",
             default=DUCT_OUTPUT_PREFIX,
             help="File string format to be used as a prefix for the files -- the captured "
             "stdout and stderr and the resource usage logs. The understood variables are "
@@ -787,10 +901,12 @@ class Arguments:
             "Leading directories will be created if they do not exist. "
             "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
         )
+        # TODO(CONFIG
         parser.add_argument(
             "--summary-format",
             type=str,
-            default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
+            env_var="DUCT_SUMMARY_FORMAT",
+            default=EXECUTION_SUMMARY_FORMAT,
             help="Output template to use when printing the summary following execution. "
             "Accepts custom conversion flags: "
             "!S: Converts filesizes to human readable units, green if measured, red if None. "
@@ -798,22 +914,26 @@ class Arguments:
             "!X: Colors green if truthy, red if falsey. "
             "!N: Colors green if not None, red if None",
         )
+        # TODO(CONFIG
         parser.add_argument(
             "--colors",
             action="store_true",
-            default=os.getenv("DUCT_COLORS", False),
+            env_var="DUCT_COLORS",
             help="Use colors in duct output.",
         )
+        # TODO(CONFIG
         parser.add_argument(
             "--clobber",
             action="store_true",
             help="Replace log files if they already exist.",
         )
+        # TODO(CONFIG
         parser.add_argument(
             "-l",
             "--log-level",
             default=DEFAULT_LOG_LEVEL,
             type=str.upper,
+            env_var="DUCT_LOG_LEVEL",
             choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
             help="Level of log output to stderr, use NONE to entirely disable.",
         )
@@ -823,6 +943,7 @@ class Arguments:
             action="store_true",
             help="[deprecated, use log level NONE] Disable duct logging output (to stderr)",
         )
+        # TODO(CONFIG
         parser.add_argument(
             "--sample-interval",
             "--s-i",
@@ -832,6 +953,7 @@ class Arguments:
             "Sample interval must be less than or equal to report interval, and it achieves the "
             "best results when sample is significantly less than the runtime of the process.",
         )
+        # TODO(CONFIG
         parser.add_argument(
             "--report-interval",
             "--r-i",
@@ -839,6 +961,7 @@ class Arguments:
             default=float(os.getenv("DUCT_REPORT_INTERVAL", "60.0")),
             help="Interval in seconds at which to report aggregated data.",
         )
+        # TODO(CONFIG
         parser.add_argument(
             "--fail-time",
             "--f-t",
@@ -848,7 +971,7 @@ class Arguments:
             "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
             "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
         )
-
+        # TODO(CONFIG
         parser.add_argument(
             "-c",
             "--capture-outputs",
@@ -874,6 +997,7 @@ class Arguments:
             type=RecordTypes,
             help="Record system-summary, processes-samples, or all",
         )
+        # TODO(CONFIG
         parser.add_argument(
             "-m",
             "--message",
@@ -882,6 +1006,7 @@ class Arguments:
             help="Record a descriptive message about the purpose of this execution. "
             "You can also provide value via DUCT_MESSAGE env variable.",
         )
+        # TODO(add env var and add to config)
         parser.add_argument(
             "--mode",
             default="new-session",
@@ -1060,12 +1185,36 @@ def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
 
 
 def main() -> None:
+    # Pre-parse to get config file path
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument(
+        "-C",
+        "--config",
+        default=os.getenv("DUCT_CONFIG_FILE"),
+        help="Configuration file path",
+    )
+    pre_args, remaining_args = pre_parser.parse_known_args()
+
+    # Load base config from file (or empty config if no file)
+    if pre_args.config:
+        base_config = Config(pre_args.config)
+    else:
+        # Create empty config
+        empty_config = Config.__new__(Config)
+        empty_config.config_path = None
+        empty_config.data = {}
+        base_config = empty_config
+
+    # Parse CLI arguments with config providing defaults
+    args = Arguments.from_argv(remaining_args, config=base_config)
+
+    # Set up basic logging configuration (level will be set properly in execute)
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S%z",
         level=getattr(logging, DEFAULT_LOG_LEVEL),
     )
-    args = Arguments.from_argv()
+
     sys.exit(execute(args))
 
 
@@ -1099,6 +1248,7 @@ def execute(args: Arguments) -> int:
         lgr.disabled = True
     else:
         lgr.setLevel(args.log_level)
+    lgr.debug("TEST")
     log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
     log_paths.prepare_paths(args.clobber, args.capture_outputs)
     stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)
