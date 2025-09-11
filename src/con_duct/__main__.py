@@ -164,12 +164,6 @@ class Config:
     """Simple configuration loader for duct."""
 
     def __init__(self, defaults: dict, config_path: str = None):
-        """Load configuration from a JSON file with defaults.
-
-        Args:
-            defaults: Default configuration values (required)
-            config_path: Path to the JSON configuration file (optional)
-        """
         self.config_path = config_path
         self.data = defaults.copy()
 
@@ -186,25 +180,12 @@ class Config:
             sys.exit(1)
 
     def __getattr__(self, key: str) -> Any:
-        """Get a configuration value as an attribute.
-
-        Args:
-            key: Configuration key
-
-        Returns:
-            Configuration value or raises AttributeError
-        """
-        # Simple flat access - just check if key exists in data
         if key in self.data:
             return self.data[key]
-
-        # If not found, raise AttributeError (standard for __getattr__)
         raise AttributeError(f"Config has no attribute '{key}'")
 
     def __dir__(self):
-        """Return list of available attributes for tab completion."""
-        attrs = set(super().__dir__())  # Get default attributes
-        # Add top-level keys from data
+        attrs = set(super().__dir__())
         attrs.update(self.data.keys())
         return list(attrs)
 
@@ -900,7 +881,6 @@ class Arguments:
         parser.add_argument(
             "command_args", nargs=argparse.REMAINDER, help="Arguments for the command."
         )
-        # TODO(CONFIG
         parser.add_argument(
             "-p",
             "--output-prefix",
@@ -913,7 +893,6 @@ class Arguments:
             "Leading directories will be created if they do not exist. "
             "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
         )
-        # TODO(CONFIG
         parser.add_argument(
             "--summary-format",
             type=str,
@@ -926,7 +905,6 @@ class Arguments:
             "!X: Colors green if truthy, red if falsey. "
             "!N: Colors green if not None, red if None",
         )
-        # TODO(CONFIG
         parser.add_argument(
             "--colors",
             action="store_true",
@@ -934,14 +912,12 @@ class Arguments:
             env_var="DUCT_COLORS",
             help="Use colors in duct output.",
         )
-        # TODO(CONFIG
         parser.add_argument(
             "--clobber",
             action="store_true",
             default=config.clobber,
             help="Replace log files if they already exist.",
         )
-        # TODO(CONFIG
         parser.add_argument(
             "-l",
             "--log-level",
@@ -957,7 +933,6 @@ class Arguments:
             action="store_true",
             help="[deprecated, use log level NONE] Disable duct logging output (to stderr)",
         )
-        # TODO(CONFIG
         parser.add_argument(
             "--sample-interval",
             "--s-i",
@@ -968,7 +943,6 @@ class Arguments:
             "Sample interval must be less than or equal to report interval, and it achieves the "
             "best results when sample is significantly less than the runtime of the process.",
         )
-        # TODO(CONFIG
         parser.add_argument(
             "--report-interval",
             "--r-i",
@@ -977,7 +951,6 @@ class Arguments:
             env_var="DUCT_REPORT_INTERVAL",
             help="Interval in seconds at which to report aggregated data.",
         )
-        # TODO(CONFIG
         parser.add_argument(
             "--fail-time",
             "--f-t",
@@ -988,7 +961,6 @@ class Arguments:
             "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
             "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
         )
-        # TODO(CONFIG
         parser.add_argument(
             "-c",
             "--capture-outputs",
@@ -999,6 +971,7 @@ class Arguments:
             help="Record stdout, stderr, all, or none to log files. "
             "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
         )
+        # TODO add env var/config
         parser.add_argument(
             "-o",
             "--outputs",
@@ -1007,6 +980,7 @@ class Arguments:
             type=Outputs,
             help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
         )
+        # TODO add env var/config
         parser.add_argument(
             "-t",
             "--record-types",
@@ -1015,7 +989,6 @@ class Arguments:
             type=RecordTypes,
             help="Record system-summary, processes-samples, or all",
         )
-        # TODO(CONFIG
         parser.add_argument(
             "-m",
             "--message",
@@ -1025,7 +998,7 @@ class Arguments:
             help="Record a descriptive message about the purpose of this execution. "
             "You can also provide value via DUCT_MESSAGE env variable.",
         )
-        # TODO(add env var and add to config)
+        # TODO(add env var/config)
         parser.add_argument(
             "--mode",
             default="new-session",
