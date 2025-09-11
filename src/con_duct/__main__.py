@@ -121,12 +121,11 @@ class ConfigurableArgumentParser(argparse.ArgumentParser):
             # Precedence: original default < config < env var
 
             # Override with config value if it exists
-            if self.config:
-                try:
-                    config_value = getattr(self.config, config_key)
-                    kwargs["default"] = config_value
-                except AttributeError:
-                    pass
+            try:
+                config_value = getattr(self.config, config_key)
+                kwargs["default"] = config_value
+            except AttributeError:
+                pass
 
             # Override with env var if it exists (highest precedence)
             env_value = os.getenv(env_var)
