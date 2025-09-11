@@ -45,6 +45,14 @@ limitations:
   If a command spawns child processes, duct will collect data on them, but
   duct exits as soon as the primary process exits.
 
+configuration:
+  Many options can be configured via JSON config file (--config), environment
+  variables, or command line arguments. Precedence: built-in defaults < config
+  file < environment variables < command line arguments.
+
+  Default values shown below reflect the current configuration (built-in defaults
+  or loaded from config file).
+
 environment variables:
   Many duct options can be configured by environment variables (which are
   overridden by command line options).
