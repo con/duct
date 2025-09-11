@@ -104,6 +104,7 @@ DEFAULT_CONFIG = {
     "record_types": "all",
     "mode": "new-session",
     "message": "",
+    "config_paths": "/etc/duct/config.json:${XDG_CONFIG_HOME:-~/.config}/duct/config.json:.duct/config.json",
 }
 
 
@@ -174,21 +175,40 @@ class ConfigurableArgumentParser(argparse.ArgumentParser):
 class Config:
     """Simple configuration loader for duct."""
 
-    def __init__(self, defaults: dict, config_path: str = None):
-        self.config_path = config_path
+    def __init__(self, defaults: dict, config_paths: str = None):
         self.data = defaults.copy()
 
-        if config_path and os.path.exists(config_path):
-            try:
-                with open(config_path) as f:
-                    file_data = json.load(f)
-                    self.data.update(file_data)  # File config overrides defaults
-            except (json.JSONDecodeError, OSError) as e:
-                lgr.error("Could not load config from %s: %s", config_path, e)
-                sys.exit(1)
-        elif config_path:
-            lgr.error("Config file not found: %s", config_path)
-            sys.exit(1)
+        # Use provided paths or fall back to default paths from config
+        paths_to_load = config_paths or defaults["config_paths"]
+        if paths_to_load:
+            # Handle our specific XDG pattern in DEFAULT_CONFIG
+            expanded_paths = paths_to_load.replace(
+                "${XDG_CONFIG_HOME:-~/.config}",
+                os.getenv("XDG_CONFIG_HOME", "~/.config"),
+            )
+            # Standard expansion for other variables
+            expanded_paths = os.path.expandvars(expanded_paths)
+            self.config_paths = [
+                os.path.expanduser(p.strip())
+                for p in expanded_paths.split(":")
+                if p.strip()
+            ]
+            for config_path in self.config_paths:
+                if os.path.exists(config_path):
+                    try:
+                        with open(config_path) as f:
+                            file_data = json.load(f)
+                            self.data.update(
+                                file_data
+                            )  # Later files override earlier ones
+                        lgr.debug("Loaded config from %s", config_path)
+                    except (json.JSONDecodeError, OSError) as e:
+                        lgr.error("Could not load config from %s: %s", config_path, e)
+                        sys.exit(1)
+                # Note: Don't error on missing files from default paths, only explicit paths
+                elif config_paths:
+                    lgr.error("Config file not found: %s", config_path)
+                    sys.exit(1)
 
     def __getattr__(self, key: str) -> Any:
         if key in self.data:
