@@ -28,8 +28,69 @@ __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
 
 
+ABOUT_DUCT = """
+duct is a lightweight wrapper that collects execution data for an arbitrary
+command.  Execution data includes execution time, system information, and
+resource usage statistics of the command and all its child processes. It is
+intended to simplify the problem of recording the resources necessary to
+execute a command, particularly in an HPC environment.
+
+Resource usage is determined by polling (at a sample-interval).
+During execution, duct produces a JSON lines (see https://jsonlines.org) file
+with one data point recorded for each report (at a report-interval).
+
+limitations:
+  Duct uses session id to track the command process and its children, so it
+  cannot handle the situation where a process creates a new session.
+  If a command spawns child processes, duct will collect data on them, but
+  duct exits as soon as the primary process exits.
+
+environment variables:
+  Many duct options can be configured by environment variables (which are
+  overridden by command line options).
+
+  DUCT_LOG_LEVEL: see --log-level
+  DUCT_OUTPUT_PREFIX: see --output-prefix
+  DUCT_SUMMARY_FORMAT: see --summary-format
+  DUCT_SAMPLE_INTERVAL: see --sample-interval
+  DUCT_REPORT_INTERVAL: see --report-interval
+  DUCT_CAPTURE_OUTPUTS: see --capture-outputs
+  DUCT_MESSAGE: see --message
+"""
+
+ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
+SUFFIXES = {
+    "stdout": "stdout",
+    "stderr": "stderr",
+    "usage": "usage.json",
+    "info": "info.json",
+}
+_EXECUTION_SUMMARY_FORMAT = (
+    "Summary:\n"
+    "Exit Code: {exit_code!E}\n"
+    "Command: {command}\n"
+    "Log files location: {logs_prefix}\n"
+    "Wall Clock Time: {wall_clock_time:.3f} sec\n"
+    "Memory Peak Usage (RSS): {peak_rss!S}\n"
+    "Memory Average Usage (RSS): {average_rss!S}\n"
+    "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
+    "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
+    "Memory Peak Percentage: {peak_pmem:.2f!N}%\n"
+    "Memory Average Percentage: {average_pmem:.2f!N}%\n"
+    "CPU Peak Usage: {peak_pcpu:.2f!N}%\n"
+    "Average CPU Usage: {average_pcpu:.2f!N}%\n"
+)
+
+
+DEFAULT_CONFIG = {
+    "output_prefix": ".duct/logs/{datetime_filesafe}-{pid}_",
+    "summary_format": _EXECUTION_SUMMARY_FORMAT,
+    "colors": False,
+    "log_level": "INFO",
+}
+
+
 lgr = logging.getLogger("con-duct")
-DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
 
 class ConfigurableArgumentParser(argparse.ArgumentParser):
@@ -139,64 +200,6 @@ class Config:
         # Add top-level keys from data
         attrs.update(self.data.keys())
         return list(attrs)
-
-
-DUCT_OUTPUT_PREFIX = os.getenv(
-    "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
-)
-ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
-SUFFIXES = {
-    "stdout": "stdout",
-    "stderr": "stderr",
-    "usage": "usage.json",
-    "info": "info.json",
-}
-EXECUTION_SUMMARY_FORMAT = (
-    "Summary:\n"
-    "Exit Code: {exit_code!E}\n"
-    "Command: {command}\n"
-    "Log files location: {logs_prefix}\n"
-    "Wall Clock Time: {wall_clock_time:.3f} sec\n"
-    "Memory Peak Usage (RSS): {peak_rss!S}\n"
-    "Memory Average Usage (RSS): {average_rss!S}\n"
-    "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
-    "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
-    "Memory Peak Percentage: {peak_pmem:.2f!N}%\n"
-    "Memory Average Percentage: {average_pmem:.2f!N}%\n"
-    "CPU Peak Usage: {peak_pcpu:.2f!N}%\n"
-    "Average CPU Usage: {average_pcpu:.2f!N}%\n"
-)
-
-
-ABOUT_DUCT = """
-duct is a lightweight wrapper that collects execution data for an arbitrary
-command.  Execution data includes execution time, system information, and
-resource usage statistics of the command and all its child processes. It is
-intended to simplify the problem of recording the resources necessary to
-execute a command, particularly in an HPC environment.
-
-Resource usage is determined by polling (at a sample-interval).
-During execution, duct produces a JSON lines (see https://jsonlines.org) file
-with one data point recorded for each report (at a report-interval).
-
-limitations:
-  Duct uses session id to track the command process and its children, so it
-  cannot handle the situation where a process creates a new session.
-  If a command spawns child processes, duct will collect data on them, but
-  duct exits as soon as the primary process exits.
-
-environment variables:
-  Many duct options can be configured by environment variables (which are
-  overridden by command line options).
-
-  DUCT_LOG_LEVEL: see --log-level
-  DUCT_OUTPUT_PREFIX: see --output-prefix
-  DUCT_SUMMARY_FORMAT: see --summary-format
-  DUCT_SAMPLE_INTERVAL: see --sample-interval
-  DUCT_REPORT_INTERVAL: see --report-interval
-  DUCT_CAPTURE_OUTPUTS: see --capture-outputs
-  DUCT_MESSAGE: see --message
-"""
 
 
 class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -908,7 +911,7 @@ class Arguments:
             "--summary-format",
             type=str,
             env_var="DUCT_SUMMARY_FORMAT",
-            default=EXECUTION_SUMMARY_FORMAT,
+            default=config.summary_format,
             help="Output template to use when printing the summary following execution. "
             "Accepts custom conversion flags: "
             "!S: Converts filesizes to human readable units, green if measured, red if None. "
@@ -933,7 +936,7 @@ class Arguments:
         parser.add_argument(
             "-l",
             "--log-level",
-            default=DEFAULT_LOG_LEVEL,
+            default=config.log_level,
             type=str.upper,
             env_var="DUCT_LOG_LEVEL",
             choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
@@ -1187,7 +1190,7 @@ def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
 
 
 def main() -> None:
-    # Pre-parse to get config file path
+    # Pre-parse to get config file path first
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument(
         "-C",
@@ -1196,29 +1199,16 @@ def main() -> None:
         help="Configuration file path",
     )
     pre_args, remaining_args = pre_parser.parse_known_args()
+    config = Config(DEFAULT_CONFIG, pre_args.config)
+    args = Arguments.from_argv(remaining_args, config=config)
 
-    # Create default config
-    default_config = {
-        "output_prefix": DUCT_OUTPUT_PREFIX,
-        "summary_format": EXECUTION_SUMMARY_FORMAT,
-        "colors": False,
-        "log_level": DEFAULT_LOG_LEVEL,
-        # Add other defaults as needed
-    }
-
-    # Load base config from file (or defaults only if no file)
-    base_config = Config(default_config, pre_args.config)
-
-    # Parse CLI arguments with config providing defaults
-    args = Arguments.from_argv(remaining_args, config=base_config)
-
+    # TODO(if this fails we dont have a logger)
     # Set up basic logging configuration (level will be set properly in execute)
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S%z",
-        level=getattr(logging, DEFAULT_LOG_LEVEL),
+        level=getattr(logging, config.log_level),
     )
-
     sys.exit(execute(args))
 
 
