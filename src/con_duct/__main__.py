@@ -87,6 +87,12 @@ DEFAULT_CONFIG = {
     "summary_format": _EXECUTION_SUMMARY_FORMAT,
     "colors": False,
     "log_level": "INFO",
+    "clobber": False,
+    "sample_interval": 1.0,
+    "report_interval": 60.0,
+    "fail_time": 3.0,
+    "capture_outputs": "all",
+    "message": "",
 }
 
 
@@ -925,6 +931,7 @@ class Arguments:
         parser.add_argument(
             "--colors",
             action="store_true",
+            default=config.colors,
             env_var="DUCT_COLORS",
             help="Use colors in duct output.",
         )
@@ -932,6 +939,7 @@ class Arguments:
         parser.add_argument(
             "--clobber",
             action="store_true",
+            default=config.clobber,
             help="Replace log files if they already exist.",
         )
         # TODO(CONFIG
@@ -955,7 +963,8 @@ class Arguments:
             "--sample-interval",
             "--s-i",
             type=float,
-            default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
+            default=config.sample_interval,
+            env_var="DUCT_SAMPLE_INTERVAL",
             help="Interval in seconds between status checks of the running process. "
             "Sample interval must be less than or equal to report interval, and it achieves the "
             "best results when sample is significantly less than the runtime of the process.",
@@ -965,7 +974,8 @@ class Arguments:
             "--report-interval",
             "--r-i",
             type=float,
-            default=float(os.getenv("DUCT_REPORT_INTERVAL", "60.0")),
+            default=config.report_interval,
+            env_var="DUCT_REPORT_INTERVAL",
             help="Interval in seconds at which to report aggregated data.",
         )
         # TODO(CONFIG
@@ -973,7 +983,8 @@ class Arguments:
             "--fail-time",
             "--f-t",
             type=float,
-            default=float(os.getenv("DUCT_FAIL_TIME", "3.0")),
+            default=config.fail_time,
+            env_var="DUCT_FAIL_TIME",
             help="If command fails in less than this specified time (seconds), duct would remove logs. "
             "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
             "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
@@ -982,7 +993,8 @@ class Arguments:
         parser.add_argument(
             "-c",
             "--capture-outputs",
-            default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
+            default=config.capture_outputs,
+            env_var="DUCT_CAPTURE_OUTPUTS",
             choices=list(Outputs),
             type=Outputs,
             help="Record stdout, stderr, all, or none to log files. "
@@ -1009,7 +1021,8 @@ class Arguments:
             "-m",
             "--message",
             type=str,
-            default=os.getenv("DUCT_MESSAGE", ""),
+            default=config.message,
+            env_var="DUCT_MESSAGE",
             help="Record a descriptive message about the purpose of this execution. "
             "You can also provide value via DUCT_MESSAGE env variable.",
         )
