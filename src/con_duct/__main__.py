@@ -92,6 +92,9 @@ DEFAULT_CONFIG = {
     "report_interval": 60.0,
     "fail_time": 3.0,
     "capture_outputs": "all",
+    "outputs": "all",
+    "record_types": "all",
+    "mode": "new-session",
     "message": "",
 }
 
@@ -971,20 +974,20 @@ class Arguments:
             help="Record stdout, stderr, all, or none to log files. "
             "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
         )
-        # TODO add env var/config
         parser.add_argument(
             "-o",
             "--outputs",
-            default="all",
+            default=config.outputs,
+            env_var="DUCT_OUTPUTS",
             choices=list(Outputs),
             type=Outputs,
             help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
         )
-        # TODO add env var/config
         parser.add_argument(
             "-t",
             "--record-types",
-            default="all",
+            default=config.record_types,
+            env_var="DUCT_RECORD_TYPES",
             choices=list(RecordTypes),
             type=RecordTypes,
             help="Record system-summary, processes-samples, or all",
@@ -998,10 +1001,10 @@ class Arguments:
             help="Record a descriptive message about the purpose of this execution. "
             "You can also provide value via DUCT_MESSAGE env variable.",
         )
-        # TODO(add env var/config)
         parser.add_argument(
             "--mode",
-            default="new-session",
+            default=config.mode,
+            env_var="DUCT_MODE",
             choices=list(SessionMode),
             type=SessionMode,
             help="Session mode: 'new-session' creates a new session for the command (default), "
