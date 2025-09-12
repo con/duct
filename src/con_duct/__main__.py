@@ -51,7 +51,7 @@ configuration:
   file < environment variables < command line arguments.
 
   Default values shown below reflect the current configuration (built-in defaults
-  or loaded from config file). Environment variables are listed with each option
+  or loaded from config file). Environment variables are listed with each option.
 """
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -109,25 +109,19 @@ class ConfigurableArgumentParser(argparse.ArgumentParser):
     def add_argument(self, *args, env_var=None, **kwargs):
         """Add an argument with optional environment variable and config support.
 
+        Precedence: original default < config1 < config2 (etc) < env var < CLI option
+
         Args:
             *args: Positional arguments for argparse.ArgumentParser.add_argument
             env_var: Environment variable name to use as default (must start with DUCT_)
             **kwargs: Keyword arguments for argparse.ArgumentParser.add_argument
         """
-        # Only process if env_var is provided and starts with DUCT_
-        if env_var and env_var.startswith("DUCT_"):
-            config_key = env_var[5:].lower()  # Strip "DUCT_" and lowercase
-
-            # Precedence: original default < config < env var
-
-            # Override with config value if it exists
-            try:
-                config_value = getattr(self.config, config_key)
-                kwargs["default"] = config_value
-            except AttributeError:
-                pass
-
-            # Override with env var if it exists (highest precedence)
+        # Override with env var if it exists (highest precedence before CLI)
+        if env_var:
+            if not env_var.startswith("DUCT_"):
+                raise ValueError(
+                    f"Environment variable '{env_var}' must start with 'DUCT_'"
+                )
             env_value = os.getenv(env_var)
             if env_value is not None:
                 # Handle type conversion for boolean flags
@@ -135,29 +129,20 @@ class ConfigurableArgumentParser(argparse.ArgumentParser):
                     kwargs["default"] = env_value.lower() in ("true", "1", "yes")
                 elif "type" in kwargs:
                     try:
+                        # cast to type
                         kwargs["default"] = kwargs["type"](env_value)
                     except (ValueError, TypeError):
                         kwargs["default"] = env_value
                 else:
                     kwargs["default"] = env_value
 
-        # Create the argument
         action = super().add_argument(*args, **kwargs)
 
-        # Store metadata for config integration
-        if hasattr(action, "dest") and env_var and env_var.startswith("DUCT_"):
+        # Store env_var for auto-helptext
+        if hasattr(action, "dest") and env_var:
             action.env_var = env_var
-            action.config_key = env_var[5:].lower()
 
         return action
-
-    def get_config_keys(self):
-        """Get a mapping of config keys to argument destinations."""
-        config_map = {}
-        for action in self._actions:
-            if hasattr(action, "config_key") and action.config_key:
-                config_map[action.config_key] = action.dest
-        return config_map
 
 
 class Config:
