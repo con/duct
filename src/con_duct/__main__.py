@@ -51,19 +51,7 @@ configuration:
   file < environment variables < command line arguments.
 
   Default values shown below reflect the current configuration (built-in defaults
-  or loaded from config file).
-
-environment variables:
-  Many duct options can be configured by environment variables (which are
-  overridden by command line options).
-
-  DUCT_LOG_LEVEL: see --log-level
-  DUCT_OUTPUT_PREFIX: see --output-prefix
-  DUCT_SUMMARY_FORMAT: see --summary-format
-  DUCT_SAMPLE_INTERVAL: see --sample-interval
-  DUCT_REPORT_INTERVAL: see --report-interval
-  DUCT_CAPTURE_OUTPUTS: see --capture-outputs
-  DUCT_MESSAGE: see --message
+  or loaded from config file). Environment variables are listed with each option
 """
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
@@ -225,6 +213,17 @@ class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
     def _fill_text(self, text: str, width: int, _indent: str) -> str:
         # Override _fill_text to respect the newlines and indentation in descriptions
         return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
+
+    def _get_help_string(self, action):
+        help_text = super()._get_help_string(action)
+
+        # Add environment variable info if available
+        if hasattr(action, "env_var") and action.env_var:
+            if help_text:
+                help_text = help_text.rstrip()
+                help_text += f" Can also be specified with environment variable {action.env_var}."
+
+        return help_text
 
 
 def assert_num(*values: Any) -> None:
@@ -921,8 +920,7 @@ class Arguments:
             help="File string format to be used as a prefix for the files -- the captured "
             "stdout and stderr and the resource usage logs. The understood variables are "
             "{datetime}, {datetime_filesafe}, and {pid}. "
-            "Leading directories will be created if they do not exist. "
-            "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
+            "Leading directories will be created if they do not exist.",
         )
         parser.add_argument(
             "--summary-format",
@@ -934,7 +932,7 @@ class Arguments:
             "!S: Converts filesizes to human readable units, green if measured, red if None. "
             "!E: Colors exit code, green if falsey, red if truthy, and red if None. "
             "!X: Colors green if truthy, red if falsey. "
-            "!N: Colors green if not None, red if None",
+            "!N: Colors green if not None, red if None.",
         )
         parser.add_argument(
             "--colors",
@@ -962,7 +960,7 @@ class Arguments:
             "-q",
             "--quiet",
             action="store_true",
-            help="[deprecated, use log level NONE] Disable duct logging output (to stderr)",
+            help="[deprecated, use log level NONE] Disable duct logging output (to stderr).",
         )
         parser.add_argument(
             "--sample-interval",
@@ -999,8 +997,7 @@ class Arguments:
             env_var="DUCT_CAPTURE_OUTPUTS",
             choices=list(Outputs),
             type=Outputs,
-            help="Record stdout, stderr, all, or none to log files. "
-            "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
+            help="Record stdout, stderr, all, or none to log files.",
         )
         parser.add_argument(
             "-o",
@@ -1018,7 +1015,7 @@ class Arguments:
             env_var="DUCT_RECORD_TYPES",
             choices=list(RecordTypes),
             type=RecordTypes,
-            help="Record system-summary, processes-samples, or all",
+            help="Record system-summary, processes-samples, or all.",
         )
         parser.add_argument(
             "-m",
@@ -1026,8 +1023,7 @@ class Arguments:
             type=str,
             default=config.message,
             env_var="DUCT_MESSAGE",
-            help="Record a descriptive message about the purpose of this execution. "
-            "You can also provide value via DUCT_MESSAGE env variable.",
+            help="Record a descriptive message about the purpose of this execution.",
         )
         parser.add_argument(
             "--mode",
