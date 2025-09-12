@@ -1255,7 +1255,6 @@ def execute(args: Arguments) -> int:
         lgr.disabled = True
     else:
         lgr.setLevel(args.log_level)
-    lgr.debug("TEST")
     log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
     log_paths.prepare_paths(args.clobber, args.capture_outputs)
     stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)
