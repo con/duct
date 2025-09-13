@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - duct should have no external dependencies
     - all duct code should live in @src/con_duct/__main__.py
   - 'con-duct' is used to work with duct logs
-    - con-duct may have external dependencies 
+    - con-duct may have external dependencies
     - con-duct argparse live in @src/con_duct/suite/main.py
     - each con-duct command has a separate file.
 
@@ -30,7 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - @CONTRIBUTING.rst might provide more information about releasing etc
 
 ## Code Style Guidelines
-- use pre-commit to fix style 
+- use pre-commit to fix style
 - Types: Use strict typing with annotations; `from __future__ import annotations`
 - Naming: Classes (PascalCase), functions/variables (snake_case), constants (UPPER_SNAKE_CASE)
 - Error handling: Use explicit try/except with informative messages; log exceptions
