@@ -99,6 +99,38 @@ def test_ensure_compliant_schema_ignores_unexpected_future_version() -> None:
     assert "working_directory" not in info["execution_summary"]
 
 
+def test_process_run_data_with_reverse() -> None:
+    run_data = [
+        {
+            "prefix": "/test/path1",
+            "exit_code": 0,
+            "wall_clock_time": 0.1,
+        },
+        {
+            "prefix": "/test/path2",
+            "exit_code": 1,
+            "wall_clock_time": 0.2,
+        },
+        {
+            "prefix": "/test/path3",
+            "exit_code": 0,
+            "wall_clock_time": 0.3,
+        },
+    ]
+    formatter = SummaryFormatter(enable_colors=False)
+    result = process_run_data(run_data, ["exit_code", "wall_clock_time"], formatter)
+    # Original order
+    assert result[0]["prefix"] == "/test/path1"
+    assert result[1]["prefix"] == "/test/path2"
+    assert result[2]["prefix"] == "/test/path3"
+
+    # Test reverse order
+    reversed_result = list(reversed(result))
+    assert reversed_result[0]["prefix"] == "/test/path3"
+    assert reversed_result[1]["prefix"] == "/test/path2"
+    assert reversed_result[2]["prefix"] == "/test/path1"
+
+
 def test_load_duct_runs_handles_empty_json_files(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

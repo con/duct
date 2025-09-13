@@ -125,6 +125,12 @@ def main(argv: Optional[List[str]] = None) -> None:
         "Example: --eval-filter \"filter_this=='yes'\" filters entries where 'filter_this' is 'yes'. "
         "You can use 're' for regex operations (e.g., --eval-filter \"re.search('2025.02.09.*', prefix)\").",
     )
+    parser_ls.add_argument(
+        "-r",
+        "--reverse",
+        action="store_true",
+        help="List entries in reverse order (most recent on top).",
+    )
     parser_ls.set_defaults(func=ls)
 
     args = parser.parse_args(argv)
