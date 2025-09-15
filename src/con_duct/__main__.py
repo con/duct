@@ -152,7 +152,7 @@ def src_cli(flag: str) -> str:
 class FieldSpec:
     """Specification for a configuration field."""
 
-    kind: str  # "bool" | "value" | "positional"
+    kind: str  # "bool" | "value"
     default: Any
     cast: Callable[[Any], Any]
     help: str
@@ -419,11 +419,7 @@ def build_parser() -> argparse.ArgumentParser:
     # Add all fields from specs
     for name, spec in FIELD_SPECS.items():
 
-        if spec.kind == "positional":
-            # Skip positional arguments (we don't have any in FIELD_SPECS now)
-            continue
-
-        elif spec.kind == "bool":
+        if spec.kind == "bool":
             # Simple boolean flags (just --flag, no --no-flag)
             names = []
             if spec.alt_flag_names:
@@ -1226,9 +1222,6 @@ class Config:
         errors: List[str] = []
 
         for name, spec in FIELD_SPECS.items():
-            # Skip CLI-only positional args
-            if not spec.file_configurable and spec.kind == "positional":
-                continue
 
             val = raw.get(spec.config_key, spec.default)
 
@@ -1443,7 +1436,7 @@ def main() -> None:
 
     # Check for --dump-config first to avoid command validation
     if "--dump-config" in sys.argv:
-        # Add dummy command to avoid positional arg error, then parse
+        # Add dummy command to avoid missing required positional args, then parse
         argv_with_dummy = [arg for arg in sys.argv if arg != "--dump-config"] + [
             "--dump-config",
             "dummy",
