@@ -332,19 +332,16 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         if hasattr(action, "spec_default") and action.spec_default is not None:
             if help_text:
                 help_text = help_text.rstrip()
-            # Format the default value nicely
-            default_str = str(action.spec_default)
-            if isinstance(action.spec_default, str):
-                # Truncate long strings
-                if len(default_str) > 50:
-                    default_str = default_str[:47] + "..."
-            help_text += f" (default: {default_str})"
+            help_text += f" (default: {str(action.spec_default)})"
 
         # Add environment variable info if available
         if hasattr(action, "env_var") and action.env_var:
             if help_text:
                 help_text = help_text.rstrip()
             help_text += f" [env: {action.env_var}]"
+
+        # Escape percent signs to prevent argparse formatting errors
+        help_text = help_text.replace("%", "%%")
 
         return help_text
 
