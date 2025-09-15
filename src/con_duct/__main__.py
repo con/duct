@@ -330,12 +330,47 @@ def cli_flag(name: str) -> str:
     return f"--{flag_name}"
 
 
+class CustomHelpFormatter(argparse.HelpFormatter):
+    """Custom help formatter that shows defaults and environment variables."""
+
+    def _fill_text(self, text: str, width: int, _indent: str) -> str:
+        # Override _fill_text to respect the newlines and indentation in descriptions
+        return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
+
+    def _get_help_string(self, action):
+        # Start with the base help text
+        help_text = action.help or ""
+
+        # Add default value if available
+        if (
+            hasattr(action, "canonical_default")
+            and action.canonical_default is not None
+        ):
+            if help_text:
+                help_text = help_text.rstrip()
+            # Format the default value nicely
+            default_str = str(action.canonical_default)
+            if isinstance(action.canonical_default, str):
+                # Truncate long strings
+                if len(default_str) > 50:
+                    default_str = default_str[:47] + "..."
+            help_text += f" (default: {default_str})"
+
+        # Add environment variable info if available
+        if hasattr(action, "env_var") and action.env_var:
+            if help_text:
+                help_text = help_text.rstrip()
+            help_text += f" [env: {action.env_var}]"
+
+        return help_text
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build argparse parser from FIELD_SPECS without injecting defaults."""
     parser = argparse.ArgumentParser(
         allow_abbrev=False,
         description=ABOUT_DUCT,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        formatter_class=CustomHelpFormatter,
     )
 
     # Add --version
@@ -421,23 +456,6 @@ def build_parser() -> argparse.ArgumentParser:
                 action.env_var = spec.env_var
 
     return parser
-
-
-class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
-    def _fill_text(self, text: str, width: int, _indent: str) -> str:
-        # Override _fill_text to respect the newlines and indentation in descriptions
-        return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
-
-    def _get_help_string(self, action):
-        help_text = super()._get_help_string(action)
-
-        # Add environment variable info if available
-        if hasattr(action, "env_var") and action.env_var:
-            if help_text:
-                help_text = help_text.rstrip()
-                help_text += f" Can also be specified with environment variable {action.env_var}."
-
-        return help_text
 
 
 @dataclass
