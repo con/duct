@@ -22,7 +22,7 @@ import textwrap
 import threading
 import time
 from types import FrameType
-from typing import IO, Any, Optional, TextIO
+from typing import IO, Any, Callable, Dict, List, Optional, TextIO, Tuple
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
@@ -78,137 +78,7 @@ _EXECUTION_SUMMARY_FORMAT = (
 )
 
 
-DEFAULT_CONFIG = {
-    "output_prefix": ".duct/logs/{datetime_filesafe}-{pid}_",
-    "summary_format": _EXECUTION_SUMMARY_FORMAT,
-    "colors": False,
-    "log_level": "INFO",
-    "clobber": False,
-    "sample_interval": 1.0,
-    "report_interval": 60.0,
-    "fail_time": 3.0,
-    "capture_outputs": "all",
-    "outputs": "all",
-    "record_types": "all",
-    "mode": "new-session",
-    "message": "",
-    "config_paths": "/etc/duct/config.json:${XDG_CONFIG_HOME:-~/.config}/duct/config.json:.duct/config.json",
-}
-
-
 lgr = logging.getLogger("con-duct")
-
-
-class ConfigurableArgumentParser(argparse.ArgumentParser):
-    """ArgumentParser that supports environment variables and config integration."""
-
-    def __init__(self, *args, config=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.config = config
-
-    def add_argument(self, *args, env_var=None, **kwargs):
-        """Add an argument with optional environment variable and config support.
-
-        Precedence: original default < config1 < config2 (etc) < env var < CLI option
-
-        Args:
-            *args: Positional arguments for argparse.ArgumentParser.add_argument
-            env_var: Environment variable name to use as default (must start with DUCT_)
-            **kwargs: Keyword arguments for argparse.ArgumentParser.add_argument
-        """
-        # Override with env var if it exists (highest precedence before CLI)
-        if env_var:
-            if not env_var.startswith("DUCT_"):
-                raise ValueError(
-                    f"Environment variable '{env_var}' must start with 'DUCT_'"
-                )
-            env_value = os.getenv(env_var)
-            if env_value is not None:
-                # Handle type conversion for boolean flags
-                if kwargs.get("action") == "store_true":
-                    kwargs["default"] = env_value.lower() in ("true", "1", "yes")
-                elif "type" in kwargs:
-                    try:
-                        # cast to type
-                        kwargs["default"] = kwargs["type"](env_value)
-                    except (ValueError, TypeError):
-                        kwargs["default"] = env_value
-                else:
-                    kwargs["default"] = env_value
-
-        action = super().add_argument(*args, **kwargs)
-
-        # Store env_var for auto-helptext
-        if hasattr(action, "dest") and env_var:
-            action.env_var = env_var
-
-        return action
-
-
-class Config:
-    """Simple configuration loader for duct."""
-
-    def __init__(self, defaults: dict, config_paths: str = None):
-        self.data = defaults.copy()
-
-        # Use provided paths or fall back to default paths from config
-        paths_to_load = config_paths or defaults["config_paths"]
-        if paths_to_load:
-            # Handle our specific XDG pattern in DEFAULT_CONFIG
-            expanded_paths = paths_to_load.replace(
-                "${XDG_CONFIG_HOME:-~/.config}",
-                os.getenv("XDG_CONFIG_HOME", "~/.config"),
-            )
-            # Standard expansion for other variables
-            expanded_paths = os.path.expandvars(expanded_paths)
-            self.config_paths = [
-                os.path.expanduser(p.strip())
-                for p in expanded_paths.split(":")
-                if p.strip()
-            ]
-            for config_path in self.config_paths:
-                if os.path.exists(config_path):
-                    try:
-                        with open(config_path) as f:
-                            file_data = json.load(f)
-                            self.data.update(
-                                file_data
-                            )  # Later files override earlier ones
-                        lgr.debug("Loaded config from %s", config_path)
-                    except (json.JSONDecodeError, OSError) as e:
-                        lgr.error("Could not load config from %s: %s", config_path, e)
-                        sys.exit(1)
-                # Note: Don't error on missing files from default paths, only explicit paths
-                elif config_paths:
-                    lgr.error("Config file not found: %s", config_path)
-                    sys.exit(1)
-
-    def __getattr__(self, key: str) -> Any:
-        if key in self.data:
-            return self.data[key]
-        raise AttributeError(f"Config has no attribute '{key}'")
-
-    def __dir__(self):
-        attrs = set(super().__dir__())
-        attrs.update(self.data.keys())
-        return list(attrs)
-
-
-class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
-    def _fill_text(self, text: str, width: int, _indent: str) -> str:
-        # Override _fill_text to respect the newlines and indentation in descriptions
-        return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
-
-    def _get_help_string(self, action):
-        help_text = super()._get_help_string(action)
-
-        # Add environment variable info if available
-        if hasattr(action, "env_var") and action.env_var:
-            if help_text:
-                help_text = help_text.rstrip()
-                help_text += f" Can also be specified with environment variable {action.env_var}."
-
-        return help_text
 
 
 def assert_num(*values: Any) -> None:
@@ -253,6 +123,558 @@ class SessionMode(str, Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+# ---------- Config system helper functions ----------
+def bool_from_str(x: Any) -> bool:
+    """Convert various string representations to boolean."""
+    if isinstance(x, bool):
+        return x
+    s = str(x).strip().lower()
+    if s in {"1", "true", "yes", "on"}:
+        return True
+    if s in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"invalid boolean: {x!r}")
+
+
+def src_default(name: str) -> str:
+    """Format source label for default value."""
+    return f"default ({name})"
+
+
+def src_file(path: str) -> str:
+    """Format source label for config file."""
+    return f"config file: {path}"
+
+
+def src_env(var: str) -> str:
+    """Format source label for environment variable."""
+    return f"env var: {var}"
+
+
+def src_cli(flag: str) -> str:
+    """Format source label for CLI argument."""
+    return f"CLI: {flag}"
+
+
+# ---------- Field specification ----------
+@dataclass(frozen=True)
+class FieldSpec:
+    """Specification for a configuration field."""
+
+    kind: str  # "bool" | "value" | "positional"
+    default: Any
+    cast: Callable[[Any], Any]
+    help: str
+    env_var: Optional[str] = None  # Environment variable name (optional)
+    choices: Optional[Iterable[Any]] = None
+    validate: Optional[Callable[[Any], Any]] = None
+    file_configurable: bool = True  # Whether this can be set in config files
+    alt_flag_names: Optional[List[str]] = (
+        None  # Alternative flag names (e.g., ["-p", "--s-i"])
+    )
+    # Additional metadata for argparse
+    metavar: Optional[str] = None
+    nargs: Optional[Any] = None  # Can be int, '?', '*', '+', or argparse.REMAINDER
+
+
+# ---------- Validation functions ----------
+def validate_positive(v: float) -> float:
+    """Validate that a value is positive."""
+    if v <= 0:
+        raise ValueError("must be greater than 0")
+    return v
+
+
+def validate_sample_report_interval(sample: float, report: float) -> None:
+    """Validate that report interval >= sample interval."""
+    if report < sample:
+        raise ValueError(
+            "report-interval must be greater than or equal to sample-interval"
+        )
+
+
+# ---------- Field specifications ----------
+FIELD_SPECS: Dict[str, FieldSpec] = {
+    "output_prefix": FieldSpec(
+        kind="value",
+        default=".duct/logs/{datetime_filesafe}-{pid}_",
+        cast=str,
+        help="File string format prefix for output files",
+        env_var="DUCT_OUTPUT_PREFIX",
+        alt_flag_names=["-p"],
+    ),
+    "summary_format": FieldSpec(
+        kind="value",
+        default=_EXECUTION_SUMMARY_FORMAT,
+        cast=str,
+        help="Output template for execution summary",
+        env_var="DUCT_SUMMARY_FORMAT",
+    ),
+    "colors": FieldSpec(
+        kind="bool",
+        default=False,
+        cast=bool_from_str,
+        help="Use colors in duct output",
+        env_var="DUCT_COLORS",
+    ),
+    "log_level": FieldSpec(
+        kind="value",
+        default="INFO",
+        cast=str.upper,
+        help="Level of log output to stderr",
+        env_var="DUCT_LOG_LEVEL",
+        choices=["NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
+        alt_flag_names=["-l"],
+    ),
+    "clobber": FieldSpec(
+        kind="bool",
+        default=False,
+        cast=bool_from_str,
+        help="Replace log files if they already exist",
+        env_var="DUCT_CLOBBER",
+    ),
+    "sample_interval": FieldSpec(
+        kind="value",
+        default=1.0,
+        cast=float,
+        help="Interval in seconds between status checks",
+        env_var="DUCT_SAMPLE_INTERVAL",
+        validate=validate_positive,
+        alt_flag_names=["--s-i"],
+    ),
+    "report_interval": FieldSpec(
+        kind="value",
+        default=60.0,
+        cast=float,
+        help="Interval in seconds for reporting aggregated data",
+        env_var="DUCT_REPORT_INTERVAL",
+        validate=validate_positive,
+        alt_flag_names=["--r-i"],
+    ),
+    "fail_time": FieldSpec(
+        kind="value",
+        default=3.0,
+        cast=float,
+        help="Time threshold for keeping logs of failing commands",
+        env_var="DUCT_FAIL_TIME",
+        alt_flag_names=["--f-t"],
+    ),
+    "capture_outputs": FieldSpec(
+        kind="value",
+        default=Outputs.ALL,
+        cast=lambda x: Outputs(x) if isinstance(x, str) else x,
+        help="Record stdout, stderr, all, or none to log files",
+        env_var="DUCT_CAPTURE_OUTPUTS",
+        choices=list(Outputs),
+        alt_flag_names=["-c"],
+    ),
+    "outputs": FieldSpec(
+        kind="value",
+        default=Outputs.ALL,
+        cast=lambda x: Outputs(x) if isinstance(x, str) else x,
+        help="Print stdout, stderr, all, or none",
+        env_var="DUCT_OUTPUTS",
+        choices=list(Outputs),
+        alt_flag_names=["-o"],
+    ),
+    "record_types": FieldSpec(
+        kind="value",
+        default=RecordTypes.ALL,
+        cast=lambda x: RecordTypes(x) if isinstance(x, str) else x,
+        help="Record system-summary, processes-samples, or all",
+        env_var="DUCT_RECORD_TYPES",
+        choices=list(RecordTypes),
+        alt_flag_names=["-t"],
+    ),
+    "mode": FieldSpec(
+        kind="value",
+        default=SessionMode.NEW_SESSION,
+        cast=lambda x: SessionMode(x) if isinstance(x, str) else x,
+        help="Session mode for command execution",
+        env_var="DUCT_MODE",
+        choices=list(SessionMode),
+    ),
+    "message": FieldSpec(
+        kind="value",
+        default="",
+        cast=str,
+        help="Descriptive message about this execution",
+        env_var="DUCT_MESSAGE",
+        alt_flag_names=["-m"],
+    ),
+    # Special fields not in config but needed for CLI
+    "command": FieldSpec(
+        kind="positional",
+        default=None,
+        cast=str,
+        help="The command to execute",
+        metavar="command [command_args ...]",
+        file_configurable=False,  # Command is always positional from CLI
+    ),
+    "command_args": FieldSpec(
+        kind="positional",
+        default=[],
+        cast=list,
+        help="Arguments for the command",
+        nargs=argparse.REMAINDER,
+        file_configurable=False,  # Command args are always positional from CLI
+    ),
+    "quiet": FieldSpec(
+        kind="bool",
+        default=False,
+        cast=bool_from_str,
+        help="[deprecated] Disable duct logging output",
+        env_var="DUCT_QUIET",
+        alt_flag_names=["-q"],
+    ),
+}
+
+
+def canonical_default(name: str) -> Any:
+    """Get the canonical default value for a field."""
+    return FIELD_SPECS[name].default
+
+
+def cli_flag(name: str) -> str:
+    """Get the CLI flag representation for a field."""
+    spec = FIELD_SPECS[name]
+    # Convert underscore to hyphen for CLI flags
+    flag_name = name.replace("_", "-")
+    if spec.kind == "bool":
+        return f"--{flag_name} / --no-{flag_name}"
+    return f"--{flag_name}"
+
+
+# ---------- Config loading functions ----------
+def expand_config_paths(paths_str: str) -> List[str]:
+    """Expand environment variables and user paths in config path string."""
+    # Handle XDG_CONFIG_HOME pattern
+    expanded = paths_str.replace(
+        "${XDG_CONFIG_HOME:-~/.config}",
+        os.getenv("XDG_CONFIG_HOME", "~/.config"),
+    )
+    # Standard expansion for other variables
+    expanded = os.path.expandvars(expanded)
+    # Split and expand user paths
+    return [os.path.expanduser(p.strip()) for p in expanded.split(":") if p.strip()]
+
+
+def load_files(paths: List[str]) -> List[Tuple[Dict[str, Any], str]]:
+    """Load config files and return list of (dict, source_label).
+
+    Earlier items have lower precedence.
+    """
+    out: List[Tuple[Dict[str, Any], str]] = []
+    for path in paths:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            out.append((data, src_file(path)))
+        except FileNotFoundError:
+            continue
+        except (json.JSONDecodeError, OSError) as e:
+            # Report errors for files that exist but can't be parsed
+            raise SystemExit(f"Error loading config from {path}: {e}")
+    return out
+
+
+def load_env() -> Tuple[Dict[str, Any], Dict[str, str]]:
+    """Load configuration from environment variables.
+
+    Returns (values_dict, provenance_dict).
+    """
+    vals: Dict[str, Any] = {}
+    prov: Dict[str, str] = {}
+    for name, spec in FIELD_SPECS.items():
+        var = spec.env_var
+        if var and var in os.environ:
+            # Convert field name from underscore to hyphen for config keys
+            config_key = name.replace("_", "-")
+            vals[config_key] = os.environ[var]
+            prov[config_key] = src_env(var)
+    return vals, prov
+
+
+def merged_with_provenance(
+    defaults_as_source: bool,
+    file_layers: List[Tuple[Dict[str, Any], str]],
+    env_vals: Dict[str, Any],
+    env_src: Dict[str, str],
+    cli_vals: Dict[str, Any],
+) -> Tuple[Dict[str, Any], Dict[str, str]]:
+    """Merge configuration from all sources with provenance tracking.
+
+    Precedence: defaults < files < env < CLI
+    """
+    merged: Dict[str, Any] = {}
+    src: Dict[str, str] = {}
+
+    # Defaults first
+    for name, spec in FIELD_SPECS.items():
+        if spec.default is not None:
+            # Use hyphenated names for config keys
+            config_key = name.replace("_", "-")
+            merged[config_key] = spec.default
+            if defaults_as_source:
+                src[config_key] = src_default(name)
+
+    # Files in order (earlier = lower precedence)
+    for data, label in file_layers:
+        for k, v in data.items():
+            # Check if key exists in specs (with underscore conversion)
+            spec_key = k.replace("-", "_")
+            if spec_key in FIELD_SPECS and FIELD_SPECS[spec_key].file_configurable:
+                merged[k] = v
+                src[k] = label
+
+    # Environment variables
+    for k, v in env_vals.items():
+        merged[k] = v
+        src[k] = env_src[k]
+
+    # CLI arguments
+    for k, v in cli_vals.items():
+        # Skip special CLI-only options that don't correspond to config fields
+        if k == "config":  # --config is a shorthand, not a real config field
+            continue
+
+        # CLI uses underscores, config uses hyphens
+        config_key = k.replace("_", "-")
+        merged[config_key] = v
+        src[config_key] = src_cli(cli_flag(k))
+
+    return merged, src
+
+
+def coerce_and_validate(
+    raw: Dict[str, Any], provenance: Dict[str, str]
+) -> Tuple[Dict[str, Any], List[str]]:
+    """Coerce types and validate all configuration values.
+
+    Returns (clean_dict, error_messages).
+    """
+    clean: Dict[str, Any] = {}
+    errors: List[str] = []
+
+    for name, spec in FIELD_SPECS.items():
+        # Skip fields that are CLI-only (positional args) or bootstrap fields
+        if not spec.file_configurable and spec.kind == "positional":
+            continue
+
+        # Get value using hyphenated key
+        config_key = name.replace("_", "-")
+        val = raw.get(config_key, spec.default)
+
+        if val is None and spec.default is None:
+            # Skip optional fields with no value
+            continue
+
+        try:
+            # Cast to correct type
+            val = spec.cast(val)
+
+            # Check choices
+            if spec.choices is not None and val not in spec.choices:
+                raise ValueError(f"must be one of {list(spec.choices)}")
+
+            # Run custom validation
+            if spec.validate is not None:
+                val = spec.validate(val)
+
+            clean[name] = val
+        except Exception as e:
+            src_label = provenance.get(config_key, src_default(name))
+            errors.append(f"- {config_key}: {e} (value {val!r} from {src_label})")
+
+    # Cross-field validation
+    if "sample_interval" in clean and "report_interval" in clean:
+        try:
+            validate_sample_report_interval(
+                clean["sample_interval"], clean["report_interval"]
+            )
+        except ValueError as e:
+            errors.append(f"- interval validation: {e}")
+
+    return clean, errors
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build argparse parser from FIELD_SPECS without injecting defaults."""
+    parser = argparse.ArgumentParser(
+        allow_abbrev=False,
+        description=ABOUT_DUCT,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    # Add --version
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+
+    # Add config file option (special case - for pre-parsing)
+    parser.add_argument(
+        "-C",
+        "--config",
+        default=argparse.SUPPRESS,
+        help="Configuration file path",
+    )
+
+    # Add all fields from specs
+    for name, spec in FIELD_SPECS.items():
+
+        flag_name = name.replace("_", "-")
+
+        if spec.kind == "positional":
+            # Positional arguments
+            kwargs = {
+                "help": spec.help,
+            }
+            if spec.metavar:
+                kwargs["metavar"] = spec.metavar
+            if spec.nargs is not None:
+                kwargs["nargs"] = spec.nargs
+            parser.add_argument(name, **kwargs)
+
+        elif spec.kind == "bool":
+            # Simple boolean flags (just --flag, no --no-flag)
+            names = []
+            if spec.alt_flag_names:
+                names.extend(spec.alt_flag_names)
+            names.append(f"--{flag_name}")
+
+            action = parser.add_argument(
+                *names,
+                dest=name,
+                action="store_true",
+                default=argparse.SUPPRESS,
+                help=spec.help,
+            )
+
+            # Store canonical default and env_var for help text
+            action.canonical_default = spec.default
+            if spec.env_var:
+                action.env_var = spec.env_var
+
+        else:  # kind == "value"
+            # Regular value arguments - let ArgumentDefaultsHelpFormatter handle defaults
+            kwargs = {
+                "default": spec.default,  # Set actual default for formatter
+                "help": spec.help,
+                "type": spec.cast,
+            }
+            if spec.choices is not None:
+                kwargs["choices"] = list(spec.choices)
+
+            # Build argument names using alt_flag_names if available
+            names = []
+            if spec.alt_flag_names:
+                names.extend(spec.alt_flag_names)
+            names.append(f"--{flag_name}")
+
+            # Special handling for quiet (boolean action)
+            if flag_name == "quiet":
+                kwargs.pop("type")  # quiet is action store_true
+                kwargs["action"] = "store_true"
+
+            action = parser.add_argument(*names, dest=name, **kwargs)
+
+            # Store canonical default and env_var for help text
+            action.canonical_default = spec.default
+            if spec.env_var:
+                action.env_var = spec.env_var
+
+    return parser
+
+
+def load_and_validate_config(cli_args: Dict[str, Any]) -> Arguments:
+    """Load configuration from all sources and validate it.
+
+    Args:
+        cli_args: Parsed CLI arguments dictionary
+
+    Returns:
+        Validated Arguments dataclass instance
+
+    Raises:
+        SystemExit: If configuration validation fails
+    """
+    # Determine config paths to load (chicken-and-egg: can't get from config files)
+    if "config" in cli_args:
+        # Explicit single config file specified via --config CLI option
+        file_paths = [cli_args["config"]]
+    else:
+        # Use default config paths
+        default_paths = "/etc/duct/config.json:${XDG_CONFIG_HOME:-~/.config}/duct/config.json:.duct/config.json"  # noqa: B950
+        file_paths = expand_config_paths(default_paths)
+
+    # Load configuration files
+    file_layers = load_files(file_paths)
+
+    # Load environment variables
+    env_vals, env_src = load_env()
+
+    # Merge all sources with provenance tracking
+    merged, provenance = merged_with_provenance(
+        defaults_as_source=True,
+        file_layers=file_layers,
+        env_vals=env_vals,
+        env_src=env_src,
+        cli_vals=cli_args,
+    )
+
+    # Coerce and validate
+    final, errors = coerce_and_validate(merged, provenance)
+
+    if errors:
+        print("Configuration errors:", file=sys.stderr)
+        for error in errors:
+            print(error, file=sys.stderr)
+        sys.exit(1)
+
+    # Add positional arguments that don't go through config system
+    if "command" in cli_args:
+        final["command"] = cli_args["command"]
+    if "command_args" in cli_args:
+        final["command_args"] = cli_args["command_args"]
+
+    # Convert dict to Arguments dataclass
+    return Arguments(
+        command=final.get("command", ""),
+        command_args=final.get("command_args", []),
+        output_prefix=final["output_prefix"],
+        sample_interval=final["sample_interval"],
+        report_interval=final["report_interval"],
+        fail_time=final["fail_time"],
+        clobber=final["clobber"],
+        capture_outputs=final["capture_outputs"],
+        outputs=final["outputs"],
+        record_types=final["record_types"],
+        summary_format=final["summary_format"],
+        colors=final["colors"],
+        log_level=final["log_level"],
+        quiet=final["quiet"],
+        session_mode=final["mode"],
+        message=final["message"],
+    )
+
+
+class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
+    def _fill_text(self, text: str, width: int, _indent: str) -> str:
+        # Override _fill_text to respect the newlines and indentation in descriptions
+        return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
+
+    def _get_help_string(self, action):
+        help_text = super()._get_help_string(action)
+
+        # Add environment variable info if available
+        if hasattr(action, "env_var") and action.env_var:
+            if help_text:
+                help_text = help_text.rstrip()
+                help_text += f" Can also be specified with environment variable {action.env_var}."
+
+        return help_text
 
 
 @dataclass
@@ -872,177 +1294,6 @@ class Arguments:
                 "--report-interval must be greater than or equal to --sample-interval.",
             )
 
-    @classmethod
-    def from_argv(
-        cls,
-        cli_args: Optional[list[str]] = None,
-        config: Optional[Any] = None,
-        **cli_kwargs: Any,
-    ) -> Arguments:
-        parser = ConfigurableArgumentParser(
-            allow_abbrev=False,
-            description=ABOUT_DUCT,
-            formatter_class=CustomHelpFormatter,
-            config=config,
-        )
-        parser.add_argument(
-            "command",
-            metavar="command [command_args ...]",
-            help="The command to execute, along with its arguments.",
-        )
-        parser.add_argument(
-            "--version", action="version", version=f"%(prog)s {__version__}"
-        )
-        parser.add_argument(
-            "command_args", nargs=argparse.REMAINDER, help="Arguments for the command."
-        )
-        parser.add_argument(
-            "-p",
-            "--output-prefix",
-            type=str,
-            env_var="DUCT_OUTPUT_PREFIX",
-            default=config.output_prefix,
-            help="File string format to be used as a prefix for the files -- the captured "
-            "stdout and stderr and the resource usage logs. The understood variables are "
-            "{datetime}, {datetime_filesafe}, and {pid}. "
-            "Leading directories will be created if they do not exist.",
-        )
-        parser.add_argument(
-            "--summary-format",
-            type=str,
-            env_var="DUCT_SUMMARY_FORMAT",
-            default=config.summary_format,
-            help="Output template to use when printing the summary following execution. "
-            "Accepts custom conversion flags: "
-            "!S: Converts filesizes to human readable units, green if measured, red if None. "
-            "!E: Colors exit code, green if falsey, red if truthy, and red if None. "
-            "!X: Colors green if truthy, red if falsey. "
-            "!N: Colors green if not None, red if None.",
-        )
-        parser.add_argument(
-            "--colors",
-            action="store_true",
-            default=config.colors,
-            env_var="DUCT_COLORS",
-            help="Use colors in duct output.",
-        )
-        parser.add_argument(
-            "--clobber",
-            action="store_true",
-            default=config.clobber,
-            help="Replace log files if they already exist.",
-        )
-        parser.add_argument(
-            "-l",
-            "--log-level",
-            default=config.log_level,
-            type=str.upper,
-            env_var="DUCT_LOG_LEVEL",
-            choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
-            help="Level of log output to stderr, use NONE to entirely disable.",
-        )
-        parser.add_argument(
-            "-q",
-            "--quiet",
-            action="store_true",
-            help="[deprecated, use log level NONE] Disable duct logging output (to stderr).",
-        )
-        parser.add_argument(
-            "--sample-interval",
-            "--s-i",
-            type=float,
-            default=config.sample_interval,
-            env_var="DUCT_SAMPLE_INTERVAL",
-            help="Interval in seconds between status checks of the running process. "
-            "Sample interval must be less than or equal to report interval, and it achieves the "
-            "best results when sample is significantly less than the runtime of the process.",
-        )
-        parser.add_argument(
-            "--report-interval",
-            "--r-i",
-            type=float,
-            default=config.report_interval,
-            env_var="DUCT_REPORT_INTERVAL",
-            help="Interval in seconds at which to report aggregated data.",
-        )
-        parser.add_argument(
-            "--fail-time",
-            "--f-t",
-            type=float,
-            default=config.fail_time,
-            env_var="DUCT_FAIL_TIME",
-            help="If command fails in less than this specified time (seconds), duct would remove logs. "
-            "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
-            "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
-        )
-        parser.add_argument(
-            "-c",
-            "--capture-outputs",
-            default=config.capture_outputs,
-            env_var="DUCT_CAPTURE_OUTPUTS",
-            choices=list(Outputs),
-            type=Outputs,
-            help="Record stdout, stderr, all, or none to log files.",
-        )
-        parser.add_argument(
-            "-o",
-            "--outputs",
-            default=config.outputs,
-            env_var="DUCT_OUTPUTS",
-            choices=list(Outputs),
-            type=Outputs,
-            help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
-        )
-        parser.add_argument(
-            "-t",
-            "--record-types",
-            default=config.record_types,
-            env_var="DUCT_RECORD_TYPES",
-            choices=list(RecordTypes),
-            type=RecordTypes,
-            help="Record system-summary, processes-samples, or all.",
-        )
-        parser.add_argument(
-            "-m",
-            "--message",
-            type=str,
-            default=config.message,
-            env_var="DUCT_MESSAGE",
-            help="Record a descriptive message about the purpose of this execution.",
-        )
-        parser.add_argument(
-            "--mode",
-            default=config.mode,
-            env_var="DUCT_MODE",
-            choices=list(SessionMode),
-            type=SessionMode,
-            help="Session mode: 'new-session' creates a new session for the command (default), "
-            "'current-session' tracks the current session instead of starting a new one. "
-            "Useful for tracking slurm jobs or other commands that should run in the current session.",
-        )
-        args = parser.parse_args(
-            args=cli_args,
-            namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,
-        )
-        return cls(
-            command=args.command,
-            command_args=args.command_args,
-            output_prefix=args.output_prefix,
-            sample_interval=args.sample_interval,
-            report_interval=args.report_interval,
-            fail_time=args.fail_time,
-            capture_outputs=args.capture_outputs,
-            outputs=args.outputs,
-            record_types=args.record_types,
-            summary_format=args.summary_format,
-            clobber=args.clobber,
-            colors=args.colors,
-            log_level=args.log_level,
-            quiet=args.quiet,
-            session_mode=args.mode,
-            message=args.message,
-        )
-
 
 def monitor_process(
     report: Report,
@@ -1193,20 +1444,14 @@ def main() -> None:
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S%z",
-        level=getattr(logging, DEFAULT_CONFIG["log_level"]),
+        level=logging.INFO,  # Use default level initially
     )
 
-    # Pre-parse to get config file path first
-    pre_parser = argparse.ArgumentParser(add_help=False)
-    pre_parser.add_argument(
-        "-C",
-        "--config",
-        default=os.getenv("DUCT_CONFIG_FILE"),
-        help="Configuration file path",
-    )
-    pre_args, remaining_args = pre_parser.parse_known_args()
-    config = Config(DEFAULT_CONFIG, pre_args.config)
-    args = Arguments.from_argv(remaining_args, config=config)
+    # Parse CLI arguments and load/validate configuration
+    parser = build_parser()
+    cli_args = vars(parser.parse_args())
+    args = load_and_validate_config(cli_args)
+
     sys.exit(execute(args))
 
 
