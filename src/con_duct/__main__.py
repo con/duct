@@ -391,6 +391,7 @@ def build_parser() -> argparse.ArgumentParser:
     for name, spec in FIELD_SPECS.items():
 
         if spec.kind == "bool":
+            # TODO there is no way to override clobber: True in config without --no-flag
             # Simple boolean flags (just --flag, no --no-flag)
             names = []
             if spec.alt_flag_names:
@@ -426,7 +427,7 @@ def build_parser() -> argparse.ArgumentParser:
                 names.extend(spec.alt_flag_names)
             names.append(f"--{spec.config_key}")
 
-            # Special handling for quiet (boolean action)
+            # Special handling for quiet (deprecated boolean action)
             if spec.config_key == "quiet":
                 kwargs.pop("type")  # quiet is action store_true
                 kwargs["action"] = "store_true"
@@ -1054,14 +1055,10 @@ class Config:
 
     def _load_and_validate(self) -> None:
         """Load configuration from all sources and validate it."""
-        # Expand and load configuration files
         config_paths = self._expand_config_paths(self._cli_args["config"])
         file_layers = self._load_files(config_paths)
 
-        # Load environment variables
         env_vals, env_src = self._load_env()
-
-        # Merge all sources with provenance tracking
         merged, provenance = self._merge_with_provenance(
             defaults_as_source=True,
             file_layers=file_layers,
@@ -1069,13 +1066,12 @@ class Config:
             env_src=env_src,
             cli_vals=self._cli_args,
         )
-
-        # Coerce and validate
         final, errors = self._coerce_and_validate(merged, provenance)
 
         if errors:
             print("Configuration errors:", file=sys.stderr)
             for error in errors:
+                # TODO logger
                 print(error, file=sys.stderr)
             sys.exit(1)
 
@@ -1083,7 +1079,6 @@ class Config:
         for name, spec in FIELD_SPECS.items():
             if name in final:
                 setattr(self, name, final[name])
-                # Store provenance information
                 setattr(
                     self,
                     f"_source_{name}",
@@ -1099,6 +1094,7 @@ class Config:
     def _validate_constraints(self) -> None:
         """Validate cross-field constraints."""
         if self.report_interval < self.sample_interval:
+            # TODO is ArgumentError appropriate if this was config value fail?
             raise argparse.ArgumentError(
                 None,
                 "--report-interval must be greater than or equal to --sample-interval.",
@@ -1140,7 +1136,7 @@ class Config:
 
     def _merge_with_provenance(
         self,
-        defaults_as_source: bool,
+        defaults_as_source: bool,  # TODO remove this
         file_layers: List[Tuple[Dict[str, Any], str]],
         env_vals: Dict[str, Any],
         env_src: Dict[str, str],
@@ -1175,9 +1171,9 @@ class Config:
 
         # CLI arguments
         for k, v in cli_vals.items():
+            # TODO this maybe should be removed now?
             if k == "config":  # Skip special CLI-only options
                 continue
-            # Look up the spec to get the config_key
             if k in FIELD_SPECS:
                 config_key = FIELD_SPECS[k].config_key
                 merged[config_key] = v
@@ -1209,6 +1205,7 @@ class Config:
                     val = spec.validate(val)
 
                 clean[name] = val
+            # TODO too broad ok to split try:excepts
             except Exception as e:
                 src_label = provenance.get(spec.config_key, f"default ({name})")
                 errors.append(
@@ -1226,6 +1223,7 @@ class Config:
 
         return clean, errors
 
+    # TODO lets not make a property here, lets just override config_key in the spec
     # Provide compatibility properties for special names that differ from field names
     @property
     def session_mode(self) -> SessionMode:
@@ -1234,11 +1232,9 @@ class Config:
 
     def dump_config(self) -> None:
         """Print the final merged config with value sources."""
-        import json
-
-        # Build the output structure
         config_dump = {}
 
+        # TODO since we are doing like this probably dont need to pop cmd and cmd args before calling
         for name, spec in FIELD_SPECS.items():
             value = getattr(self, name, spec.default)
             source = getattr(self, f"_source_{name}", "default")
@@ -1246,7 +1242,9 @@ class Config:
             config_dump[spec.config_key] = {
                 "value": value,
                 "source": source,
-                "type": type(value).__name__,
+                "type": type(
+                    value
+                ).__name__,  # TODO should this come from spec not value type?
             }
 
         print(json.dumps(config_dump, indent=2, default=str))
@@ -1397,6 +1395,7 @@ def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
 
 
 def main() -> None:
+    # TODO lets make this logger.Error instead so we can show configfile load issues
     # Set up basic logging configuration (level will be set properly in execute)
     logging.basicConfig(
         format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
@@ -1405,6 +1404,7 @@ def main() -> None:
     )
     parser = build_parser()
 
+    # TODO mv to function
     # Check for --dump-config first to avoid command validation
     if "--dump-config" in sys.argv:
         # Add dummy command to avoid missing required positional args, then parse
@@ -1421,14 +1421,12 @@ def main() -> None:
         config.dump_config()
         sys.exit(0)
 
-    # Normal parsing with full validation
     cli_args = vars(parser.parse_args())
 
     # Extract positional args and special flags (not part of FieldSpec)
     command = cli_args.pop("command", "")
     command_args = cli_args.pop("command_args", [])
     config = Config(cli_args)
-
     sys.exit(execute(config, command, command_args))
 
 
