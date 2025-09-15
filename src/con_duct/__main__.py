@@ -1440,18 +1440,30 @@ def main() -> None:
         level=logging.INFO,  # Use default level initially
     )
     parser = build_parser()
+
+    # Check for --dump-config first to avoid command validation
+    if "--dump-config" in sys.argv:
+        # Add dummy command to avoid positional arg error, then parse
+        argv_with_dummy = [arg for arg in sys.argv if arg != "--dump-config"] + [
+            "--dump-config",
+            "dummy",
+        ]
+        cli_args = vars(parser.parse_args(argv_with_dummy[1:]))  # Skip script name
+        # Remove non FieldSpec Args
+        cli_args.pop("dump_config", False)
+        cli_args.pop("command", None)
+        cli_args.pop("command_args", None)
+        config = Config(cli_args)
+        config.dump_config()
+        sys.exit(0)
+
+    # Normal parsing with full validation
     cli_args = vars(parser.parse_args())
 
     # Extract positional args and special flags (not part of FieldSpec)
     command = cli_args.pop("command", "")
     command_args = cli_args.pop("command_args", [])
-    dump_config = cli_args.pop("dump_config", False)
     config = Config(cli_args)
-
-    # Handle --dump-config flag
-    if dump_config:
-        config.dump_config()
-        sys.exit(0)
 
     sys.exit(execute(config, command, command_args))
 
