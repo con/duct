@@ -397,6 +397,13 @@ def build_parser() -> argparse.ArgumentParser:
     # Store canonical default for help text
     config_action.canonical_default = DEFAULT_CONFIG_PATHS
 
+    # Add --dump-config
+    parser.add_argument(
+        "--dump-config",
+        action="store_true",
+        help="Print the final merged config with value sources and exit",
+    )
+
     # Add command and command_args as positional arguments (not in FIELD_SPECS)
     parser.add_argument(
         "command",
@@ -1109,8 +1116,15 @@ class Config:
         for name, spec in FIELD_SPECS.items():
             if name in final:
                 setattr(self, name, final[name])
+                # Store provenance information
+                setattr(
+                    self,
+                    f"_source_{name}",
+                    provenance.get(spec.config_key, src_default(name)),
+                )
             elif spec.default is not None:
                 setattr(self, name, spec.default)
+                setattr(self, f"_source_{name}", src_default(name))
 
         # Validate cross-field constraints
         self._validate_constraints()
@@ -1253,6 +1267,25 @@ class Config:
     def session_mode(self) -> SessionMode:
         """Alias for mode field for backward compatibility."""
         return self.mode
+
+    def dump_config(self) -> None:
+        """Print the final merged config with value sources."""
+        import json
+
+        # Build the output structure
+        config_dump = {}
+
+        for name, spec in FIELD_SPECS.items():
+            value = getattr(self, name, spec.default)
+            source = getattr(self, f"_source_{name}", "default")
+
+            config_dump[spec.config_key] = {
+                "value": value,
+                "source": source,
+                "type": type(value).__name__,
+            }
+
+        print(json.dumps(config_dump, indent=2, default=str))
 
 
 def monitor_process(
@@ -1406,15 +1439,19 @@ def main() -> None:
         datefmt="%Y-%m-%dT%H:%M:%S%z",
         level=logging.INFO,  # Use default level initially
     )
-
-    # Parse CLI arguments
     parser = build_parser()
     cli_args = vars(parser.parse_args())
 
-    # Extract command and command_args
+    # Extract positional args and special flags (not part of FieldSpec)
     command = cli_args.pop("command", "")
     command_args = cli_args.pop("command_args", [])
+    dump_config = cli_args.pop("dump_config", False)
     config = Config(cli_args)
+
+    # Handle --dump-config flag
+    if dump_config:
+        config.dump_config()
+        sys.exit(0)
 
     sys.exit(execute(config, command, command_args))
 
