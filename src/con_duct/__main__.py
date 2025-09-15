@@ -127,18 +127,6 @@ class SessionMode(str, Enum):
 
 
 # ---------- Config system helper functions ----------
-def bool_from_str(x: Any) -> bool:
-    """Convert various string representations to boolean."""
-    if isinstance(x, bool):
-        return x
-    s = str(x).strip().lower()
-    if s in {"1", "true", "yes", "on"}:
-        return True
-    if s in {"0", "false", "no", "off"}:
-        return False
-    raise ValueError(f"invalid boolean: {x!r}")
-
-
 def src_default(name: str) -> str:
     """Format source label for default value."""
     return f"default ({name})"
@@ -180,6 +168,18 @@ class FieldSpec:
 
 
 # ---------- Validation functions ----------
+def bool_from_str(x: Any) -> bool:
+    """Convert various string representations to boolean."""
+    if isinstance(x, bool):
+        return x
+    s = str(x).strip().lower()
+    if s in {"1", "true", "yes", "on"}:
+        return True
+    if s in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"invalid boolean: {x!r}")
+
+
 def validate_positive(v: float) -> float:
     """Validate that a value is positive."""
     if v <= 0:
