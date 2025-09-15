@@ -311,11 +311,6 @@ FIELD_SPECS: Dict[str, FieldSpec] = {
 }
 
 
-def canonical_default(name: str) -> Any:
-    """Get the canonical default value for a field."""
-    return FIELD_SPECS[name].default
-
-
 def cli_flag(name: str) -> str:
     """Get the CLI flag representation for a field."""
     spec = FIELD_SPECS[name]
@@ -334,15 +329,12 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         help_text = action.help or ""
 
         # Add default value if available
-        if (
-            hasattr(action, "canonical_default")
-            and action.canonical_default is not None
-        ):
+        if hasattr(action, "spec_default") and action.spec_default is not None:
             if help_text:
                 help_text = help_text.rstrip()
             # Format the default value nicely
-            default_str = str(action.canonical_default)
-            if isinstance(action.canonical_default, str):
+            default_str = str(action.spec_default)
+            if isinstance(action.spec_default, str):
                 # Truncate long strings
                 if len(default_str) > 50:
                     default_str = default_str[:47] + "..."
@@ -376,8 +368,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_CONFIG_PATHS,
         help="Configuration file path",
     )
-    # Store canonical default for help text
-    config_action.canonical_default = DEFAULT_CONFIG_PATHS
+    # Store default for help text
+    config_action.spec_default = DEFAULT_CONFIG_PATHS
 
     # Add --dump-config
     parser.add_argument(
@@ -416,8 +408,8 @@ def build_parser() -> argparse.ArgumentParser:
                 help=spec.help,
             )
 
-            # Store canonical default and env_var for help text
-            action.canonical_default = spec.default
+            # Store default and env_var for help text
+            action.spec_default = spec.default
             if spec.env_var:
                 action.env_var = spec.env_var
 
@@ -444,8 +436,8 @@ def build_parser() -> argparse.ArgumentParser:
 
             action = parser.add_argument(*names, dest=name, **kwargs)
 
-            # Store canonical default and env_var for help text
-            action.canonical_default = spec.default
+            # Store default and env_var for help text
+            action.spec_default = spec.default
             if spec.env_var:
                 action.env_var = spec.env_var
 
