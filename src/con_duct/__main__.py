@@ -54,6 +54,7 @@ configuration:
   or loaded from config file). Environment variables are listed with each option.
 """
 
+DEFAULT_CONFIG_PATHS = "/etc/duct/config.json:${XDG_CONFIG_HOME:-~/.config}/duct/config.json:.duct/config.json"  # noqa B950
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
     "stdout": "stdout",
@@ -386,10 +387,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
-
     # Add config manually (not in FIELD_SPECS)
-    DEFAULT_CONFIG_PATHS = "/etc/duct/config.json:${XDG_CONFIG_HOME:-~/.config}/duct/config.json:.duct/config.json"  # noqa B950
-
     config_action = parser.add_argument(
         "-C",
         "--config",
