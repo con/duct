@@ -304,23 +304,6 @@ FIELD_SPECS: Dict[str, FieldSpec] = {
         env_var="DUCT_MESSAGE",
         alt_flag_names=["-m"],
     ),
-    # Special fields not in config but needed for CLI
-    "command": FieldSpec(
-        kind="positional",
-        default=None,
-        cast=str,
-        help="The command to execute",
-        metavar="command [command_args ...]",
-        file_configurable=False,  # Command is always positional from CLI
-    ),
-    "command_args": FieldSpec(
-        kind="positional",
-        default=[],
-        cast=list,
-        help="Arguments for the command",
-        nargs=argparse.REMAINDER,
-        file_configurable=False,  # Command args are always positional from CLI
-    ),
     "quiet": FieldSpec(
         kind="bool",
         default=False,
@@ -347,159 +330,6 @@ def cli_flag(name: str) -> str:
     return f"--{flag_name}"
 
 
-# ---------- Config loading functions ----------
-def expand_config_paths(paths_str: str) -> List[str]:
-    """Expand environment variables and user paths in config path string."""
-    # Handle XDG_CONFIG_HOME pattern
-    expanded = paths_str.replace(
-        "${XDG_CONFIG_HOME:-~/.config}",
-        os.getenv("XDG_CONFIG_HOME", "~/.config"),
-    )
-    # Standard expansion for other variables
-    expanded = os.path.expandvars(expanded)
-    # Split and expand user paths
-    return [os.path.expanduser(p.strip()) for p in expanded.split(":") if p.strip()]
-
-
-def load_files(paths: List[str]) -> List[Tuple[Dict[str, Any], str]]:
-    """Load config files and return list of (dict, source_label).
-
-    Earlier items have lower precedence.
-    """
-    out: List[Tuple[Dict[str, Any], str]] = []
-    for path in paths:
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            out.append((data, src_file(path)))
-        except FileNotFoundError:
-            continue
-        except (json.JSONDecodeError, OSError) as e:
-            # Report errors for files that exist but can't be parsed
-            raise SystemExit(f"Error loading config from {path}: {e}")
-    return out
-
-
-def load_env() -> Tuple[Dict[str, Any], Dict[str, str]]:
-    """Load configuration from environment variables.
-
-    Returns (values_dict, provenance_dict).
-    """
-    vals: Dict[str, Any] = {}
-    prov: Dict[str, str] = {}
-    for name, spec in FIELD_SPECS.items():
-        var = spec.env_var
-        if var and var in os.environ:
-            # Convert field name from underscore to hyphen for config keys
-            config_key = name.replace("_", "-")
-            vals[config_key] = os.environ[var]
-            prov[config_key] = src_env(var)
-    return vals, prov
-
-
-def merged_with_provenance(
-    defaults_as_source: bool,
-    file_layers: List[Tuple[Dict[str, Any], str]],
-    env_vals: Dict[str, Any],
-    env_src: Dict[str, str],
-    cli_vals: Dict[str, Any],
-) -> Tuple[Dict[str, Any], Dict[str, str]]:
-    """Merge configuration from all sources with provenance tracking.
-
-    Precedence: defaults < files < env < CLI
-    """
-    merged: Dict[str, Any] = {}
-    src: Dict[str, str] = {}
-
-    # Defaults first
-    for name, spec in FIELD_SPECS.items():
-        if spec.default is not None:
-            # Use hyphenated names for config keys
-            config_key = name.replace("_", "-")
-            merged[config_key] = spec.default
-            if defaults_as_source:
-                src[config_key] = src_default(name)
-
-    # Files in order (earlier = lower precedence)
-    for data, label in file_layers:
-        for k, v in data.items():
-            # Check if key exists in specs (with underscore conversion)
-            spec_key = k.replace("-", "_")
-            if spec_key in FIELD_SPECS and FIELD_SPECS[spec_key].file_configurable:
-                merged[k] = v
-                src[k] = label
-
-    # Environment variables
-    for k, v in env_vals.items():
-        merged[k] = v
-        src[k] = env_src[k]
-
-    # CLI arguments
-    for k, v in cli_vals.items():
-        # Skip special CLI-only options that don't correspond to config fields
-        if k == "config":  # --config is a shorthand, not a real config field
-            continue
-
-        # CLI uses underscores, config uses hyphens
-        config_key = k.replace("_", "-")
-        merged[config_key] = v
-        src[config_key] = src_cli(cli_flag(k))
-
-    return merged, src
-
-
-def coerce_and_validate(
-    raw: Dict[str, Any], provenance: Dict[str, str]
-) -> Tuple[Dict[str, Any], List[str]]:
-    """Coerce types and validate all configuration values.
-
-    Returns (clean_dict, error_messages).
-    """
-    clean: Dict[str, Any] = {}
-    errors: List[str] = []
-
-    for name, spec in FIELD_SPECS.items():
-        # Skip fields that are CLI-only (positional args) or bootstrap fields
-        if not spec.file_configurable and spec.kind == "positional":
-            continue
-
-        # Get value using hyphenated key
-        config_key = name.replace("_", "-")
-        val = raw.get(config_key, spec.default)
-
-        if val is None and spec.default is None:
-            # Skip optional fields with no value
-            continue
-
-        try:
-            # Cast to correct type
-            val = spec.cast(val)
-
-            # Check choices
-            if spec.choices is not None and val not in spec.choices:
-                raise ValueError(f"must be one of {list(spec.choices)}")
-
-            # Run custom validation
-            if spec.validate is not None:
-                val = spec.validate(val)
-
-            clean[name] = val
-        except Exception as e:
-            src_label = provenance.get(config_key, src_default(name))
-            errors.append(f"- {config_key}: {e} (value {val!r} from {src_label})")
-
-    # Cross-field validation
-    if "sample_interval" in clean and "report_interval" in clean:
-        try:
-            validate_sample_report_interval(
-                clean["sample_interval"], clean["report_interval"]
-            )
-        except ValueError as e:
-            errors.append(f"- interval validation: {e}")
-
-    return clean, errors
-
-
 def build_parser() -> argparse.ArgumentParser:
     """Build argparse parser from FIELD_SPECS without injecting defaults."""
     parser = argparse.ArgumentParser(
@@ -521,21 +351,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Configuration file path",
     )
 
+    # Add command and command_args as positional arguments (not in FIELD_SPECS)
+    parser.add_argument(
+        "command",
+        help="The command to execute",
+        metavar="command [command_args ...]",
+    )
+    parser.add_argument(
+        "command_args",
+        nargs=argparse.REMAINDER,
+        help="Arguments for the command",
+    )
+
     # Add all fields from specs
     for name, spec in FIELD_SPECS.items():
 
         flag_name = name.replace("_", "-")
 
         if spec.kind == "positional":
-            # Positional arguments
-            kwargs = {
-                "help": spec.help,
-            }
-            if spec.metavar:
-                kwargs["metavar"] = spec.metavar
-            if spec.nargs is not None:
-                kwargs["nargs"] = spec.nargs
-            parser.add_argument(name, **kwargs)
+            # Skip positional arguments (we don't have any in FIELD_SPECS now)
+            continue
 
         elif spec.kind == "bool":
             # Simple boolean flags (just --flag, no --no-flag)
@@ -586,78 +421,6 @@ def build_parser() -> argparse.ArgumentParser:
                 action.env_var = spec.env_var
 
     return parser
-
-
-def load_and_validate_config(cli_args: Dict[str, Any]) -> Arguments:
-    """Load configuration from all sources and validate it.
-
-    Args:
-        cli_args: Parsed CLI arguments dictionary
-
-    Returns:
-        Validated Arguments dataclass instance
-
-    Raises:
-        SystemExit: If configuration validation fails
-    """
-    # Determine config paths to load (chicken-and-egg: can't get from config files)
-    if "config" in cli_args:
-        # Explicit single config file specified via --config CLI option
-        file_paths = [cli_args["config"]]
-    else:
-        # Use default config paths
-        default_paths = "/etc/duct/config.json:${XDG_CONFIG_HOME:-~/.config}/duct/config.json:.duct/config.json"  # noqa: B950
-        file_paths = expand_config_paths(default_paths)
-
-    # Load configuration files
-    file_layers = load_files(file_paths)
-
-    # Load environment variables
-    env_vals, env_src = load_env()
-
-    # Merge all sources with provenance tracking
-    merged, provenance = merged_with_provenance(
-        defaults_as_source=True,
-        file_layers=file_layers,
-        env_vals=env_vals,
-        env_src=env_src,
-        cli_vals=cli_args,
-    )
-
-    # Coerce and validate
-    final, errors = coerce_and_validate(merged, provenance)
-
-    if errors:
-        print("Configuration errors:", file=sys.stderr)
-        for error in errors:
-            print(error, file=sys.stderr)
-        sys.exit(1)
-
-    # Add positional arguments that don't go through config system
-    if "command" in cli_args:
-        final["command"] = cli_args["command"]
-    if "command_args" in cli_args:
-        final["command_args"] = cli_args["command_args"]
-
-    # Convert dict to Arguments dataclass
-    return Arguments(
-        command=final.get("command", ""),
-        command_args=final.get("command_args", []),
-        output_prefix=final["output_prefix"],
-        sample_interval=final["sample_interval"],
-        report_interval=final["report_interval"],
-        fail_time=final["fail_time"],
-        clobber=final["clobber"],
-        capture_outputs=final["capture_outputs"],
-        outputs=final["outputs"],
-        record_types=final["record_types"],
-        summary_format=final["summary_format"],
-        colors=final["colors"],
-        log_level=final["log_level"],
-        quiet=final["quiet"],
-        session_mode=final["mode"],
-        message=final["message"],
-    )
 
 
 class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -1268,31 +1031,206 @@ class SummaryFormatter(string.Formatter):
         return value_
 
 
-@dataclass
-class Arguments:
-    command: str
-    command_args: list[str]
-    output_prefix: str
-    sample_interval: float
-    report_interval: float
-    fail_time: float
-    clobber: bool
-    capture_outputs: Outputs
-    outputs: Outputs
-    record_types: RecordTypes
-    summary_format: str
-    colors: bool
-    log_level: str
-    quiet: bool
-    session_mode: SessionMode
-    message: str = ""
+class Config:
+    """Configuration management for duct.
 
-    def __post_init__(self) -> None:
+    This class loads configuration from multiple sources (files, env vars, CLI)
+    and provides validated access to all configuration values.
+    """
+
+    def __init__(self, cli_args: Dict[str, Any]):
+        """Initialize and load configuration from all sources.
+
+        Args:
+            cli_args: Parsed CLI arguments dictionary from argparse
+                     (with command and command_args already removed)
+
+        Raises:
+            SystemExit: If configuration validation fails
+        """
+        # Store CLI args (without command/command_args)
+        self._cli_args = cli_args
+
+        # Load and validate configuration
+        self._load_and_validate()
+
+    def _load_and_validate(self) -> None:
+        """Load configuration from all sources and validate it."""
+        # Determine config paths to load
+        if "config" in self._cli_args:
+            file_paths = [self._cli_args["config"]]
+        else:
+            default_paths = "/etc/duct/config.json:${XDG_CONFIG_HOME:-~/.config}/duct/config.json:.duct/config.json"  # noqa B950
+            file_paths = self._expand_config_paths(default_paths)
+
+        # Load configuration files
+        file_layers = self._load_files(file_paths)
+
+        # Load environment variables
+        env_vals, env_src = self._load_env()
+
+        # Merge all sources with provenance tracking
+        merged, provenance = self._merge_with_provenance(
+            defaults_as_source=True,
+            file_layers=file_layers,
+            env_vals=env_vals,
+            env_src=env_src,
+            cli_vals=self._cli_args,
+        )
+
+        # Coerce and validate
+        final, errors = self._coerce_and_validate(merged, provenance)
+
+        if errors:
+            print("Configuration errors:", file=sys.stderr)
+            for error in errors:
+                print(error, file=sys.stderr)
+            sys.exit(1)
+
+        # Set all configuration values as instance attributes
+        for name, spec in FIELD_SPECS.items():
+            if name in final:
+                setattr(self, name, final[name])
+            elif spec.default is not None:
+                setattr(self, name, spec.default)
+
+        # Validate cross-field constraints
+        self._validate_constraints()
+
+    def _validate_constraints(self) -> None:
+        """Validate cross-field constraints."""
         if self.report_interval < self.sample_interval:
             raise argparse.ArgumentError(
                 None,
                 "--report-interval must be greater than or equal to --sample-interval.",
             )
+
+    def _expand_config_paths(self, paths_str: str) -> List[str]:
+        """Expand environment variables and user paths in config path string."""
+        expanded = paths_str.replace(
+            "${XDG_CONFIG_HOME:-~/.config}",
+            os.getenv("XDG_CONFIG_HOME", "~/.config"),
+        )
+        expanded = os.path.expandvars(expanded)
+        return [os.path.expanduser(p.strip()) for p in expanded.split(":") if p.strip()]
+
+    def _load_files(self, paths: List[str]) -> List[Tuple[Dict[str, Any], str]]:
+        """Load config files and return list of (dict, source_label)."""
+        out: List[Tuple[Dict[str, Any], str]] = []
+        for path in paths:
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                out.append((data, src_file(path)))
+            except FileNotFoundError:
+                continue
+            except (json.JSONDecodeError, OSError) as e:
+                raise SystemExit(f"Error loading config from {path}: {e}")
+        return out
+
+    def _load_env(self) -> Tuple[Dict[str, Any], Dict[str, str]]:
+        """Load configuration from environment variables."""
+        vals: Dict[str, Any] = {}
+        prov: Dict[str, str] = {}
+        for name, spec in FIELD_SPECS.items():
+            var = spec.env_var
+            if var and var in os.environ:
+                config_key = name.replace("_", "-")
+                vals[config_key] = os.environ[var]
+                prov[config_key] = src_env(var)
+        return vals, prov
+
+    def _merge_with_provenance(
+        self,
+        defaults_as_source: bool,
+        file_layers: List[Tuple[Dict[str, Any], str]],
+        env_vals: Dict[str, Any],
+        env_src: Dict[str, str],
+        cli_vals: Dict[str, Any],
+    ) -> Tuple[Dict[str, Any], Dict[str, str]]:
+        """Merge configuration from all sources with provenance tracking."""
+        merged: Dict[str, Any] = {}
+        src: Dict[str, str] = {}
+
+        # Defaults first
+        for name, spec in FIELD_SPECS.items():
+            if spec.default is not None:
+                config_key = name.replace("_", "-")
+                merged[config_key] = spec.default
+                if defaults_as_source:
+                    src[config_key] = src_default(name)
+
+        # Files in order
+        for data, label in file_layers:
+            for k, v in data.items():
+                spec_key = k.replace("-", "_")
+                if spec_key in FIELD_SPECS and FIELD_SPECS[spec_key].file_configurable:
+                    merged[k] = v
+                    src[k] = label
+
+        # Environment variables
+        for k, v in env_vals.items():
+            merged[k] = v
+            src[k] = env_src[k]
+
+        # CLI arguments
+        for k, v in cli_vals.items():
+            if k == "config":  # Skip special CLI-only options
+                continue
+            config_key = k.replace("_", "-")
+            merged[config_key] = v
+            src[config_key] = src_cli(cli_flag(k))
+
+        return merged, src
+
+    def _coerce_and_validate(
+        self, raw: Dict[str, Any], provenance: Dict[str, str]
+    ) -> Tuple[Dict[str, Any], List[str]]:
+        """Coerce types and validate all configuration values."""
+        clean: Dict[str, Any] = {}
+        errors: List[str] = []
+
+        for name, spec in FIELD_SPECS.items():
+            # Skip CLI-only positional args
+            if not spec.file_configurable and spec.kind == "positional":
+                continue
+
+            config_key = name.replace("_", "-")
+            val = raw.get(config_key, spec.default)
+
+            if val is None and spec.default is None:
+                continue
+
+            try:
+                val = spec.cast(val)
+
+                if spec.choices is not None and val not in spec.choices:
+                    raise ValueError(f"must be one of {list(spec.choices)}")
+
+                if spec.validate is not None:
+                    val = spec.validate(val)
+
+                clean[name] = val
+            except Exception as e:
+                src_label = provenance.get(config_key, src_default(name))
+                errors.append(f"- {config_key}: {e} (value {val!r} from {src_label})")
+
+        # Cross-field validation
+        if "sample_interval" in clean and "report_interval" in clean:
+            try:
+                validate_sample_report_interval(
+                    clean["sample_interval"], clean["report_interval"]
+                )
+            except ValueError as e:
+                errors.append(f"- interval validation: {e}")
+
+        return clean, errors
+
+    # Provide compatibility properties for special names that differ from field names
+    @property
+    def session_mode(self) -> SessionMode:
+        """Alias for mode field for backward compatibility."""
+        return self.mode
 
 
 def monitor_process(
@@ -1447,12 +1385,18 @@ def main() -> None:
         level=logging.INFO,  # Use default level initially
     )
 
-    # Parse CLI arguments and load/validate configuration
+    # Parse CLI arguments
     parser = build_parser()
     cli_args = vars(parser.parse_args())
-    args = load_and_validate_config(cli_args)
 
-    sys.exit(execute(args))
+    # Extract command and command_args before creating config
+    command = cli_args.pop("command", "")
+    command_args = cli_args.pop("command_args", [])
+
+    # Create config with remaining args
+    config = Config(cli_args)
+
+    sys.exit(execute(config, command, command_args))
 
 
 class ProcessSignalHandler:
@@ -1476,18 +1420,24 @@ class ProcessSignalHandler:
             os._exit(1)
 
 
-def execute(args: Arguments) -> int:
+def execute(config: Config, command: str, command_args: List[str]) -> int:
     """A wrapper to execute a command, monitor and log the process details.
 
-    Returns exit code of the executed process.
+    Args:
+        config: Configuration object with all settings
+        command: The command to execute
+        command_args: Arguments for the command
+
+    Returns:
+        Exit code of the executed process.
     """
-    if args.log_level == "NONE" or args.quiet:
+    if config.log_level == "NONE" or config.quiet:
         lgr.disabled = True
     else:
-        lgr.setLevel(args.log_level)
-    log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
-    log_paths.prepare_paths(args.clobber, args.capture_outputs)
-    stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)
+        lgr.setLevel(config.log_level)
+    log_paths = LogPaths.create(config.output_prefix, pid=os.getpid())
+    log_paths.prepare_paths(config.clobber, config.capture_outputs)
+    stdout, stderr = prepare_outputs(config.capture_outputs, config.outputs, log_paths)
     stdout_file: TextIO | IO[bytes] | int | None
     if isinstance(stdout, TailPipe):
         stdout_file = open(stdout.file_path, "wb")
@@ -1500,28 +1450,28 @@ def execute(args: Arguments) -> int:
         stderr_file = stderr
 
     working_directory = os.getcwd()
-    full_command = " ".join([str(args.command)] + args.command_args)
+    full_command = " ".join([str(command)] + command_args)
     files_to_close = [stdout_file, stdout, stderr_file, stderr]
 
     report = Report(
-        args.command,
-        args.command_args,
+        command,
+        command_args,
         log_paths,
-        args.summary_format,
+        config.summary_format,
         working_directory,
-        args.colors,
-        args.clobber,
-        message=args.message,
+        config.colors,
+        config.clobber,
+        message=config.message,
     )
     files_to_close.append(report.usage_file)
 
     report.start_time = time.time()
     try:
         report.process = process = subprocess.Popen(
-            [str(args.command)] + args.command_args,
+            [str(command)] + command_args,
             stdout=stdout_file,
             stderr=stderr_file,
-            start_new_session=(args.session_mode == SessionMode.NEW_SESSION),
+            start_new_session=(config.session_mode == SessionMode.NEW_SESSION),
             cwd=report.working_directory,
         )
     except FileNotFoundError:
@@ -1531,7 +1481,7 @@ def execute(args: Arguments) -> int:
         safe_close_files(files_to_close)
         remove_files(log_paths, assert_empty=True)
         # mimicking behavior of bash and zsh.
-        lgr.error("%s: command not found", args.command)
+        lgr.error("%s: command not found", command)
         return 127  # seems what zsh and bash return then
 
     handler = ProcessSignalHandler(process.pid)
@@ -1539,7 +1489,7 @@ def execute(args: Arguments) -> int:
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
-        if args.session_mode == SessionMode.NEW_SESSION:
+        if config.session_mode == SessionMode.NEW_SESSION:
             report.session_id = os.getsid(
                 process.pid
             )  # Get session ID of the new process
@@ -1551,12 +1501,12 @@ def execute(args: Arguments) -> int:
         # TODO: log this at least.
         pass
     stop_event = threading.Event()
-    if args.record_types.has_processes_samples():
+    if config.record_types.has_processes_samples():
         monitoring_args = [
             report,
             process,
-            args.report_interval,
-            args.sample_interval,
+            config.report_interval,
+            config.sample_interval,
             stop_event,
         ]
         monitoring_thread = threading.Thread(
@@ -1566,7 +1516,7 @@ def execute(args: Arguments) -> int:
     else:
         monitoring_thread = None
 
-    if args.record_types.has_system_summary():
+    if config.record_types.has_system_summary():
         env_thread = threading.Thread(target=report.collect_environment)
         env_thread.start()
         sys_info_thread = threading.Thread(target=report.get_system_info)
@@ -1598,17 +1548,17 @@ def execute(args: Arguments) -> int:
         sys_info_thread.join()
         lgr.debug("System information collection finished")
 
-    if args.record_types.has_system_summary():
+    if config.record_types.has_system_summary():
         with open(log_paths.info, "w") as system_logs:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             system_logs.write(report.dump_json())
     safe_close_files(files_to_close)
     if process.returncode != 0 and (
-        report.elapsed_time < args.fail_time or args.fail_time < 0
+        report.elapsed_time < config.fail_time or config.fail_time < 0
     ):
         lgr.info(
             "Removing log files since command failed%s.",
-            f" in less than {args.fail_time} seconds" if args.fail_time > 0 else "",
+            f" in less than {config.fail_time} seconds" if config.fail_time > 0 else "",
         )
         remove_files(log_paths)
     else:
