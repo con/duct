@@ -322,11 +322,7 @@ def canonical_default(name: str) -> Any:
 
 def cli_flag(name: str) -> str:
     """Get the CLI flag representation for a field."""
-    spec = FIELD_SPECS[name]
-    # Convert underscore to hyphen for CLI flags
     flag_name = name.replace("_", "-")
-    if spec.kind == "bool":
-        return f"--{flag_name} / --no-{flag_name}"
     return f"--{flag_name}"
 
 
