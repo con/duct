@@ -127,24 +127,6 @@ class SessionMode(str, Enum):
 
 
 # ---------- Config system helper functions ----------
-def src_default(name: str) -> str:
-    """Format source label for default value."""
-    return f"default ({name})"
-
-
-def src_file(path: str) -> str:
-    """Format source label for config file."""
-    return f"config file: {path}"
-
-
-def src_env(var: str) -> str:
-    """Format source label for environment variable."""
-    return f"env var: {var}"
-
-
-def src_cli(flag: str) -> str:
-    """Format source label for CLI argument."""
-    return f"CLI: {flag}"
 
 
 # ---------- Field specification ----------
@@ -1116,11 +1098,11 @@ class Config:
                 setattr(
                     self,
                     f"_source_{name}",
-                    provenance.get(spec.config_key, src_default(name)),
+                    provenance.get(spec.config_key, f"default ({name})"),
                 )
             elif spec.default is not None:
                 setattr(self, name, spec.default)
-                setattr(self, f"_source_{name}", src_default(name))
+                setattr(self, f"_source_{name}", f"default ({name})")
 
         # Validate cross-field constraints
         self._validate_constraints()
@@ -1149,7 +1131,7 @@ class Config:
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                out.append((data, src_file(path)))
+                out.append((data, f"config file: {path}"))
             except FileNotFoundError:
                 continue
             except (json.JSONDecodeError, OSError) as e:
@@ -1164,7 +1146,7 @@ class Config:
             var = spec.env_var
             if var and var in os.environ:
                 vals[spec.config_key] = os.environ[var]
-                prov[spec.config_key] = src_env(var)
+                prov[spec.config_key] = f"env var: {var}"
         return vals, prov
 
     def _merge_with_provenance(
@@ -1184,7 +1166,7 @@ class Config:
             if spec.default is not None:
                 merged[spec.config_key] = spec.default
                 if defaults_as_source:
-                    src[spec.config_key] = src_default(name)
+                    src[spec.config_key] = f"default ({name})"
 
         # Files in order
         for data, label in file_layers:
@@ -1210,7 +1192,7 @@ class Config:
             if k in FIELD_SPECS:
                 config_key = FIELD_SPECS[k].config_key
                 merged[config_key] = v
-                src[config_key] = src_cli(cli_flag(k))
+                src[config_key] = f"CLI: {cli_flag(k)}"
 
         return merged, src
 
@@ -1239,7 +1221,7 @@ class Config:
 
                 clean[name] = val
             except Exception as e:
-                src_label = provenance.get(spec.config_key, src_default(name))
+                src_label = provenance.get(spec.config_key, f"default ({name})")
                 errors.append(
                     f"- {spec.config_key}: {e} (value {val!r} from {src_label})"
                 )
