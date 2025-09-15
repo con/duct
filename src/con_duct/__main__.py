@@ -393,9 +393,9 @@ def build_parser() -> argparse.ArgumentParser:
                 action.env_var = spec.env_var
 
         else:  # kind == "value"
-            # Regular value arguments - let ArgumentDefaultsHelpFormatter handle defaults
+            # Regular value arguments - use SUPPRESS so only explicit values override config
             kwargs = {
-                "default": spec.default,  # Set actual default for formatter
+                "default": argparse.SUPPRESS,  # Don't inject defaults
                 "help": spec.help,
                 "type": spec.cast,
             }
@@ -1163,10 +1163,13 @@ class Config:
         # Files in order
         for data, label in file_layers:
             for k, v in data.items():
+                # Convert both hyphen and underscore formats to underscore to match FIELD_SPECS
                 spec_key = k.replace("-", "_")
                 if spec_key in FIELD_SPECS and FIELD_SPECS[spec_key].file_configurable:
-                    merged[k] = v
-                    src[k] = label
+                    # Store using hyphenated key for consistency
+                    config_key = spec_key.replace("_", "-")
+                    merged[config_key] = v
+                    src[config_key] = label
 
         # Environment variables
         for k, v in env_vals.items():
