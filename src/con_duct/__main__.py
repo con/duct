@@ -1168,9 +1168,6 @@ class Config:
 
         # CLI arguments
         for k, v in cli_vals.items():
-            # TODO this maybe should be removed now?
-            if k == "config":  # Skip special CLI-only options
-                continue
             if k in FIELD_SPECS:
                 config_key = FIELD_SPECS[k].config_key
                 merged[config_key] = v
