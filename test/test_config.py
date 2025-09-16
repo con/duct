@@ -5,13 +5,7 @@ import os
 import tempfile
 from unittest import mock
 import pytest
-from con_duct.__main__ import (
-    FIELD_SPECS,
-    Config,
-    SessionMode,
-    build_parser,
-    handle_dump_config,
-)
+from con_duct.__main__ import FIELD_SPECS, Config, build_parser, handle_dump_config
 
 
 class TestValidationFunctions:
@@ -104,15 +98,17 @@ class TestConfig:
 
     def test_config_default_initialization(self):
         """Test Config initialization with defaults."""
-        config = Config({})
+        # Clear env vars that conftest.py sets to test true defaults
+        with mock.patch.dict(os.environ, {}, clear=True):
+            config = Config({})
 
-        # Check some default values
-        assert config.sample_interval == 0.5
-        assert config.report_interval == 60.0
-        assert config.capture_outputs == "all"
-        assert config.mode == SessionMode.NEW_SESSION
-        assert config.message == ""
-        assert config.log_level == "INFO"
+            # Check some default values
+            assert config.sample_interval == FIELD_SPECS["sample_interval"].default
+            assert config.report_interval == FIELD_SPECS["report_interval"].default
+            assert config.capture_outputs == FIELD_SPECS["capture_outputs"].default
+            assert config.mode == FIELD_SPECS["mode"].default
+            assert config.message == FIELD_SPECS["message"].default
+            assert config.log_level == FIELD_SPECS["log_level"].default
 
     def test_config_with_cli_args(self):
         """Test Config initialization with CLI arguments."""
@@ -232,10 +228,10 @@ class TestConfig:
         captured = capsys.readouterr()
         output = json.loads(captured.out)
 
-        assert "values" in output
-        assert "sources" in output
-        assert output["values"]["message"] == "test"
-        assert "CLI:" in output["sources"]["message"]
+        assert "message" in output
+        assert output["message"]["value"] == "test"
+        assert "CLI:" in output["message"]["source"]
+        assert output["message"]["type"] == "str"
 
 
 class TestHandleDumpConfig:
