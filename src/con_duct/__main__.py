@@ -910,7 +910,7 @@ class Config:
 
     def _load_and_validate(self) -> None:
         """Load configuration from all sources and validate it."""
-        config_paths = self._expand_config_paths(self._cli_args["config"])
+        config_paths = self._expand_config_paths(self._cli_args.get("config", ""))
         file_layers = self._load_files(config_paths)
 
         env_vals, env_src = self._load_env()
