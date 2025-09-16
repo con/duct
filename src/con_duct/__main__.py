@@ -145,166 +145,6 @@ class FieldSpec:
     nargs: Optional[Any] = None
 
 
-def bool_from_str(x: Any) -> bool:
-    """Convert various string representations to boolean."""
-    if isinstance(x, bool):
-        return x
-    s = str(x).strip().lower()
-    if s in {"1", "true", "yes", "on"}:
-        return True
-    if s in {"0", "false", "no", "off"}:
-        return False
-    raise ValueError(f"invalid boolean: {x!r}")
-
-
-def validate_positive(v: float) -> float:
-    """Validate that a value is positive."""
-    if v <= 0:
-        raise ValueError("must be greater than 0")
-    return v
-
-
-def validate_sample_report_interval(sample: float, report: float) -> None:
-    """Validate that report interval >= sample interval."""
-    if report < sample:
-        raise ValueError(
-            "report-interval must be greater than or equal to sample-interval"
-        )
-
-
-FIELD_SPECS: Dict[str, FieldSpec] = {
-    "output_prefix": FieldSpec(
-        kind="value",
-        default=".duct/logs/{datetime_filesafe}-{pid}_",
-        cast=str,
-        help="File string format prefix for output files",
-        config_key="output-prefix",
-        env_var="DUCT_OUTPUT_PREFIX",
-        alt_flag_names=["-p"],
-    ),
-    "summary_format": FieldSpec(
-        kind="value",
-        default=_EXECUTION_SUMMARY_FORMAT,
-        cast=str,
-        help="Output template for execution summary",
-        config_key="summary-format",
-        env_var="DUCT_SUMMARY_FORMAT",
-    ),
-    "colors": FieldSpec(
-        kind="bool",
-        default=False,
-        cast=bool_from_str,
-        help="Use colors in duct output",
-        config_key="colors",
-        env_var="DUCT_COLORS",
-    ),
-    "log_level": FieldSpec(
-        kind="value",
-        default="INFO",
-        cast=str.upper,
-        help="Level of log output to stderr",
-        config_key="log-level",
-        env_var="DUCT_LOG_LEVEL",
-        choices=["NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
-        alt_flag_names=["-l"],
-    ),
-    "clobber": FieldSpec(
-        kind="bool",
-        default=False,
-        cast=bool_from_str,
-        help="Replace log files if they already exist",
-        config_key="clobber",
-        env_var="DUCT_CLOBBER",
-    ),
-    "sample_interval": FieldSpec(
-        kind="value",
-        default=1.0,
-        cast=float,
-        help="Interval in seconds between status checks",
-        config_key="sample-interval",
-        env_var="DUCT_SAMPLE_INTERVAL",
-        validate=validate_positive,
-        alt_flag_names=["--s-i"],
-    ),
-    "report_interval": FieldSpec(
-        kind="value",
-        default=60.0,
-        cast=float,
-        help="Interval in seconds for reporting aggregated data",
-        config_key="report-interval",
-        env_var="DUCT_REPORT_INTERVAL",
-        validate=validate_positive,
-        alt_flag_names=["--r-i"],
-    ),
-    "fail_time": FieldSpec(
-        kind="value",
-        default=3.0,
-        cast=float,
-        help="Time threshold for keeping logs of failing commands",
-        config_key="fail-time",
-        env_var="DUCT_FAIL_TIME",
-        alt_flag_names=["--f-t"],
-    ),
-    "capture_outputs": FieldSpec(
-        kind="value",
-        default=Outputs.ALL,
-        cast=Outputs,
-        help="Record stdout, stderr, all, or none to log files",
-        config_key="capture-outputs",
-        env_var="DUCT_CAPTURE_OUTPUTS",
-        choices=list(Outputs),
-        alt_flag_names=["-c"],
-    ),
-    "outputs": FieldSpec(
-        kind="value",
-        default=Outputs.ALL,
-        cast=Outputs,
-        help="Print stdout, stderr, all, or none",
-        config_key="outputs",
-        env_var="DUCT_OUTPUTS",
-        choices=list(Outputs),
-        alt_flag_names=["-o"],
-    ),
-    "record_types": FieldSpec(
-        kind="value",
-        default=RecordTypes.ALL,
-        cast=RecordTypes,
-        help="Record system-summary, processes-samples, or all",
-        config_key="record-types",
-        env_var="DUCT_RECORD_TYPES",
-        choices=list(RecordTypes),
-        alt_flag_names=["-t"],
-    ),
-    "mode": FieldSpec(
-        kind="value",
-        default=SessionMode.NEW_SESSION,
-        cast=SessionMode,
-        help="Session mode for command execution",
-        config_key="mode",
-        env_var="DUCT_MODE",
-        choices=list(SessionMode),
-    ),
-    "message": FieldSpec(
-        kind="value",
-        default="",
-        cast=str,
-        help="Descriptive message about this execution",
-        config_key="message",
-        env_var="DUCT_MESSAGE",
-        alt_flag_names=["-m"],
-    ),
-    "quiet": FieldSpec(
-        kind="bool",
-        default=False,
-        cast=bool_from_str,
-        help="[deprecated] Disable duct logging output",
-        config_key="quiet",
-        env_var="DUCT_QUIET",
-        alt_flag_names=["-q"],
-    ),
-}
-
-
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Custom help formatter that shows defaults and environment variables."""
 
@@ -1028,6 +868,33 @@ class Config:
     and provides validated access to all configuration values.
     """
 
+    @staticmethod
+    def bool_from_str(x: Any) -> bool:
+        """Convert various string representations to boolean."""
+        if isinstance(x, bool):
+            return x
+        s = str(x).strip().lower()
+        if s in {"1", "true", "yes", "on"}:
+            return True
+        if s in {"0", "false", "no", "off"}:
+            return False
+        raise ValueError(f"invalid boolean: {x!r}")
+
+    @staticmethod
+    def validate_positive(v: float) -> float:
+        """Validate that a value is positive."""
+        if v <= 0:
+            raise ValueError("must be greater than 0")
+        return v
+
+    @staticmethod
+    def validate_sample_report_interval(sample: float, report: float) -> None:
+        """Validate that report interval >= sample interval."""
+        if report < sample:
+            raise ValueError(
+                "report-interval must be greater than or equal to sample-interval"
+            )
+
     def __init__(self, cli_args: Dict[str, Any]):
         """Initialize and load configuration from all sources.
 
@@ -1204,7 +1071,7 @@ class Config:
         # Cross-field validation
         if "sample_interval" in clean and "report_interval" in clean:
             try:
-                validate_sample_report_interval(
+                self.validate_sample_report_interval(
                     clean["sample_interval"], clean["report_interval"]
                 )
             except ValueError as e:
@@ -1230,6 +1097,139 @@ class Config:
             }
 
         print(json.dumps(config_dump, indent=2, default=str))
+
+
+FIELD_SPECS: Dict[str, FieldSpec] = {
+    "output_prefix": FieldSpec(
+        kind="value",
+        default=".duct/logs/{datetime_filesafe}-{pid}_",
+        cast=str,
+        help="File string format prefix for output files",
+        config_key="output-prefix",
+        env_var="DUCT_OUTPUT_PREFIX",
+        alt_flag_names=["-p"],
+    ),
+    "summary_format": FieldSpec(
+        kind="value",
+        default=_EXECUTION_SUMMARY_FORMAT,
+        cast=str,
+        help="Output template for execution summary",
+        config_key="summary-format",
+        env_var="DUCT_SUMMARY_FORMAT",
+    ),
+    "colors": FieldSpec(
+        kind="bool",
+        default=False,
+        cast=Config.bool_from_str,
+        help="Use colors in duct output",
+        config_key="colors",
+        env_var="DUCT_COLORS",
+    ),
+    "log_level": FieldSpec(
+        kind="value",
+        default="INFO",
+        cast=str.upper,
+        help="Level of log output to stderr",
+        config_key="log-level",
+        env_var="DUCT_LOG_LEVEL",
+        choices=["NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
+        alt_flag_names=["-l"],
+    ),
+    "clobber": FieldSpec(
+        kind="bool",
+        default=False,
+        cast=Config.bool_from_str,
+        help="Replace log files if they already exist",
+        config_key="clobber",
+        env_var="DUCT_CLOBBER",
+    ),
+    "sample_interval": FieldSpec(
+        kind="value",
+        default=1.0,
+        cast=float,
+        help="Interval in seconds between status checks",
+        config_key="sample-interval",
+        env_var="DUCT_SAMPLE_INTERVAL",
+        validate=Config.validate_positive,
+        alt_flag_names=["--s-i"],
+    ),
+    "report_interval": FieldSpec(
+        kind="value",
+        default=60.0,
+        cast=float,
+        help="Interval in seconds for reporting aggregated data",
+        config_key="report-interval",
+        env_var="DUCT_REPORT_INTERVAL",
+        validate=Config.validate_positive,
+        alt_flag_names=["--r-i"],
+    ),
+    "fail_time": FieldSpec(
+        kind="value",
+        default=3.0,
+        cast=float,
+        help="Time threshold for keeping logs of failing commands",
+        config_key="fail-time",
+        env_var="DUCT_FAIL_TIME",
+        alt_flag_names=["--f-t"],
+    ),
+    "capture_outputs": FieldSpec(
+        kind="value",
+        default=Outputs.ALL,
+        cast=Outputs,
+        help="Record stdout, stderr, all, or none to log files",
+        config_key="capture-outputs",
+        env_var="DUCT_CAPTURE_OUTPUTS",
+        choices=list(Outputs),
+        alt_flag_names=["-c"],
+    ),
+    "outputs": FieldSpec(
+        kind="value",
+        default=Outputs.ALL,
+        cast=Outputs,
+        help="Print stdout, stderr, all, or none",
+        config_key="outputs",
+        env_var="DUCT_OUTPUTS",
+        choices=list(Outputs),
+        alt_flag_names=["-o"],
+    ),
+    "record_types": FieldSpec(
+        kind="value",
+        default=RecordTypes.ALL,
+        cast=RecordTypes,
+        help="Record system-summary, processes-samples, or all",
+        config_key="record-types",
+        env_var="DUCT_RECORD_TYPES",
+        choices=list(RecordTypes),
+        alt_flag_names=["-t"],
+    ),
+    "mode": FieldSpec(
+        kind="value",
+        default=SessionMode.NEW_SESSION,
+        cast=SessionMode,
+        help="Session mode for command execution",
+        config_key="mode",
+        env_var="DUCT_MODE",
+        choices=list(SessionMode),
+    ),
+    "message": FieldSpec(
+        kind="value",
+        default="",
+        cast=str,
+        help="Descriptive message about this execution",
+        config_key="message",
+        env_var="DUCT_MESSAGE",
+        alt_flag_names=["-m"],
+    ),
+    "quiet": FieldSpec(
+        kind="bool",
+        default=False,
+        cast=Config.bool_from_str,
+        help="[deprecated] Disable duct logging output",
+        config_key="quiet",
+        env_var="DUCT_QUIET",
+        alt_flag_names=["-q"],
+    ),
+}
 
 
 def monitor_process(

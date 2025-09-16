@@ -5,15 +5,7 @@ import os
 import tempfile
 from unittest import mock
 import pytest
-from con_duct.__main__ import (
-    Config,
-    SessionMode,
-    bool_from_str,
-    build_parser,
-    handle_dump_config,
-    validate_positive,
-    validate_sample_report_interval,
-)
+from con_duct.__main__ import Config, SessionMode, build_parser, handle_dump_config
 
 
 class TestValidationFunctions:
@@ -22,43 +14,43 @@ class TestValidationFunctions:
     def test_bool_from_str(self):
         """Test string to boolean conversion."""
         # True values
-        assert bool_from_str("true") is True
-        assert bool_from_str("True") is True
-        assert bool_from_str("TRUE") is True
-        assert bool_from_str("yes") is True
-        assert bool_from_str("Yes") is True
-        assert bool_from_str("1") is True
+        assert Config.bool_from_str("true") is True
+        assert Config.bool_from_str("True") is True
+        assert Config.bool_from_str("TRUE") is True
+        assert Config.bool_from_str("yes") is True
+        assert Config.bool_from_str("Yes") is True
+        assert Config.bool_from_str("1") is True
 
         # False values
-        assert bool_from_str("false") is False
-        assert bool_from_str("False") is False
-        assert bool_from_str("FALSE") is False
-        assert bool_from_str("no") is False
-        assert bool_from_str("No") is False
-        assert bool_from_str("0") is False
+        assert Config.bool_from_str("false") is False
+        assert Config.bool_from_str("False") is False
+        assert Config.bool_from_str("FALSE") is False
+        assert Config.bool_from_str("no") is False
+        assert Config.bool_from_str("No") is False
+        assert Config.bool_from_str("0") is False
 
         # Invalid values
         with pytest.raises(ValueError):
-            bool_from_str("maybe")
+            Config.bool_from_str("maybe")
         with pytest.raises(ValueError):
-            bool_from_str("2")
+            Config.bool_from_str("2")
         with pytest.raises(ValueError):
-            bool_from_str("")
+            Config.bool_from_str("")
 
     def test_validate_positive(self):
         """Test positive number validation."""
         # Valid positive numbers
-        assert validate_positive(1) == 1
-        assert validate_positive(0.5) == 0.5
-        assert validate_positive(100) == 100
+        assert Config.validate_positive(1) == 1
+        assert Config.validate_positive(0.5) == 0.5
+        assert Config.validate_positive(100) == 100
 
         # Invalid non-positive numbers
         with pytest.raises(ValueError, match="must be greater than 0"):
-            validate_positive(0)
+            Config.validate_positive(0)
         with pytest.raises(ValueError, match="must be greater than 0"):
-            validate_positive(-1)
+            Config.validate_positive(-1)
         with pytest.raises(ValueError, match="must be greater than 0"):
-            validate_positive(-0.5)
+            Config.validate_positive(-0.5)
 
     @pytest.mark.parametrize(
         "sample_interval,report_interval,should_raise,expected_message",
@@ -94,9 +86,9 @@ class TestValidationFunctions:
         """Test sample/report interval validation."""
         if should_raise:
             with pytest.raises(ValueError, match=expected_message):
-                validate_sample_report_interval(sample_interval, report_interval)
+                Config.validate_sample_report_interval(sample_interval, report_interval)
         else:
-            validate_sample_report_interval(
+            Config.validate_sample_report_interval(
                 sample_interval, report_interval
             )  # Should not raise
 
