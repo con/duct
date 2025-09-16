@@ -1183,28 +1183,35 @@ class Config:
         errors: List[str] = []
 
         for name, spec in FIELD_SPECS.items():
-
             val = raw.get(spec.config_key, spec.default)
-
             if val is None and spec.default is None:
                 continue
 
+            src_label = provenance.get(spec.config_key, f"default ({name})")
             try:
                 val = spec.cast(val)
-
-                if spec.choices is not None and val not in spec.choices:
-                    raise ValueError(f"must be one of {list(spec.choices)}")
-
-                if spec.validate is not None:
-                    val = spec.validate(val)
-
-                clean[name] = val
-            # TODO too broad ok to split try:excepts
-            except Exception as e:
-                src_label = provenance.get(spec.config_key, f"default ({name})")
+            except (ValueError, TypeError) as e:
                 errors.append(
                     f"- {spec.config_key}: {e} (value {val!r} from {src_label})"
                 )
+                continue
+
+            if spec.choices is not None and val not in spec.choices:
+                errors.append(
+                    f"- {spec.config_key}: must be one of {list(spec.choices)} "
+                    f"(value {val!r} from {src_label})"
+                )
+                continue
+
+            if spec.validate is not None:
+                try:
+                    val = spec.validate(val)
+                except ValueError as e:
+                    errors.append(
+                        f"- {spec.config_key}: {e} (value {val!r} from {src_label})"
+                    )
+                    continue
+            clean[name] = val
 
         # Cross-field validation
         if "sample_interval" in clean and "report_interval" in clean:
