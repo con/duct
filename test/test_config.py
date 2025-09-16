@@ -5,7 +5,13 @@ import os
 import tempfile
 from unittest import mock
 import pytest
-from con_duct.__main__ import Config, SessionMode, build_parser, handle_dump_config
+from con_duct.__main__ import (
+    FIELD_SPECS,
+    Config,
+    SessionMode,
+    build_parser,
+    handle_dump_config,
+)
 
 
 class TestValidationFunctions:
@@ -155,8 +161,8 @@ class TestConfig:
             config_file = f.name
 
         try:
-            # Test with config file
-            with mock.patch.dict(os.environ, {"DUCT_CONFIG": config_file}):
+            # Test with config file (clear env vars to prevent conftest interference)
+            with mock.patch.dict(os.environ, {"DUCT_CONFIG": config_file}, clear=True):
                 config = Config({})
                 assert config.sample_interval == 10.0
                 assert config.message == "file message"
@@ -169,6 +175,7 @@ class TestConfig:
                     "DUCT_MESSAGE": "env message",
                     "DUCT_SAMPLE_INTERVAL": "15.0",
                 },
+                clear=True,
             ):
                 config = Config({})
                 assert config.sample_interval == 15.0
@@ -181,6 +188,7 @@ class TestConfig:
                     "DUCT_CONFIG": config_file,
                     "DUCT_MESSAGE": "env message",
                 },
+                clear=True,
             ):
                 cli_args = {"message": "cli message", "sample_interval": 20.0}
                 config = Config(cli_args)
@@ -197,7 +205,7 @@ class TestConfig:
             config_file = f.name
 
         try:
-            with mock.patch.dict(os.environ, {"DUCT_CONFIG": config_file}):
+            with mock.patch.dict(os.environ, {"DUCT_CONFIG": config_file}, clear=True):
                 with pytest.raises(SystemExit):
                     Config({})
         finally:
@@ -206,10 +214,15 @@ class TestConfig:
     def test_config_nonexistent_file(self):
         """Test Config handles nonexistent config files gracefully."""
         # Nonexistent file in DUCT_CONFIG should cause error
-        with mock.patch.dict(os.environ, {"DUCT_CONFIG": "/nonexistent/config.json"}):
+        # Clear env vars to test true defaults, then set only DUCT_CONFIG
+        with mock.patch.dict(
+            os.environ, {"DUCT_CONFIG": "/nonexistent/config.json"}, clear=True
+        ):
             # Should log warning but not fail (uses defaults)
             config = Config({})
-            assert config.sample_interval == 0.5  # default value
+            assert (
+                config.sample_interval == FIELD_SPECS["sample_interval"].default
+            )  # default value
 
     def test_config_dump(self, capsys):
         """Test Config.dump_config() method."""

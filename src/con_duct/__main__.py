@@ -190,7 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
     config_action = parser.add_argument(
         "-C",
         "--config",
-        default=DEFAULT_CONFIG_PATHS,
+        default=argparse.SUPPRESS,
         help="Configuration file path",
     )
     # Store default for help text
@@ -910,7 +910,12 @@ class Config:
 
     def _load_and_validate(self) -> None:
         """Load configuration from all sources and validate it."""
-        config_paths = self._expand_config_paths(self._cli_args.get("config", ""))
+        config_paths_str = (
+            self._cli_args.get("config")
+            or os.environ.get("DUCT_CONFIG")
+            or DEFAULT_CONFIG_PATHS
+        )
+        config_paths = self._expand_config_paths(config_paths_str)
         file_layers = self._load_files(config_paths)
 
         env_vals, env_src = self._load_env()
