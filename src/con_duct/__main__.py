@@ -311,12 +311,6 @@ FIELD_SPECS: Dict[str, FieldSpec] = {
 }
 
 
-def cli_flag(name: str) -> str:
-    """Get the CLI flag representation for a field."""
-    spec = FIELD_SPECS[name]
-    return f"--{spec.config_key}"
-
-
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Custom help formatter that shows defaults and environment variables."""
 
@@ -1171,7 +1165,7 @@ class Config:
             if k in FIELD_SPECS:
                 config_key = FIELD_SPECS[k].config_key
                 merged[config_key] = v
-                src[config_key] = f"CLI: {cli_flag(k)}"
+                src[config_key] = f"CLI: --{config_key}"
 
         return merged, src
 
