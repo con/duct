@@ -1382,6 +1382,26 @@ def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
             os.remove(file_path)
 
 
+def handle_dump_config(parser: argparse.ArgumentParser) -> None:
+    """Handle --dump-config option and exit if present."""
+    if "--dump-config" not in sys.argv:
+        return
+
+    # Add dummy command to avoid missing required positional args, then parse
+    argv_with_dummy = [arg for arg in sys.argv if arg != "--dump-config"] + [
+        "--dump-config",
+        "dummy",
+    ]
+    cli_args = vars(parser.parse_args(argv_with_dummy[1:]))  # Skip script name
+    # Remove non FieldSpec Args
+    cli_args.pop("dump_config", False)
+    cli_args.pop("command", None)
+    cli_args.pop("command_args", None)
+    config = Config(cli_args)
+    config.dump_config()
+    sys.exit(0)
+
+
 def main() -> None:
     # TODO lets make this logger.Error instead so we can show configfile load issues
     # Set up basic logging configuration (level will be set properly in execute)
@@ -1391,24 +1411,7 @@ def main() -> None:
         level=logging.INFO,  # Use default level initially
     )
     parser = build_parser()
-
-    # TODO mv to function
-    # Check for --dump-config first to avoid command validation
-    if "--dump-config" in sys.argv:
-        # Add dummy command to avoid missing required positional args, then parse
-        argv_with_dummy = [arg for arg in sys.argv if arg != "--dump-config"] + [
-            "--dump-config",
-            "dummy",
-        ]
-        cli_args = vars(parser.parse_args(argv_with_dummy[1:]))  # Skip script name
-        # Remove non FieldSpec Args
-        cli_args.pop("dump_config", False)
-        cli_args.pop("command", None)
-        cli_args.pop("command_args", None)
-        config = Config(cli_args)
-        config.dump_config()
-        sys.exit(0)
-
+    handle_dump_config(parser)
     cli_args = vars(parser.parse_args())
 
     # Extract positional args and special flags (not part of FieldSpec)
