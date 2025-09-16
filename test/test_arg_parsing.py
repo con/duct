@@ -1,9 +1,7 @@
-import os
 import re
 import subprocess
-from unittest import mock
 import pytest
-from con_duct.__main__ import Arguments
+from con_duct.__main__ import Outputs, build_parser
 
 
 def test_duct_help() -> None:
@@ -87,13 +85,17 @@ def test_abreviation_disabled() -> None:
     ],
 )
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
-    """Test that --mode argument is parsed correctly with both long and short forms."""
-    # Import here to avoid module loading issues in tests
-    from con_duct.__main__ import Arguments
-
+    """Test that --mode argument is parsed correctly."""
+    parser = build_parser()
     cmd_args = mode_arg + ["echo", "test"]
-    args = Arguments.from_argv(cmd_args)
-    assert str(args.session_mode) == expected_mode
+    args = parser.parse_args(cmd_args)
+    # When no mode is provided, it won't be in args due to argparse.SUPPRESS
+    if mode_arg:
+        assert hasattr(args, "mode")
+        assert str(args.mode) == expected_mode
+    else:
+        # Default case - mode won't be in args namespace
+        assert not hasattr(args, "mode")
 
 
 def test_mode_invalid_value() -> None:
@@ -105,34 +107,66 @@ def test_mode_invalid_value() -> None:
         pytest.fail("Command should have failed with invalid mode value")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
+        # Enum shows class name but argparse includes the choices
         assert "invalid SessionMode value: 'invalid-mode'" in str(e.stdout)
 
 
+# TODO pytest parametrize
 def test_message_parsing() -> None:
     """Test that -m/--message flag is correctly parsed."""
+    parser = build_parser()
+
     # Test short flag
-    args = Arguments.from_argv(["-m", "test message", "echo", "hello"])
+    args = parser.parse_args(["-m", "test message", "echo", "hello"])
     assert args.message == "test message"
     assert args.command == "echo"
     assert args.command_args == ["hello"]
 
     # Test long flag
-    args = Arguments.from_argv(["--message", "another message", "ls"])
+    args = parser.parse_args(["--message", "another message", "ls"])
     assert args.message == "another message"
     assert args.command == "ls"
 
-    # Test without message (should be empty string)
-    args = Arguments.from_argv(["echo", "hello"])
-    assert args.message == ""
+    # Test without message (should not have attribute due to SUPPRESS)
+    args = parser.parse_args(["echo", "hello"])
+    assert not hasattr(args, "message")
 
 
-def test_message_env_variable() -> None:
-    """Test that DUCT_MESSAGE environment variable is used as default."""
-    with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        args = Arguments.from_argv(["echo", "hello"])
-        assert args.message == "env message"
+def test_parser_arguments() -> None:
+    """Test that parser accepts all expected arguments."""
+    parser = build_parser()
 
-    # Command line should override env variable
-    with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        args = Arguments.from_argv(["-m", "cli message", "echo", "hello"])
-        assert args.message == "cli message"
+    # Test that all main arguments are accepted
+    args = parser.parse_args(
+        [
+            "--output-prefix",
+            "/tmp/test",
+            "--sample-interval",
+            "2",
+            "--report-interval",
+            "10",
+            "--capture-outputs",
+            "all",
+            "--mode",
+            "new-session",
+            "-m",
+            "test message",
+            "--log-level",
+            "DEBUG",
+            "--config",
+            "/path/to/config.json",
+            "echo",
+            "hello",
+        ]
+    )
+
+    assert args.output_prefix == "/tmp/test"
+    assert args.sample_interval == 2
+    assert args.report_interval == 10
+    assert args.capture_outputs == Outputs.ALL
+    assert str(args.mode) == "new-session"
+    assert args.message == "test message"
+    assert args.log_level == "DEBUG"
+    assert args.config == "/path/to/config.json"
+    assert args.command == "echo"
+    assert args.command_args == ["hello"]

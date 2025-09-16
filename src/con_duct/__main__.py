@@ -254,7 +254,7 @@ FIELD_SPECS: Dict[str, FieldSpec] = {
     "capture_outputs": FieldSpec(
         kind="value",
         default=Outputs.ALL,
-        cast=lambda x: Outputs(x) if isinstance(x, str) else x,
+        cast=Outputs,
         help="Record stdout, stderr, all, or none to log files",
         config_key="capture-outputs",
         env_var="DUCT_CAPTURE_OUTPUTS",
@@ -264,7 +264,7 @@ FIELD_SPECS: Dict[str, FieldSpec] = {
     "outputs": FieldSpec(
         kind="value",
         default=Outputs.ALL,
-        cast=lambda x: Outputs(x) if isinstance(x, str) else x,
+        cast=Outputs,
         help="Print stdout, stderr, all, or none",
         config_key="outputs",
         env_var="DUCT_OUTPUTS",
@@ -274,7 +274,7 @@ FIELD_SPECS: Dict[str, FieldSpec] = {
     "record_types": FieldSpec(
         kind="value",
         default=RecordTypes.ALL,
-        cast=lambda x: RecordTypes(x) if isinstance(x, str) else x,
+        cast=RecordTypes,
         help="Record system-summary, processes-samples, or all",
         config_key="record-types",
         env_var="DUCT_RECORD_TYPES",
@@ -284,7 +284,7 @@ FIELD_SPECS: Dict[str, FieldSpec] = {
     "mode": FieldSpec(
         kind="value",
         default=SessionMode.NEW_SESSION,
-        cast=lambda x: SessionMode(x) if isinstance(x, str) else x,
+        cast=SessionMode,
         help="Session mode for command execution",
         config_key="mode",
         env_var="DUCT_MODE",
