@@ -1,7 +1,7 @@
 import re
 import subprocess
 import pytest
-from con_duct.__main__ import Outputs, build_parser
+from con_duct.__main__ import build_parser
 
 
 def test_duct_help() -> None:
@@ -111,62 +111,95 @@ def test_mode_invalid_value() -> None:
         assert "invalid SessionMode value: 'invalid-mode'" in str(e.stdout)
 
 
-# TODO pytest parametrize
-def test_message_parsing() -> None:
-    """Test that -m/--message flag is correctly parsed."""
-    parser = build_parser()
-
-    # Test short flag
-    args = parser.parse_args(["-m", "test message", "echo", "hello"])
-    assert args.message == "test message"
-    assert args.command == "echo"
-    assert args.command_args == ["hello"]
-
-    # Test long flag
-    args = parser.parse_args(["--message", "another message", "ls"])
-    assert args.message == "another message"
-    assert args.command == "ls"
-
-    # Test without message (should not have attribute due to SUPPRESS)
-    args = parser.parse_args(["echo", "hello"])
-    assert not hasattr(args, "message")
-
-
-def test_parser_arguments() -> None:
-    """Test that parser accepts all expected arguments."""
-    parser = build_parser()
-
-    # Test that all main arguments are accepted
-    args = parser.parse_args(
-        [
-            "--output-prefix",
+@pytest.mark.parametrize(
+    "cli_args,expected_key,expected_value",
+    [
+        # Message parsing tests
+        (["-m", "test message", "echo", "hello"], "message", "test message"),
+        (["-m", "test message", "echo", "hello"], "command", "echo"),
+        (["-m", "test message", "echo", "hello"], "command_args", ["hello"]),
+        (["--message", "another message", "ls"], "message", "another message"),
+        (["--message", "another message", "ls"], "command", "ls"),
+        (["--message", "another message", "ls"], "command_args", []),
+        # Comprehensive argument parsing tests
+        (
+            ["--output-prefix", "/tmp/test", "echo", "test"],
+            "output_prefix",
             "/tmp/test",
-            "--sample-interval",
-            "2",
-            "--report-interval",
-            "10",
-            "--capture-outputs",
-            "all",
-            "--mode",
-            "new-session",
-            "-m",
-            "test message",
-            "--log-level",
-            "DEBUG",
-            "--config",
+        ),
+        (["--sample-interval", "2", "echo", "test"], "sample_interval", 2),
+        (["--report-interval", "10", "echo", "test"], "report_interval", 10),
+        (["--log-level", "DEBUG", "echo", "test"], "log_level", "DEBUG"),
+        (
+            ["--config", "/path/to/config.json", "echo", "test"],
+            "config",
             "/path/to/config.json",
-            "echo",
-            "hello",
-        ]
-    )
+        ),
+        # Basic command parsing
+        (["echo", "hello"], "command", "echo"),
+        (["echo", "hello"], "command_args", ["hello"]),
+    ],
+)
+def test_argument_parsing(cli_args: list, expected_key: str, expected_value) -> None:
+    """Test that parser correctly handles various argument combinations."""
+    parser = build_parser()
+    args = parser.parse_args(cli_args)
 
-    assert args.output_prefix == "/tmp/test"
-    assert args.sample_interval == 2
-    assert args.report_interval == 10
-    assert args.capture_outputs == Outputs.ALL
-    assert str(args.mode) == "new-session"
-    assert args.message == "test message"
-    assert args.log_level == "DEBUG"
-    assert args.config == "/path/to/config.json"
-    assert args.command == "echo"
-    assert args.command_args == ["hello"]
+    assert getattr(args, expected_key) == expected_value
+
+
+@pytest.mark.parametrize(
+    "cli_args,expected_key,expected_value",
+    [
+        (["--capture-outputs", "all", "echo", "test"], "capture_outputs", "all"),
+        (["--capture-outputs", "stderr", "echo", "test"], "capture_outputs", "stderr"),
+        (["--outputs", "stdout", "echo", "test"], "outputs", "stdout"),
+        (["--outputs", "none", "echo", "test"], "outputs", "none"),
+        (
+            ["--record-types", "system-summary", "echo", "test"],
+            "record_types",
+            "system-summary",
+        ),
+        (
+            ["--record-types", "processes-samples", "echo", "test"],
+            "record_types",
+            "processes-samples",
+        ),
+        (["--mode", "new-session", "echo", "test"], "mode", "new-session"),
+        (["--mode", "current-session", "echo", "test"], "mode", "current-session"),
+    ],
+)
+def test_enum_argument_parsing(
+    cli_args: list, expected_key: str, expected_value: str
+) -> None:
+    """Test that parser correctly handles enum arguments."""
+    parser = build_parser()
+    args = parser.parse_args(cli_args)
+    # For enums, compare string representation
+    assert str(getattr(args, expected_key)) == expected_value
+
+
+@pytest.mark.parametrize(
+    "attribute_name",
+    [
+        "message",
+        "output_prefix",
+        "sample_interval",
+        "report_interval",
+        "capture_outputs",
+        "outputs",
+        "record_types",
+        "mode",
+        "log_level",
+        "colors",
+        "clobber",
+        "fail_time",
+        "summary_format",
+        "quiet",
+    ],
+)
+def test_optional_attributes_absent_without_flags(attribute_name: str) -> None:
+    """Test that optional attributes are absent when their flags aren't provided."""
+    parser = build_parser()
+    args = parser.parse_args(["echo", "hello"])
+    assert not hasattr(args, attribute_name)
