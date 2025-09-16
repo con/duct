@@ -1224,13 +1224,6 @@ class Config:
 
         return clean, errors
 
-    # TODO lets not make a property here, lets just override config_key in the spec
-    # Provide compatibility properties for special names that differ from field names
-    @property
-    def session_mode(self) -> SessionMode:
-        """Alias for mode field for backward compatibility."""
-        return self.mode
-
     def dump_config(self) -> None:
         """Print the final merged config with value sources."""
         config_dump = {}
@@ -1503,7 +1496,7 @@ def execute(config: Config, command: str, command_args: List[str]) -> int:
             [str(command)] + command_args,
             stdout=stdout_file,
             stderr=stderr_file,
-            start_new_session=(config.session_mode == SessionMode.NEW_SESSION),
+            start_new_session=(config.mode == SessionMode.NEW_SESSION),
             cwd=report.working_directory,
         )
     except FileNotFoundError:
@@ -1521,7 +1514,7 @@ def execute(config: Config, command: str, command_args: List[str]) -> int:
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
-        if config.session_mode == SessionMode.NEW_SESSION:
+        if config.mode == SessionMode.NEW_SESSION:
             report.session_id = os.getsid(
                 process.pid
             )  # Get session ID of the new process
