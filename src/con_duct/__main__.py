@@ -126,10 +126,6 @@ class SessionMode(str, Enum):
         return self.value
 
 
-# ---------- Config system helper functions ----------
-
-
-# ---------- Field specification ----------
 @dataclass(frozen=True)
 class FieldSpec:
     """Specification for a configuration field."""
@@ -149,7 +145,6 @@ class FieldSpec:
     nargs: Optional[Any] = None
 
 
-# ---------- Validation functions ----------
 def bool_from_str(x: Any) -> bool:
     """Convert various string representations to boolean."""
     if isinstance(x, bool):
@@ -177,7 +172,6 @@ def validate_sample_report_interval(sample: float, report: float) -> None:
         )
 
 
-# ---------- Field specifications ----------
 FIELD_SPECS: Dict[str, FieldSpec] = {
     "output_prefix": FieldSpec(
         kind="value",
