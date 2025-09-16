@@ -1060,7 +1060,6 @@ class Config:
 
         env_vals, env_src = self._load_env()
         merged, provenance = self._merge_with_provenance(
-            defaults_as_source=True,
             file_layers=file_layers,
             env_vals=env_vals,
             env_src=env_src,
@@ -1136,7 +1135,6 @@ class Config:
 
     def _merge_with_provenance(
         self,
-        defaults_as_source: bool,  # TODO remove this
         file_layers: List[Tuple[Dict[str, Any], str]],
         env_vals: Dict[str, Any],
         env_src: Dict[str, str],
@@ -1150,8 +1148,7 @@ class Config:
         for name, spec in FIELD_SPECS.items():
             if spec.default is not None:
                 merged[spec.config_key] = spec.default
-                if defaults_as_source:
-                    src[spec.config_key] = f"default ({name})"
+                src[spec.config_key] = f"default ({name})"
 
         # Files in order
         for data, label in file_layers:
