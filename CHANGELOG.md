@@ -1,3 +1,20 @@
+# v0.17.0 (Thu Sep 18 2025)
+
+#### 🚀 Enhancement
+
+- enh: Human-readable axis values/units on con-duct plots [#302](https://github.com/con/duct/pull/302) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- plot: allow for -o in addition to --output [#300](https://github.com/con/duct/pull/300) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 2
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.16.0 (Fri Sep 05 2025)
 
 #### 🚀 Enhancement
