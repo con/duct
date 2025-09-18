@@ -1,9 +1,7 @@
-import os
 import re
 import subprocess
-from unittest import mock
 import pytest
-from con_duct.__main__ import Arguments
+from con_duct.__main__ import build_parser
 
 
 def test_duct_help() -> None:
@@ -87,13 +85,17 @@ def test_abreviation_disabled() -> None:
     ],
 )
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
-    """Test that --mode argument is parsed correctly with both long and short forms."""
-    # Import here to avoid module loading issues in tests
-    from con_duct.__main__ import Arguments
-
+    """Test that --mode argument is parsed correctly."""
+    parser = build_parser()
     cmd_args = mode_arg + ["echo", "test"]
-    args = Arguments.from_argv(cmd_args)
-    assert str(args.session_mode) == expected_mode
+    args = parser.parse_args(cmd_args)
+    # When no mode is provided, it won't be in args due to argparse.SUPPRESS
+    if mode_arg:
+        assert hasattr(args, "mode")
+        assert str(args.mode) == expected_mode
+    else:
+        # Default case - mode won't be in args namespace
+        assert not hasattr(args, "mode")
 
 
 def test_mode_invalid_value() -> None:
@@ -105,34 +107,99 @@ def test_mode_invalid_value() -> None:
         pytest.fail("Command should have failed with invalid mode value")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
+        # Enum shows class name but argparse includes the choices
         assert "invalid SessionMode value: 'invalid-mode'" in str(e.stdout)
 
 
-def test_message_parsing() -> None:
-    """Test that -m/--message flag is correctly parsed."""
-    # Test short flag
-    args = Arguments.from_argv(["-m", "test message", "echo", "hello"])
-    assert args.message == "test message"
-    assert args.command == "echo"
-    assert args.command_args == ["hello"]
+@pytest.mark.parametrize(
+    "cli_args,expected_key,expected_value",
+    [
+        # Message parsing tests
+        (["-m", "test message", "echo", "hello"], "message", "test message"),
+        (["-m", "test message", "echo", "hello"], "command", "echo"),
+        (["-m", "test message", "echo", "hello"], "command_args", ["hello"]),
+        (["--message", "another message", "ls"], "message", "another message"),
+        (["--message", "another message", "ls"], "command", "ls"),
+        (["--message", "another message", "ls"], "command_args", []),
+        # Comprehensive argument parsing tests
+        (
+            ["--output-prefix", "/tmp/test", "echo", "test"],
+            "output_prefix",
+            "/tmp/test",
+        ),
+        (["--sample-interval", "2", "echo", "test"], "sample_interval", 2),
+        (["--report-interval", "10", "echo", "test"], "report_interval", 10),
+        (["--log-level", "DEBUG", "echo", "test"], "log_level", "DEBUG"),
+        (
+            ["--config", "/path/to/config.json", "echo", "test"],
+            "config",
+            "/path/to/config.json",
+        ),
+        # Basic command parsing
+        (["echo", "hello"], "command", "echo"),
+        (["echo", "hello"], "command_args", ["hello"]),
+    ],
+)
+def test_argument_parsing(cli_args: list, expected_key: str, expected_value) -> None:
+    """Test that parser correctly handles various argument combinations."""
+    parser = build_parser()
+    args = parser.parse_args(cli_args)
 
-    # Test long flag
-    args = Arguments.from_argv(["--message", "another message", "ls"])
-    assert args.message == "another message"
-    assert args.command == "ls"
-
-    # Test without message (should be empty string)
-    args = Arguments.from_argv(["echo", "hello"])
-    assert args.message == ""
+    assert getattr(args, expected_key) == expected_value
 
 
-def test_message_env_variable() -> None:
-    """Test that DUCT_MESSAGE environment variable is used as default."""
-    with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        args = Arguments.from_argv(["echo", "hello"])
-        assert args.message == "env message"
+@pytest.mark.parametrize(
+    "cli_args,expected_key,expected_value",
+    [
+        (["--capture-outputs", "all", "echo", "test"], "capture_outputs", "all"),
+        (["--capture-outputs", "stderr", "echo", "test"], "capture_outputs", "stderr"),
+        (["--outputs", "stdout", "echo", "test"], "outputs", "stdout"),
+        (["--outputs", "none", "echo", "test"], "outputs", "none"),
+        (
+            ["--record-types", "system-summary", "echo", "test"],
+            "record_types",
+            "system-summary",
+        ),
+        (
+            ["--record-types", "processes-samples", "echo", "test"],
+            "record_types",
+            "processes-samples",
+        ),
+        (["--mode", "new-session", "echo", "test"], "mode", "new-session"),
+        (["--mode", "current-session", "echo", "test"], "mode", "current-session"),
+    ],
+)
+def test_enum_argument_parsing(
+    cli_args: list, expected_key: str, expected_value: str
+) -> None:
+    """Test that parser correctly handles enum arguments."""
+    parser = build_parser()
+    args = parser.parse_args(cli_args)
+    # For enums, compare string representation
+    assert str(getattr(args, expected_key)) == expected_value
 
-    # Command line should override env variable
-    with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        args = Arguments.from_argv(["-m", "cli message", "echo", "hello"])
-        assert args.message == "cli message"
+
+@pytest.mark.parametrize(
+    "attribute_name",
+    [
+        "message",
+        "output_prefix",
+        "sample_interval",
+        "report_interval",
+        "capture_outputs",
+        "outputs",
+        "record_types",
+        "mode",
+        "log_level",
+        "colors",
+        "clobber",
+        "fail_time",
+        "summary_format",
+        "quiet",
+    ],
+)
+def test_optional_attributes_absent_without_flags(attribute_name: str) -> None:
+    """Test that optional attributes are absent when their flags aren't provided."""
+    parser = build_parser()
+    args = parser.parse_args(["echo", "hello"])
+    assert not hasattr(args, attribute_name)
