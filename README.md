@@ -182,6 +182,14 @@ options:
 ```
 <!-- END EXTRAS HELP -->
 
+## Example Output
+
+The `con-duct plot` command generates visual representations of resource usage over time:
+
+![Resource usage plot example](images/duct-plot-example.png)
+
+This plot shows CPU percentage, memory usage (RSS and VSZ) tracked over the execution time of a process, making it easy to identify resource usage patterns and peaks.
+
 ## FAQs
 
 ### git-annex add keeps adding duct logs directly into git
