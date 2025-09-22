@@ -334,6 +334,7 @@ class TestPlotMatplotlib:
             output="outfile.png",
             func=plot.matplotlib_plot,
             log_level="NONE",
+            min_ratio=3.0,
         )
         assert main.execute(args) == 0
         mock_plot_save.assert_called_once_with("outfile.png")
