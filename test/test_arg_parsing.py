@@ -1,9 +1,11 @@
 import os
+from pathlib import Path
 import re
 import subprocess
+import tempfile
 from unittest import mock
 import pytest
-from con_duct.__main__ import Arguments
+from con_duct.__main__ import HAS_JSONARGPARSE, Arguments
 
 
 def test_duct_help() -> None:
@@ -126,6 +128,9 @@ def test_message_parsing() -> None:
     assert args.message == ""
 
 
+@pytest.mark.skipif(
+    not HAS_JSONARGPARSE, reason="Env var support requires jsonargparse"
+)
 def test_message_env_variable() -> None:
     """Test that DUCT_MESSAGE environment variable is used as default."""
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
@@ -136,3 +141,85 @@ def test_message_env_variable() -> None:
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
         args = Arguments.from_argv(["-m", "cli message", "echo", "hello"])
         assert args.message == "cli message"
+
+
+@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
+def test_config_file_loading() -> None:
+    """Test that config files are loaded when jsonargparse is available."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_file = Path(tmpdir) / "config.yaml"
+        config_file.write_text("sample_interval: 2.5\n" 'message: "from config"\n')
+        args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
+        assert args.sample_interval == 2.5
+        assert args.message == "from config"
+
+
+@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
+def test_config_precedence() -> None:
+    """Test precedence: config < env < CLI."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_file = Path(tmpdir) / "config.yaml"
+        config_file.write_text(
+            "sample_interval: 2.5\n"
+            "report_interval: 120.0\n"
+            'message: "from config"\n'
+        )
+        # Config value should be used
+        args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
+        assert args.sample_interval == 2.5
+        assert args.report_interval == 120.0
+        assert args.message == "from config"
+
+        # Env var should override config
+        with mock.patch.dict(os.environ, {"DUCT_SAMPLE_INTERVAL": "5.0"}):
+            args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
+            assert args.sample_interval == 5.0
+            assert args.report_interval == 120.0  # Still from config
+
+        # CLI should override both env and config
+        with mock.patch.dict(os.environ, {"DUCT_SAMPLE_INTERVAL": "5.0"}):
+            args = Arguments.from_argv(
+                [
+                    "--config",
+                    str(config_file),
+                    "--sample-interval",
+                    "10.0",
+                    "echo",
+                    "hello",
+                ]
+            )
+            assert args.sample_interval == 10.0
+
+
+@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
+def test_multiple_config_files_merge() -> None:
+    """Test that multiple config files are merged correctly."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config1 = Path(tmpdir) / "config1.yaml"
+        config1.write_text("sample_interval: 2.5\n" 'message: "from config1"\n')
+        config2 = Path(tmpdir) / "config2.yaml"
+        config2.write_text("report_interval: 120.0\n" 'message: "from config2"\n')
+        args = Arguments.from_argv(
+            ["--config", str(config1), "--config", str(config2), "echo", "hello"]
+        )
+        assert args.sample_interval == 2.5  # From config1
+        assert args.report_interval == 120.0  # From config2
+        assert args.message == "from config2"  # config2 overrides config1
+
+
+@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
+def test_missing_config_file_ignored() -> None:
+    """Test that missing config files are silently ignored."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        nonexistent = Path(tmpdir) / "nonexistent.yaml"
+        # Should not raise an error
+        args = Arguments.from_argv(["--config", str(nonexistent), "echo", "hello"])
+        assert args.command == "echo"
+
+
+@pytest.mark.skipif(HAS_JSONARGPARSE, reason="Test fallback mode")
+def test_fallback_mode_without_jsonargparse() -> None:
+    """Test that duct works without jsonargparse (fallback mode)."""
+    args = Arguments.from_argv(["echo", "hello"])
+    assert args.command == "echo"
+    assert args.sample_interval == 1.0  # Default value
