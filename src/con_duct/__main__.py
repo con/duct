@@ -39,6 +39,11 @@ DEFAULT_LOG_LEVEL = "INFO"
 HAS_JSONARGPARSE = ArgumentParser.__module__.startswith("jsonargparse")
 
 DUCT_OUTPUT_PREFIX = ".duct/logs/{datetime_filesafe}-{pid}_"
+DEFAULT_CONFIG_PATHS = [
+    "/etc/duct/config.yaml",
+    "${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml",
+    ".duct/config.yaml",
+]
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
     "stdout": "stdout",
@@ -901,6 +906,13 @@ class Arguments:
             "'current-session' tracks the current session instead of starting a new one. "
             "Useful for tracking slurm jobs or other commands that should run in the current session.",
         )
+        if HAS_JSONARGPARSE:
+            parser.add_argument(
+                "--config",
+                action="config",
+                help="Path to configuration file(s). Can be specified multiple times to merge configs.",
+            )
+            parser.default_config_files = DEFAULT_CONFIG_PATHS
         args = parser.parse_args(
             args=cli_args,
             namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,
