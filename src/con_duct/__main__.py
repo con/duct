@@ -35,12 +35,10 @@ __schema_version__ = "0.2.2"
 
 
 lgr = logging.getLogger("con-duct")
-DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
+DEFAULT_LOG_LEVEL = "INFO"
 HAS_JSONARGPARSE = ArgumentParser.__module__.startswith("jsonargparse")
 
-DUCT_OUTPUT_PREFIX = os.getenv(
-    "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
-)
+DUCT_OUTPUT_PREFIX = ".duct/logs/{datetime_filesafe}-{pid}_"
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
     "stdout": "stdout",
@@ -767,11 +765,16 @@ class Arguments:
     def from_argv(
         cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
     ) -> Arguments:
-        parser = argparse.ArgumentParser(
-            allow_abbrev=False,
-            description=ABOUT_DUCT,
-            formatter_class=CustomHelpFormatter,
-        )
+        parser_kwargs = {
+            "allow_abbrev": False,
+            "description": ABOUT_DUCT,
+            "formatter_class": CustomHelpFormatter,
+        }
+        if HAS_JSONARGPARSE:
+            parser_kwargs["default_env"] = True
+            parser_kwargs["env_prefix"] = "DUCT_"
+
+        parser = ArgumentParser(**parser_kwargs)
         parser.add_argument(
             "command",
             metavar="command [command_args ...]",
@@ -797,7 +800,7 @@ class Arguments:
         parser.add_argument(
             "--summary-format",
             type=str,
-            default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
+            default=EXECUTION_SUMMARY_FORMAT,
             help="Output template to use when printing the summary following execution. "
             "Accepts custom conversion flags: "
             "!S: Converts filesizes to human readable units, green if measured, red if None. "
@@ -808,7 +811,7 @@ class Arguments:
         parser.add_argument(
             "--colors",
             action="store_true",
-            default=os.getenv("DUCT_COLORS", False),
+            default=False,
             help="Use colors in duct output.",
         )
         parser.add_argument(
@@ -834,7 +837,7 @@ class Arguments:
             "--sample-interval",
             "--s-i",
             type=float,
-            default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
+            default=1.0,
             help="Interval in seconds between status checks of the running process. "
             "Sample interval must be less than or equal to report interval, and it achieves the "
             "best results when sample is significantly less than the runtime of the process.",
@@ -843,14 +846,14 @@ class Arguments:
             "--report-interval",
             "--r-i",
             type=float,
-            default=float(os.getenv("DUCT_REPORT_INTERVAL", "60.0")),
+            default=60.0,
             help="Interval in seconds at which to report aggregated data.",
         )
         parser.add_argument(
             "--fail-time",
             "--f-t",
             type=float,
-            default=float(os.getenv("DUCT_FAIL_TIME", "3.0")),
+            default=3.0,
             help="If command fails in less than this specified time (seconds), duct would remove logs. "
             "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
             "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
@@ -859,7 +862,7 @@ class Arguments:
         parser.add_argument(
             "-c",
             "--capture-outputs",
-            default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
+            default="all",
             choices=list(Outputs),
             type=Outputs,
             help="Record stdout, stderr, all, or none to log files. "
@@ -885,7 +888,7 @@ class Arguments:
             "-m",
             "--message",
             type=str,
-            default=os.getenv("DUCT_MESSAGE", ""),
+            default="",
             help="Record a descriptive message about the purpose of this execution. "
             "You can also provide value via DUCT_MESSAGE env variable.",
         )
