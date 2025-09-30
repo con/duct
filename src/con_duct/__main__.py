@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+
+try:
+    from jsonargparse import ArgumentParser
+except ImportError:
+    from argparse import ArgumentParser
+
 import argparse
 from collections import Counter
 from collections.abc import Iterable, Iterator
@@ -30,6 +36,7 @@ __schema_version__ = "0.2.2"
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
+HAS_JSONARGPARSE = ArgumentParser.__module__.startswith("jsonargparse")
 
 DUCT_OUTPUT_PREFIX = os.getenv(
     "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
