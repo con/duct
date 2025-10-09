@@ -149,6 +149,28 @@ class SessionMode(str, Enum):
         return self.value
 
 
+def parse_session_mode(value: str | SessionMode) -> SessionMode:
+    """Convert string to SessionMode using value-based lookup.
+
+    This converter works with both argparse and jsonargparse by using
+    the enum's value (e.g., "new-session") rather than the name (e.g., "NEW_SESSION").
+    """
+    if isinstance(value, SessionMode):
+        return value
+    return SessionMode(value)
+
+
+def parse_record_types(value: str | RecordTypes) -> RecordTypes:
+    """Convert string to RecordTypes using value-based lookup.
+
+    This converter works with both argparse and jsonargparse by using
+    the enum's value (e.g., "system-summary") rather than the name (e.g., "SYSTEM_SUMMARY").
+    """
+    if isinstance(value, RecordTypes):
+        return value
+    return RecordTypes(value)
+
+
 @dataclass
 class SystemInfo:
     cpu_total: int
@@ -867,7 +889,7 @@ class Arguments:
         parser.add_argument(
             "-c",
             "--capture-outputs",
-            default="all",
+            default=Outputs.ALL,
             choices=list(Outputs),
             type=Outputs,
             help="Record stdout, stderr, all, or none to log files. "
@@ -876,7 +898,7 @@ class Arguments:
         parser.add_argument(
             "-o",
             "--outputs",
-            default="all",
+            default=Outputs.ALL,
             choices=list(Outputs),
             type=Outputs,
             help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
@@ -884,9 +906,9 @@ class Arguments:
         parser.add_argument(
             "-t",
             "--record-types",
-            default="all",
+            default=RecordTypes.ALL,
             choices=list(RecordTypes),
-            type=RecordTypes,
+            type=parse_record_types,
             help="Record system-summary, processes-samples, or all",
         )
         parser.add_argument(
@@ -899,9 +921,9 @@ class Arguments:
         )
         parser.add_argument(
             "--mode",
-            default="new-session",
+            default=SessionMode.NEW_SESSION,
             choices=list(SessionMode),
-            type=SessionMode,
+            type=parse_session_mode,
             help="Session mode: 'new-session' creates a new session for the command (default), "
             "'current-session' tracks the current session instead of starting a new one. "
             "Useful for tracking slurm jobs or other commands that should run in the current session.",
