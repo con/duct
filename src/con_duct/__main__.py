@@ -4,7 +4,7 @@ from __future__ import annotations
 try:
     from jsonargparse import ArgumentParser
 except ImportError:
-    from argparse import ArgumentParser
+    from argparse import ArgumentParser  # type: ignore[assignment]
 
 import argparse
 from collections import Counter
@@ -120,7 +120,7 @@ class StrEnum(str, Enum):
     """
 
     @classmethod
-    def parse(cls, value):
+    def parse(cls, value: str | "StrEnum") -> "StrEnum":
         """Convert a string to this enum using value-based lookup.
 
         Works with both argparse and jsonargparse by using the enum constructor
@@ -131,7 +131,7 @@ class StrEnum(str, Enum):
         return cls(value)
 
     def __str__(self) -> str:
-        return self.value
+        return str(self.value)
 
 
 class Outputs(StrEnum):
@@ -794,7 +794,7 @@ class Arguments:
             parser_kwargs["default_env"] = True
             parser_kwargs["env_prefix"] = "DUCT_"
 
-        parser = ArgumentParser(**parser_kwargs)
+        parser = ArgumentParser(**parser_kwargs)  # type: ignore[arg-type]
         parser.add_argument(
             "command",
             metavar="command [command_args ...]",
@@ -930,7 +930,7 @@ class Arguments:
             parser.default_config_files = DEFAULT_CONFIG_PATHS
         args = parser.parse_args(
             args=cli_args,
-            namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,
+            namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,  # type: ignore[arg-type]
         )
         return cls(
             command=args.command,
