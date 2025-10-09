@@ -210,13 +210,42 @@ def test_multiple_config_files_merge() -> None:
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_missing_config_file_ignored() -> None:
-    """Test that missing config files are silently ignored."""
+def test_explicit_config_missing_fails() -> None:
+    """Test that explicit --config with missing file fails."""
     with tempfile.TemporaryDirectory() as tmpdir:
         nonexistent = Path(tmpdir) / "nonexistent.yaml"
-        # Should not raise an error
-        args = Arguments.from_argv(["--config", str(nonexistent), "echo", "hello"])
+        with pytest.raises(SystemExit):
+            Arguments.from_argv(["--config", str(nonexistent), "echo", "hello"])
+
+
+@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
+def test_default_config_paths_missing_ignored() -> None:
+    """Test that missing default config paths are silently ignored."""
+    from con_duct import __main__
+
+    nonexistent_paths = ["/tmp/duct_nonexistent_1.yaml", "/tmp/duct_nonexistent_2.yaml"]
+    with mock.patch.object(__main__, "DEFAULT_CONFIG_PATHS", nonexistent_paths):
+        args = Arguments.from_argv(["echo", "hello"])
         assert args.command == "echo"
+        assert args.sample_interval == 1.0
+
+
+@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
+def test_default_config_in_cwd_loaded() -> None:
+    """Test that .duct/config.yaml in cwd is loaded by default."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        duct_dir = Path(tmpdir) / ".duct"
+        duct_dir.mkdir()
+        config_file = duct_dir / "config.yaml"
+        config_file.write_text("sample_interval: 7.5\n")
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            args = Arguments.from_argv(["echo", "hello"])
+            assert args.sample_interval == 7.5
+        finally:
+            os.chdir(old_cwd)
 
 
 @pytest.mark.skipif(HAS_JSONARGPARSE, reason="Test fallback mode")
