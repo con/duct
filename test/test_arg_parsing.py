@@ -48,7 +48,8 @@ def test_duct_unrecognized_arg(args: list) -> None:
         pytest.fail("Command should have failed with a non-zero exit code")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "duct: error: unrecognized arguments: --unknown" in str(e.stdout)
+        assert "unrecognized arguments" in str(e.stdout).lower()
+        assert "--unknown" in str(e.stdout)
 
 
 def test_duct_missing_cmd() -> None:
@@ -59,9 +60,10 @@ def test_duct_missing_cmd() -> None:
         pytest.fail("Command should have failed with a non-zero exit code")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "duct: error: the following arguments are required: command" in str(
-            e.stdout
-        )
+        # argparse: `error: the following arguments are required: command`
+        # jsonargparse: Key "command" is required but not included
+        assert "command" in str(e.stdout).lower()
+        assert "required" in str(e.stdout).lower()
 
 
 def test_abreviation_disabled() -> None:
