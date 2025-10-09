@@ -792,7 +792,7 @@ class Arguments:
         }
         if HAS_JSONARGPARSE:
             parser_kwargs["default_env"] = True
-            parser_kwargs["env_prefix"] = "DUCT_"
+            parser_kwargs["env_prefix"] = "DUCT"
 
         parser = ArgumentParser(**parser_kwargs)  # type: ignore[arg-type]
         parser.add_argument(
