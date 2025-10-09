@@ -24,7 +24,7 @@ class TestSuiteHelpers(unittest.TestCase):
             command="invalid",
             file_path="dummy.json",
             func=return_non_int,
-            log_level="NONE",
+            log_level="INFO",
         )
         with pytest.raises(TypeError):
             main.execute(args)
@@ -85,7 +85,7 @@ class TestPPrint(unittest.TestCase):
             command="pp",
             file_path="dummy.json",
             func=pprint_json.pprint_json,
-            log_level="NONE",
+            log_level="INFO",
             humanize=False,
         )
         assert main.execute(args) == 0
@@ -99,7 +99,7 @@ class TestPPrint(unittest.TestCase):
             command="pp",
             file_path="dummy.json",
             func=pprint_json.pprint_json,
-            log_level="NONE",
+            log_level="INFO",
             humanize=False,
         )
         assert main.execute(args) == 1
@@ -113,7 +113,7 @@ class TestPPrint(unittest.TestCase):
             command="pp",
             file_path="dummy.json",
             func=pprint_json.pprint_json,
-            log_level="NONE",
+            log_level="INFO",
             humanize=False,
         )
         assert main.execute(args) == 1
@@ -245,7 +245,7 @@ class TestPPrintHumanization(unittest.TestCase):
             command="pp",
             file_path="dummy.json",
             func=pprint_json.pprint_json,
-            log_level="NONE",
+            log_level="INFO",
             humanize=True,
         )
 
@@ -269,7 +269,7 @@ class TestPlotMatplotlib:
             file_path="test/data/mriqc-example/usage.json",
             output="outfile.png",
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
             min_ratio=3.0,
         )
         assert main.execute(args) == 0
@@ -282,7 +282,7 @@ class TestPlotMatplotlib:
             file_path="test/data/mriqc-example/usage_not_to_be_found.json",
             output="outfile.png",
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
         )
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
@@ -297,7 +297,7 @@ class TestPlotMatplotlib:
             file_path="test/data/mriqc-example/usage.json",
             output="outfile.png",
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
         )
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
@@ -310,7 +310,7 @@ class TestPlotMatplotlib:
             file_path="test/data/mriqc-example/info.json",
             output="outfile.png",
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
             min_ratio=3.0,
         )
         assert main.execute(args) == 0
@@ -333,7 +333,7 @@ class TestPlotMatplotlib:
             file_path=abs_info_path,
             output="outfile.png",
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
             min_ratio=3.0,
         )
         assert main.execute(args) == 0
@@ -352,7 +352,7 @@ class TestPlotMatplotlib:
             file_path="test/data/malformed_usage.json",
             output="outfile.png",
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
         )
         assert main.execute(args) == 1
         mock_plot_save.assert_not_called()
@@ -373,7 +373,7 @@ class TestPlotMatplotlib:
             file_path="test/data/mriqc-example/usage.json",
             output=None,  # No output file specified
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
             min_ratio=3.0,
         )
         result = main.execute(args)
@@ -391,7 +391,7 @@ class TestPlotMatplotlib:
             file_path="test/data/mriqc-example/usage.json",
             output=None,  # No output file specified
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
             min_ratio=3.0,
         )
         result = main.execute(args)
@@ -411,7 +411,7 @@ class TestPlotMatplotlib:
             file_path="test/data/mriqc-example/usage.json",
             output=None,  # No output file specified
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
             min_ratio=3.0,
         )
         result = main.execute(args)
@@ -428,7 +428,7 @@ class TestPlotMatplotlib:
             file_path="test/data/mriqc-example/usage.json",
             output=None,
             func=plot.matplotlib_plot,
-            log_level="NONE",
+            log_level="INFO",
         )
 
         result = main.execute(args)
