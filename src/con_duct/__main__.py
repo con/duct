@@ -6,7 +6,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 import json
 import logging
 import math
@@ -24,11 +24,21 @@ import time
 from types import FrameType
 from typing import IO, Any, Optional, TextIO
 
-__version__ = version("con-duct")
+lgr = logging.getLogger("con-duct")
+
+try:
+    __version__ = version("con-duct")
+except PackageNotFoundError as exc:
+    if __name__ == "__main__":
+        # Only for standalone execution
+        lgr.error("Failed to determine version: %s", exc)
+        __version__ = "unknown"
+    else:
+        raise
+
 __schema_version__ = "0.2.2"
 
 
-lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
 DUCT_OUTPUT_PREFIX = os.getenv(
