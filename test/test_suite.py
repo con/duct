@@ -8,10 +8,24 @@ from typing import Any, Optional
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 import pytest
-import yaml
 from con_duct.__main__ import SummaryFormatter
 from con_duct.suite import main, plot, pprint_json
 from con_duct.suite.ls import MINIMUM_SCHEMA_VERSION, ls
+
+try:
+    import yaml
+except ImportError:
+    yaml = None  # type: ignore[assignment]
+
+try:
+    import matplotlib
+except ImportError:
+    matplotlib = None  # type: ignore[assignment]
+
+try:
+    import pyout  # type: ignore[import-untyped]
+except ImportError:
+    pyout = None  # type: ignore[assignment]
 
 
 class TestSuiteHelpers(unittest.TestCase):
@@ -260,6 +274,7 @@ class TestPPrintHumanization(unittest.TestCase):
         assert call_args["wall_clock_time"] == "2m 30.8s"
 
 
+@pytest.mark.skipif(matplotlib is None, reason="matplotlib not installed")
 class TestPlotMatplotlib:
 
     @patch("matplotlib.pyplot.savefig")
@@ -618,6 +633,7 @@ class TestLS(unittest.TestCase):
         assert len(parsed) == 1
         assert "prefix" in parsed[0]
 
+    @pytest.mark.skipif(yaml is None, reason="yaml not installed")
     def test_ls_yaml_output(self) -> None:
         """Test YAML output format."""
         result = self._run_ls(["file1_info.json"], "yaml")
@@ -625,6 +641,7 @@ class TestLS(unittest.TestCase):
         assert len(parsed) == 1
         assert "prefix" in parsed[0]
 
+    @pytest.mark.skipif(pyout is None, reason="pyout not installed")
     def test_ls_pyout_output(self) -> None:
         """Test YAML output format."""
         result = self._run_ls(["file1_info.json"], "pyout")
