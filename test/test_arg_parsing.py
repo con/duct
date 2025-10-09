@@ -107,7 +107,7 @@ def test_mode_invalid_value() -> None:
         pytest.fail("Command should have failed with invalid mode value")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "invalid SessionMode value: 'invalid-mode'" in str(e.stdout)
+        assert "invalid parse value: 'invalid-mode'" in str(e.stdout)
 
 
 def test_message_parsing() -> None:
