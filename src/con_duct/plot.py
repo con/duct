@@ -69,13 +69,19 @@ class HumanizedAxisFormatter:
 def matplotlib_plot(args: argparse.Namespace) -> int:
     try:
         import matplotlib
-        from matplotlib.backends import backend_registry  # type: ignore[attr-defined]
-        from matplotlib.backends.registry import BackendFilter
         import matplotlib.pyplot as plt
         import numpy as np
     except ImportError as e:
         lgr.error("con-duct plot missing required dependency: %s", e)
         return 1
+
+    # Try to import backend registry (added in 3.9)
+    try:
+        from matplotlib.backends import backend_registry  # type: ignore[attr-defined]
+        from matplotlib.backends.registry import BackendFilter
+    except (ImportError, AttributeError):
+        backend_registry = None  # type: ignore[assignment]
+        BackendFilter = None  # type: ignore[assignment,misc]
 
     # Handle info.json files by determining the path to usage file
     file_path = Path(args.file_path)
@@ -158,31 +164,41 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         )
     else:
         # Check if the current backend can display plots interactively
-        try:
-            current_backend = matplotlib.get_backend()  # type: ignore[attr-defined]
-        except AttributeError:
-            # Fallback for matplotlib < 3.10
-            current_backend = matplotlib.rcParams["backend"]  # type: ignore[attr-defined]
-        interactive_backends = backend_registry.list_builtin(BackendFilter.INTERACTIVE)
+        if backend_registry is not None:
+            # matplotlib >= 3.9: Use backend registry to check if backend is interactive
+            try:
+                # get_backend() added in 3.10
+                current_backend = matplotlib.get_backend()  # type: ignore[attr-defined]
+            except AttributeError:
+                # matplotlib 3.9.x: use rcParams instead
+                current_backend = matplotlib.rcParams["backend"]  # type: ignore[attr-defined]
+            interactive_backends = backend_registry.list_builtin(
+                BackendFilter.INTERACTIVE
+            )
 
-        # Note: This only checks builtin backends. Custom interactive backends
-        # would be incorrectly flagged as non-interactive. If this becomes an
-        # issue, we could fallback to try/except around plt.show()
-        if current_backend in interactive_backends:
-            plt.show()
+            if current_backend in interactive_backends:
+                plt.show()
+            else:
+                lgr.error(
+                    "Cannot display plot: your current matplotlib backend is %s "
+                    "which is a not a known interactive backend.",
+                    current_backend,
+                )
+                lgr.error(
+                    "Either set environment variable MPLBACKEND to an interactive backend or "
+                    "use --output to save the plot to a file instead."
+                )
+                lgr.error(
+                    "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
+                )
+                return 1
         else:
-            lgr.error(
-                "Cannot display plot: your current matplotlib backend is %s "
-                "which is a not a known interactive backend.",
-                current_backend,
+            # matplotlib < 3.9: Cannot check backend interactivity, just try plt.show()
+            lgr.warning(
+                "Using matplotlib < 3.9 which lacks backend registry. "
+                "Cannot verify if your backend supports interactive display. "
+                "If plot does not display, use --output to save to a file instead."
             )
-            lgr.error(
-                "Either set environment variable MPLBACKEND to an interactive backend or "
-                "use --output to save the plot to a file instead."
-            )
-            lgr.error(
-                "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
-            )
-            return 1
+            plt.show()
 
     return 0
