@@ -110,14 +110,35 @@ def assert_num(*values: Any) -> None:
         assert isinstance(value, (float, int))
 
 
-class Outputs(str, Enum):
+class StrEnum(str, Enum):
+    """Base class for string enums with value-based conversion support.
+
+    This enables both argparse and jsonargparse to work correctly with enum values,
+    particularly when the enum values differ from their names (e.g., "new-session" vs "NEW_SESSION").
+
+    The parse() classmethod can be used as the type converter in add_argument().
+    """
+
+    @classmethod
+    def parse(cls, value):
+        """Convert a string to this enum using value-based lookup.
+
+        Works with both argparse and jsonargparse by using the enum constructor
+        which performs value-based lookup, rather than name-based bracket notation.
+        """
+        if isinstance(value, cls):
+            return value
+        return cls(value)
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class Outputs(StrEnum):
     ALL = "all"
     NONE = "none"
     STDOUT = "stdout"
     STDERR = "stderr"
-
-    def __str__(self) -> str:
-        return self.value
 
     def has_stdout(self) -> bool:
         return self is Outputs.ALL or self is Outputs.STDOUT
@@ -126,13 +147,10 @@ class Outputs(str, Enum):
         return self is Outputs.ALL or self is Outputs.STDERR
 
 
-class RecordTypes(str, Enum):
+class RecordTypes(StrEnum):
     ALL = "all"
     SYSTEM_SUMMARY = "system-summary"
     PROCESSES_SAMPLES = "processes-samples"
-
-    def __str__(self) -> str:
-        return self.value
 
     def has_system_summary(self) -> bool:
         return self is RecordTypes.ALL or self is RecordTypes.SYSTEM_SUMMARY
@@ -141,34 +159,9 @@ class RecordTypes(str, Enum):
         return self is RecordTypes.ALL or self is RecordTypes.PROCESSES_SAMPLES
 
 
-class SessionMode(str, Enum):
+class SessionMode(StrEnum):
     NEW_SESSION = "new-session"
     CURRENT_SESSION = "current-session"
-
-    def __str__(self) -> str:
-        return self.value
-
-
-def parse_session_mode(value: str | SessionMode) -> SessionMode:
-    """Convert string to SessionMode using value-based lookup.
-
-    This converter works with both argparse and jsonargparse by using
-    the enum's value (e.g., "new-session") rather than the name (e.g., "NEW_SESSION").
-    """
-    if isinstance(value, SessionMode):
-        return value
-    return SessionMode(value)
-
-
-def parse_record_types(value: str | RecordTypes) -> RecordTypes:
-    """Convert string to RecordTypes using value-based lookup.
-
-    This converter works with both argparse and jsonargparse by using
-    the enum's value (e.g., "system-summary") rather than the name (e.g., "SYSTEM_SUMMARY").
-    """
-    if isinstance(value, RecordTypes):
-        return value
-    return RecordTypes(value)
 
 
 @dataclass
@@ -891,7 +884,7 @@ class Arguments:
             "--capture-outputs",
             default=Outputs.ALL,
             choices=list(Outputs),
-            type=Outputs,
+            type=Outputs.parse,
             help="Record stdout, stderr, all, or none to log files. "
             "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
         )
@@ -900,7 +893,7 @@ class Arguments:
             "--outputs",
             default=Outputs.ALL,
             choices=list(Outputs),
-            type=Outputs,
+            type=Outputs.parse,
             help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
         )
         parser.add_argument(
@@ -908,7 +901,7 @@ class Arguments:
             "--record-types",
             default=RecordTypes.ALL,
             choices=list(RecordTypes),
-            type=parse_record_types,
+            type=RecordTypes.parse,
             help="Record system-summary, processes-samples, or all",
         )
         parser.add_argument(
@@ -923,7 +916,7 @@ class Arguments:
             "--mode",
             default=SessionMode.NEW_SESSION,
             choices=list(SessionMode),
-            type=parse_session_mode,
+            type=SessionMode.parse,
             help="Session mode: 'new-session' creates a new session for the command (default), "
             "'current-session' tracks the current session instead of starting a new one. "
             "Useful for tracking slurm jobs or other commands that should run in the current session.",

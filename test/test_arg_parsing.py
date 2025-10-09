@@ -223,3 +223,96 @@ def test_fallback_mode_without_jsonargparse() -> None:
     args = Arguments.from_argv(["echo", "hello"])
     assert args.command == "echo"
     assert args.sample_interval == 1.0  # Default value
+
+
+@pytest.mark.parametrize(
+    "record_types_arg,expected_value",
+    [
+        ([], "all"),  # default
+        (["--record-types", "all"], "all"),
+        (["--record-types", "system-summary"], "system-summary"),
+        (["--record-types", "processes-samples"], "processes-samples"),
+    ],
+)
+def test_record_types_argument_parsing(
+    record_types_arg: list, expected_value: str
+) -> None:
+    """Test that --record-types argument with hyphenated values is parsed correctly."""
+    from con_duct.__main__ import RecordTypes
+
+    cmd_args = record_types_arg + ["echo", "test"]
+    args = Arguments.from_argv(cmd_args)
+    assert str(args.record_types) == expected_value
+    # Verify it's actually an enum instance, not a string
+    assert isinstance(args.record_types, RecordTypes)
+
+
+def test_enum_defaults_are_enum_instances() -> None:
+    """Test that enum defaults are enum instances, not strings."""
+    from con_duct.__main__ import Outputs, RecordTypes, SessionMode
+
+    args = Arguments.from_argv(["echo", "test"])
+    # Verify defaults are enum instances
+    assert isinstance(args.session_mode, SessionMode)
+    assert isinstance(args.record_types, RecordTypes)
+    assert isinstance(args.capture_outputs, Outputs)
+    assert isinstance(args.outputs, Outputs)
+
+
+@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
+def test_enum_conversion_from_config_file() -> None:
+    """Test that hyphenated enum values in config files are converted correctly."""
+    from con_duct.__main__ import RecordTypes, SessionMode
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_file = Path(tmpdir) / "config.yaml"
+        config_file.write_text(
+            "mode: current-session\n"
+            "record_types: system-summary\n"
+            "capture_outputs: stdout\n"
+        )
+        args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
+
+        # Verify values are correct
+        assert str(args.session_mode) == "current-session"
+        assert str(args.record_types) == "system-summary"
+        assert str(args.capture_outputs) == "stdout"
+
+        # Verify they are enum instances, not strings
+        assert isinstance(args.session_mode, SessionMode)
+        assert isinstance(args.record_types, RecordTypes)
+        # Verify enum methods work (would fail if they were strings)
+        assert args.record_types.has_system_summary()
+        assert not args.record_types.has_processes_samples()
+
+
+@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
+def test_all_enum_values_from_config() -> None:
+    """Test all possible enum values can be loaded from config files."""
+    from con_duct.__main__ import RecordTypes, SessionMode
+
+    test_cases = [
+        ("mode: new-session\n", "session_mode", SessionMode.NEW_SESSION),
+        ("mode: current-session\n", "session_mode", SessionMode.CURRENT_SESSION),
+        ("record_types: all\n", "record_types", RecordTypes.ALL),
+        (
+            "record_types: system-summary\n",
+            "record_types",
+            RecordTypes.SYSTEM_SUMMARY,
+        ),
+        (
+            "record_types: processes-samples\n",
+            "record_types",
+            RecordTypes.PROCESSES_SAMPLES,
+        ),
+    ]
+
+    for config_content, attr_name, expected_value in test_cases:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_file = Path(tmpdir) / "config.yaml"
+            config_file.write_text(config_content)
+            args = Arguments.from_argv(["--config", str(config_file), "echo", "test"])
+            actual_value = getattr(args, attr_name)
+            assert (
+                actual_value == expected_value
+            ), f"Failed for {config_content.strip()}: got {actual_value}, expected {expected_value}"
