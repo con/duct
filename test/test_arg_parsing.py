@@ -157,26 +157,80 @@ def test_config_file_loading() -> None:
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_config_precedence() -> None:
-    """Test precedence: config < env < CLI."""
+def test_config_precedence_without_explicit_config() -> None:
+    """Test precedence: env vars override default_config_files."""
+    from con_duct import __main__
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_file = Path(tmpdir) / ".duct" / "config.yaml"
+        config_file.parent.mkdir()
+        config_file.write_text("sample_interval: 2.5\n")
+
+        old_cwd = os.getcwd()
+        old_sample_interval = os.environ.get("DUCT_SAMPLE_INTERVAL")
+        old_report_interval = os.environ.get("DUCT_REPORT_INTERVAL")
+        try:
+            os.chdir(tmpdir)
+            # Clear conftest's DUCT env vars so they don't interfere
+            if "DUCT_SAMPLE_INTERVAL" in os.environ:
+                del os.environ["DUCT_SAMPLE_INTERVAL"]
+            if "DUCT_REPORT_INTERVAL" in os.environ:
+                del os.environ["DUCT_REPORT_INTERVAL"]
+
+            # Patch to only use .duct/config.yaml in this temp directory
+            with mock.patch.object(
+                __main__, "DEFAULT_CONFIG_PATHS", [".duct/config.yaml"]
+            ):
+                # Config value should be used from default location
+                args = Arguments.from_argv(["echo", "hello"])
+                assert args.sample_interval == 2.5
+
+                # Env var should override config
+                with mock.patch.dict(os.environ, {"DUCT_SAMPLE_INTERVAL": "5.0"}):
+                    args = Arguments.from_argv(["echo", "hello"])
+                    assert args.sample_interval == 5.0
+
+                # CLI should override both env and config
+                with mock.patch.dict(os.environ, {"DUCT_SAMPLE_INTERVAL": "5.0"}):
+                    args = Arguments.from_argv(
+                        ["--sample-interval", "10.0", "echo", "hello"]
+                    )
+                    assert args.sample_interval == 10.0
+        finally:
+            os.chdir(old_cwd)
+            if old_sample_interval is not None:
+                os.environ["DUCT_SAMPLE_INTERVAL"] = old_sample_interval
+            if old_report_interval is not None:
+                os.environ["DUCT_REPORT_INTERVAL"] = old_report_interval
+
+
+@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
+@pytest.mark.xfail(
+    reason="jsonargparse treats --config as CLI arg with higher precedence than env vars. "
+    "See https://github.com/omni-us/jsonargparse/issues/663"
+)
+def test_config_precedence_with_explicit_config() -> None:
+    """Test precedence: env vars should override explicit --config.
+
+    XFAIL: jsonargparse currently treats --config as a CLI argument with higher
+    precedence than environment variables. We believe environment variables
+    should override config files regardless of how they're specified.
+
+    Expected: CLI args > env vars > --config > default_config_files > defaults
+    Actual:   CLI args (including --config) > env vars > default_config_files > defaults
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         config_file = Path(tmpdir) / "config.yaml"
-        config_file.write_text(
-            "sample_interval: 2.5\n"
-            "report_interval: 120.0\n"
-            'message: "from config"\n'
-        )
+        config_file.write_text("sample_interval: 2.5\n")
+
         # Config value should be used
         args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
         assert args.sample_interval == 2.5
-        assert args.report_interval == 120.0
-        assert args.message == "from config"
 
-        # Env var should override config
+        # Env var should override explicit --config
         with mock.patch.dict(os.environ, {"DUCT_SAMPLE_INTERVAL": "5.0"}):
             args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
             assert args.sample_interval == 5.0
-            assert args.report_interval == 120.0  # Still from config
 
         # CLI should override both env and config
         with mock.patch.dict(os.environ, {"DUCT_SAMPLE_INTERVAL": "5.0"}):
