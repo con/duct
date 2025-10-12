@@ -3,13 +3,14 @@ import logging
 import os
 import sys
 from typing import List, Optional
+from jsonargparse import ArgumentParser
 from con_duct import __version__
+from con_duct.__main__ import DEFAULT_CONFIG_PATHS, DEFAULT_LOG_LEVEL
 from con_duct.suite.ls import LS_FIELD_CHOICES, ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
 
 lgr = logging.getLogger("con-duct")
-DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
 
 def execute(args: argparse.Namespace) -> int:
@@ -28,11 +29,21 @@ def execute(args: argparse.Namespace) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> None:
-    parser = argparse.ArgumentParser(
-        prog="con-duct",
-        description="A suite of commands to manage or manipulate con-duct logs.",
-        usage="con-duct <command> [options]",
-    )
+    parser_kwargs = {
+        "prog": "con-duct",
+        "description": "A suite of commands to manage or manipulate con-duct logs.",
+        "usage": "con-duct <command> [options]",
+        "default_env": True,
+        "env_prefix": "DUCT",
+    }
+
+    parser = ArgumentParser(**parser_kwargs)  # type: ignore[arg-type]
+
+    config_paths_env = os.environ.get("DUCT_CONFIG_PATHS")
+    if config_paths_env:
+        parser.default_config_files = config_paths_env.split(":")
+    else:
+        parser.default_config_files = DEFAULT_CONFIG_PATHS
     parser.add_argument(
         "-l",
         "--log-level",
@@ -44,10 +55,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
-    subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
+    subparsers = parser.add_subcommands(dest="command", help="Available subcommands")
 
     # Subcommand: pp
-    parser_pp = subparsers.add_parser("pp", help="Pretty print a JSON log.")
+    parser_pp = ArgumentParser()
     parser_pp.add_argument("file_path", help="JSON file to pretty print.")
     parser_pp.add_argument(
         "-H",
@@ -55,12 +66,10 @@ def main(argv: Optional[List[str]] = None) -> None:
         action="store_true",
         help="Convert numeric values to human-readable format",
     )
-    parser_pp.set_defaults(func=pprint_json)
+    subparsers.add_subcommand("pp", parser_pp, help="Pretty print a JSON log.")
 
     # Subcommand: plot
-    parser_plot = subparsers.add_parser(
-        "plot", help="Plot resource usage for an execution."
-    )
+    parser_plot = ArgumentParser()
     parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
     parser_plot.add_argument(
         "-o",
@@ -82,12 +91,12 @@ def main(argv: Optional[List[str]] = None) -> None:
     #     choices=("matplotlib",)
     #     help="which backend to plot with
     # )
-    parser_plot.set_defaults(func=matplotlib_plot)
-
-    parser_ls = subparsers.add_parser(
-        "ls",
-        help="Print execution information for all matching runs.",
+    subparsers.add_subcommand(
+        "plot", parser_plot, help="Plot resource usage for an execution."
     )
+
+    # Subcommand: ls
+    parser_ls = ArgumentParser()
     parser_ls.add_argument(
         "-f",
         "--format",
@@ -114,7 +123,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_ls.add_argument(
         "--colors",
         action="store_true",
-        default=os.getenv("DUCT_COLORS", False),
+        default=False,
         help="Use colors in duct output.",
     )
     parser_ls.add_argument(
@@ -132,11 +141,26 @@ def main(argv: Optional[List[str]] = None) -> None:
         "Example: --eval-filter \"filter_this=='yes'\" filters entries where 'filter_this' is 'yes'. "
         "You can use 're' for regex operations (e.g., --eval-filter \"re.search('2025.02.09.*', prefix)\").",
     )
-    parser_ls.set_defaults(func=ls)
+    subparsers.add_subcommand(
+        "ls", parser_ls, help="Print execution information for all matching runs."
+    )
+
+    # Map command names to their handler functions
+    command_funcs = {
+        "pp": pprint_json,
+        "plot": matplotlib_plot,
+        "ls": ls,
+    }
 
     args = parser.parse_args(argv)
 
     if args.command is None:
         parser.print_help()
     else:
-        sys.exit(execute(args))
+        # Get the subcommand namespace (e.g., args.ls for "ls" command)
+        subcommand_args = getattr(args, args.command)
+        # Manually set the func based on the command
+        subcommand_args.func = command_funcs[args.command]
+        # Also preserve log_level from main parser
+        subcommand_args.log_level = args.log_level
+        sys.exit(execute(subcommand_args))
