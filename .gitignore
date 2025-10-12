@@ -10,5 +10,8 @@ build/
 dist/
 venvs/
 
+# Local working files
+.local.*
+
 # Produced by versioningit
 src/con_duct/_version.py
