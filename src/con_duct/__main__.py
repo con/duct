@@ -928,10 +928,11 @@ class Arguments:
                 parser.default_config_files = config_paths_env.split(":")
             else:
                 parser.default_config_files = DEFAULT_CONFIG_PATHS
-        args = parser.parse_args(
-            args=cli_args,
-            namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,  # type: ignore[arg-type]
-        )
+        args = parser.parse_args(args=cli_args)
+        # Apply cli_kwargs as overrides (for testing)
+        if cli_kwargs:
+            for key, value in cli_kwargs.items():
+                setattr(args, key, value)
         return cls(
             command=args.command,
             command_args=args.command_args,
