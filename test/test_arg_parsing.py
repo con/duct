@@ -146,19 +146,8 @@ def test_message_env_variable() -> None:
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_config_file_loading() -> None:
-    """Test that config files are loaded when jsonargparse is available."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_file = Path(tmpdir) / "config.yaml"
-        config_file.write_text("sample_interval: 2.5\n" 'message: "from config"\n')
-        args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
-        assert args.sample_interval == 2.5
-        assert args.message == "from config"
-
-
-@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_config_precedence_without_explicit_config() -> None:
-    """Test precedence: env vars override default_config_files."""
+def test_config_precedence() -> None:
+    """Test precedence: CLI args > env vars > config files > defaults."""
     from con_duct import __main__
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -167,16 +156,8 @@ def test_config_precedence_without_explicit_config() -> None:
         config_file.write_text("sample_interval: 2.5\n")
 
         old_cwd = os.getcwd()
-        old_sample_interval = os.environ.get("DUCT_SAMPLE_INTERVAL")
-        old_report_interval = os.environ.get("DUCT_REPORT_INTERVAL")
         try:
             os.chdir(tmpdir)
-            # Clear conftest's DUCT env vars so they don't interfere
-            if "DUCT_SAMPLE_INTERVAL" in os.environ:
-                del os.environ["DUCT_SAMPLE_INTERVAL"]
-            if "DUCT_REPORT_INTERVAL" in os.environ:
-                del os.environ["DUCT_REPORT_INTERVAL"]
-
             # Patch to only use .duct/config.yaml in this temp directory
             with mock.patch.object(
                 __main__, "DEFAULT_CONFIG_PATHS", [".duct/config.yaml"]
@@ -198,78 +179,25 @@ def test_config_precedence_without_explicit_config() -> None:
                     assert args.sample_interval == 10.0
         finally:
             os.chdir(old_cwd)
-            if old_sample_interval is not None:
-                os.environ["DUCT_SAMPLE_INTERVAL"] = old_sample_interval
-            if old_report_interval is not None:
-                os.environ["DUCT_REPORT_INTERVAL"] = old_report_interval
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-@pytest.mark.xfail(
-    reason="jsonargparse treats --config as CLI arg with higher precedence than env vars. "
-    "See https://github.com/omni-us/jsonargparse/issues/663"
-)
-def test_config_precedence_with_explicit_config() -> None:
-    """Test precedence: env vars should override explicit --config.
-
-    XFAIL: jsonargparse currently treats --config as a CLI argument with higher
-    precedence than environment variables. We believe environment variables
-    should override config files regardless of how they're specified.
-
-    Expected: CLI args > env vars > --config > default_config_files > defaults
-    Actual:   CLI args (including --config) > env vars > default_config_files > defaults
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_file = Path(tmpdir) / "config.yaml"
-        config_file.write_text("sample_interval: 2.5\n")
-
-        # Config value should be used
-        args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
-        assert args.sample_interval == 2.5
-
-        # Env var should override explicit --config
-        with mock.patch.dict(os.environ, {"DUCT_SAMPLE_INTERVAL": "5.0"}):
-            args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
-            assert args.sample_interval == 5.0
-
-        # CLI should override both env and config
-        with mock.patch.dict(os.environ, {"DUCT_SAMPLE_INTERVAL": "5.0"}):
-            args = Arguments.from_argv(
-                [
-                    "--config",
-                    str(config_file),
-                    "--sample-interval",
-                    "10.0",
-                    "echo",
-                    "hello",
-                ]
-            )
-            assert args.sample_interval == 10.0
-
-
-@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_multiple_config_files_merge() -> None:
-    """Test that multiple config files are merged correctly."""
+def test_duct_config_paths_env_var() -> None:
+    """Test that DUCT_CONFIG_PATHS environment variable overrides default paths."""
     with tempfile.TemporaryDirectory() as tmpdir:
         config1 = Path(tmpdir) / "config1.yaml"
-        config1.write_text("sample_interval: 2.5\n" 'message: "from config1"\n')
+        config1.write_text("sample_interval: 3.5\n" 'message: "from config1"\n')
         config2 = Path(tmpdir) / "config2.yaml"
         config2.write_text("report_interval: 120.0\n" 'message: "from config2"\n')
-        args = Arguments.from_argv(
-            ["--config", str(config1), "--config", str(config2), "echo", "hello"]
-        )
-        assert args.sample_interval == 2.5  # From config1
-        assert args.report_interval == 120.0  # From config2
-        assert args.message == "from config2"  # config2 overrides config1
 
-
-@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_explicit_config_missing_fails() -> None:
-    """Test that explicit --config with missing file fails."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        nonexistent = Path(tmpdir) / "nonexistent.yaml"
-        with pytest.raises(SystemExit):
-            Arguments.from_argv(["--config", str(nonexistent), "echo", "hello"])
+        config_paths = f"{config1}:{config2}"
+        with mock.patch.dict(
+            os.environ, {"DUCT_CONFIG_PATHS": config_paths}, clear=False
+        ):
+            args = Arguments.from_argv(["echo", "hello"])
+            assert args.sample_interval == 3.5  # From config1
+            assert args.report_interval == 120.0  # From config2
+            assert args.message == "from config2"  # config2 overrides config1
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
@@ -356,19 +284,20 @@ def test_enum_conversion_from_config_file() -> None:
             "record_types: system-summary\n"
             "capture_outputs: stdout\n"
         )
-        args = Arguments.from_argv(["--config", str(config_file), "echo", "hello"])
+        with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(config_file)}):
+            args = Arguments.from_argv(["echo", "hello"])
 
-        # Verify values are correct
-        assert str(args.session_mode) == "current-session"
-        assert str(args.record_types) == "system-summary"
-        assert str(args.capture_outputs) == "stdout"
+            # Verify values are correct
+            assert str(args.session_mode) == "current-session"
+            assert str(args.record_types) == "system-summary"
+            assert str(args.capture_outputs) == "stdout"
 
-        # Verify they are enum instances, not strings
-        assert isinstance(args.session_mode, SessionMode)
-        assert isinstance(args.record_types, RecordTypes)
-        # Verify enum methods work (would fail if they were strings)
-        assert args.record_types.has_system_summary()
-        assert not args.record_types.has_processes_samples()
+            # Verify they are enum instances, not strings
+            assert isinstance(args.session_mode, SessionMode)
+            assert isinstance(args.record_types, RecordTypes)
+            # Verify enum methods work (would fail if they were strings)
+            assert args.record_types.has_system_summary()
+            assert not args.record_types.has_processes_samples()
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
@@ -396,8 +325,9 @@ def test_all_enum_values_from_config() -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             config_file = Path(tmpdir) / "config.yaml"
             config_file.write_text(config_content)
-            args = Arguments.from_argv(["--config", str(config_file), "echo", "test"])
-            actual_value = getattr(args, attr_name)
-            assert (
-                actual_value == expected_value
-            ), f"Failed for {config_content.strip()}: got {actual_value}, expected {expected_value}"
+            with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(config_file)}):
+                args = Arguments.from_argv(["echo", "test"])
+                actual_value = getattr(args, attr_name)
+                assert (
+                    actual_value == expected_value
+                ), f"Failed for {config_content.strip()}: got {actual_value}, expected {expected_value}"

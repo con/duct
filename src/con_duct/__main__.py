@@ -96,6 +96,7 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
+  DUCT_CONFIG_PATHS: colon-separated list of config file paths to use instead of defaults
 """
 
 
@@ -922,12 +923,11 @@ class Arguments:
             "Useful for tracking slurm jobs or other commands that should run in the current session.",
         )
         if HAS_JSONARGPARSE:
-            parser.add_argument(
-                "--config",
-                action="config",
-                help="Path to configuration file(s). Can be specified multiple times to merge configs.",
-            )
-            parser.default_config_files = DEFAULT_CONFIG_PATHS
+            config_paths_env = os.environ.get("DUCT_CONFIG_PATHS")
+            if config_paths_env:
+                parser.default_config_files = config_paths_env.split(":")
+            else:
+                parser.default_config_files = DEFAULT_CONFIG_PATHS
         args = parser.parse_args(
             args=cli_args,
             namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,  # type: ignore[arg-type]

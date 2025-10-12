@@ -7,12 +7,14 @@ import pytest
 
 @pytest.fixture(scope="session", autouse=True)
 def set_test_config() -> Generator:
+    # TODO: Replace with config file approach and make opt-in with decorator
     # set DUCT_SAMPLE_INTERVAL and DUCT_REPORT_INTERVAL to small values
     # to speed up testing etc. Those could be overridden by a specific
     # invocation of .from_args() in a test.
+    # Commented out for now because they interfere with config precedence tests
     orig_environ = os.environ.copy()
-    os.environ["DUCT_SAMPLE_INTERVAL"] = "0.01"
-    os.environ["DUCT_REPORT_INTERVAL"] = "0.1"
+    # os.environ["DUCT_SAMPLE_INTERVAL"] = "0.01"
+    # os.environ["DUCT_REPORT_INTERVAL"] = "0.1"
     yield
     # May be not even needed, but should not hurt to cleanup.
     # it is not just a dict, so let's explicitly reset it
