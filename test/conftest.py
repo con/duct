@@ -7,22 +7,30 @@ import pytest
 
 @pytest.fixture(scope="session", autouse=True)
 def set_test_config() -> Generator:
-    # TODO: Replace with config file approach and make opt-in with decorator
-    # set DUCT_SAMPLE_INTERVAL and DUCT_REPORT_INTERVAL to small values
-    # to speed up testing etc. Those could be overridden by a specific
-    # invocation of .from_args() in a test.
-    # Commented out for now because they interfere with config precedence tests
+    """Set DUCT_CONFIG_PATHS to use fast test config by default.
+
+    Tests that need to opt-out (e.g., config precedence tests) can use
+    the no_test_config fixture.
+    """
     orig_environ = os.environ.copy()
-    # os.environ["DUCT_SAMPLE_INTERVAL"] = "0.01"
-    # os.environ["DUCT_REPORT_INTERVAL"] = "0.1"
+    test_config = str(Path(__file__).parent / "fixtures" / "test-config.yaml")
+    os.environ["DUCT_CONFIG_PATHS"] = test_config
     yield
-    # May be not even needed, but should not hurt to cleanup.
-    # it is not just a dict, so let's explicitly reset it
-    for k, v in os.environ.items():
+    # Restore original environment
+    for k in list(os.environ.keys()):
         if k in orig_environ:
-            os.environ[k] = v
+            os.environ[k] = orig_environ[k]
         else:
             del os.environ[k]
+
+
+@pytest.fixture
+def no_test_config() -> Generator:
+    """Opt-out fixture: temporarily remove DUCT_CONFIG_PATHS for tests that need clean config."""
+    original_config_paths = os.environ.pop("DUCT_CONFIG_PATHS", None)
+    yield
+    if original_config_paths is not None:
+        os.environ["DUCT_CONFIG_PATHS"] = original_config_paths
 
 
 @pytest.fixture(autouse=True)

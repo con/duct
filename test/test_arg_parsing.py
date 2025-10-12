@@ -146,7 +146,7 @@ def test_message_env_variable() -> None:
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_config_precedence() -> None:
+def test_config_precedence(no_test_config: None) -> None:  # noqa: U100
     """Test precedence: CLI args > env vars > config files > defaults."""
     from con_duct import __main__
 
@@ -182,7 +182,7 @@ def test_config_precedence() -> None:
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_duct_config_paths_env_var() -> None:
+def test_duct_config_paths_env_var(no_test_config: None) -> None:  # noqa: U100
     """Test that DUCT_CONFIG_PATHS environment variable overrides default paths."""
     with tempfile.TemporaryDirectory() as tmpdir:
         config1 = Path(tmpdir) / "config1.yaml"
@@ -201,7 +201,9 @@ def test_duct_config_paths_env_var() -> None:
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_default_config_paths_missing_ignored() -> None:
+def test_default_config_paths_missing_ignored(
+    no_test_config: None,  # noqa: U100
+) -> None:
     """Test that missing default config paths are silently ignored."""
     from con_duct import __main__
 
@@ -213,7 +215,7 @@ def test_default_config_paths_missing_ignored() -> None:
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_default_config_in_cwd_loaded() -> None:
+def test_default_config_in_cwd_loaded(no_test_config: None) -> None:  # noqa: U100
     """Test that .duct/config.yaml in cwd is loaded by default."""
     with tempfile.TemporaryDirectory() as tmpdir:
         duct_dir = Path(tmpdir) / ".duct"
@@ -273,7 +275,7 @@ def test_enum_defaults_are_enum_instances() -> None:
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_enum_conversion_from_config_file() -> None:
+def test_enum_conversion_from_config_file(no_test_config: None) -> None:  # noqa: U100
     """Test that hyphenated enum values in config files are converted correctly."""
     from con_duct.__main__ import RecordTypes, SessionMode
 
@@ -301,7 +303,7 @@ def test_enum_conversion_from_config_file() -> None:
 
 
 @pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
-def test_all_enum_values_from_config() -> None:
+def test_all_enum_values_from_config(no_test_config: None) -> None:  # noqa: U100
     """Test all possible enum values can be loaded from config files."""
     from con_duct.__main__ import RecordTypes, SessionMode
 
