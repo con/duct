@@ -13,5 +13,8 @@ venvs/
 # Local working files
 .local.*
 
+# AI
+.serena/
+
 # Produced by versioningit
 src/con_duct/_version.py
