@@ -55,7 +55,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
-    subparsers = parser.add_subcommands(dest="command", help="Available subcommands")
+    subparsers = parser.add_subcommands(
+        dest="command", required=False, help="Available subcommands"
+    )
 
     # Subcommand: pp
     parser_pp = ArgumentParser()
@@ -152,7 +154,10 @@ def main(argv: Optional[List[str]] = None) -> None:
         "ls": ls,
     }
 
-    args = parser.parse_args(argv)
+    # Parse args - use _skip_validation to allow unknown keys in config files
+    # This allows sharing config files between duct and con-duct
+    args = parser.parse_args(argv, _skip_validation=True)
+    args = parser.strip_unknown(args)
 
     if args.command is None:
         parser.print_help()
