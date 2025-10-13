@@ -63,6 +63,12 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
+  DUCT_CONFIG_PATHS: colon-separated list of config file paths to use instead
+of defaults
+
+default config file locations:
+['/etc/duct/config.yaml', '${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml',
+'.duct/config.yaml'], Note: no existing default config file found.
 
 positional arguments:
   command [command_args ...]
@@ -166,18 +172,39 @@ usage: con-duct <command> [options]
 
 A suite of commands to manage or manipulate con-duct logs.
 
-positional arguments:
-  {pp,plot,ls}          Available subcommands
-    pp                  Pretty print a JSON log.
-    plot                Plot resource usage for an execution.
-    ls                  Print execution information for all matching runs.
+default config file locations:
+  ['/etc/duct/config.yaml',
+  '${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml', '.duct/config.yaml'],
+  Note: no existing default config file found.
 
 options:
-  -h, --help            show this help message and exit
-  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ARG:   -h, --help     Show this help message and exit.
+  ARG:   -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ENV:   DUCT_LOG_LEVEL
                         Level of log output to stderr, use NONE to entirely
-                        disable.
-  --version             show program's version number and exit
+                        disable. (type: <method 'upper' of 'str' objects>,
+                        default: INFO)
+  ARG:   --version
+  ENV:   DUCT_VERSION
+                        show program's version number and exit
+
+subcommands:
+  For more details of each subcommand, add it as an argument followed by
+  --help.
+
+  ENV:   DUCT_COMMAND
+
+  Available subcommands:
+                        Available subcommands
+    ARG:   pp
+  ENV:   DUCT_PP
+                        Pretty print a JSON log.
+    ARG:   plot
+  ENV:   DUCT_PLOT
+                        Plot resource usage for an execution.
+    ARG:   ls
+  ENV:   DUCT_LS
+                        Print execution information for all matching runs.
 
 ```
 <!-- END EXTRAS HELP -->
