@@ -92,14 +92,6 @@ environment variables:
   Many duct options can be configured by environment variables (which are
   overridden by command line options).
 
-  DUCT_LOG_LEVEL: see --log-level
-  DUCT_OUTPUT_PREFIX: see --output-prefix
-  DUCT_SUMMARY_FORMAT: see --summary-format
-  DUCT_SAMPLE_INTERVAL: see --sample-interval
-  DUCT_REPORT_INTERVAL: see --report-interval
-  DUCT_CAPTURE_OUTPUTS: see --capture-outputs
-  DUCT_MESSAGE: see --message
-  DUCT_MODE: see --mode
   DUCT_CONFIG_PATHS: colon-separated list of config file paths to use instead of defaults
 """
 
