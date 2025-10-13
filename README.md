@@ -56,13 +56,6 @@ environment variables:
   Many duct options can be configured by environment variables (which are
   overridden by command line options).
 
-  DUCT_LOG_LEVEL: see --log-level
-  DUCT_OUTPUT_PREFIX: see --output-prefix
-  DUCT_SUMMARY_FORMAT: see --summary-format
-  DUCT_SAMPLE_INTERVAL: see --sample-interval
-  DUCT_REPORT_INTERVAL: see --report-interval
-  DUCT_CAPTURE_OUTPUTS: see --capture-outputs
-  DUCT_MESSAGE: see --message
   DUCT_CONFIG_PATHS: colon-separated list of config file paths to use instead
 of defaults
 
@@ -71,84 +64,110 @@ default config file locations:
 '.duct/config.yaml'], Note: no existing default config file found.
 
 positional arguments:
-  command [command_args ...]
+  ARG:   command [command_args ...]
+  ENV:   DUCT_COMMAND
                         The command to execute, along with its arguments.
-  command_args          Arguments for the command.
+                        (required)
+  ARG:   command_args
+  ENV:   DUCT_COMMAND_ARGS
+                        Arguments for the command.
 
 options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+  ARG:   -h, --help     Show this help message and exit.
+  ARG:   --version
+  ENV:   DUCT_VERSION
+                        show program's version number and exit
+  ARG:   -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+  ENV:   DUCT_OUTPUT_PREFIX
                         File string format to be used as a prefix for the
                         files -- the captured stdout and stderr and the
                         resource usage logs. The understood variables are
                         {datetime}, {datetime_filesafe}, and {pid}. Leading
-                        directories will be created if they do not exist. You
-                        can also provide value via DUCT_OUTPUT_PREFIX env
-                        variable. (default:
+                        directories will be created if they do not exist.
+                        (type: str, default:
                         .duct/logs/{datetime_filesafe}-{pid}_)
-  --summary-format SUMMARY_FORMAT
+  ARG:   --summary-format SUMMARY_FORMAT
+  ENV:   DUCT_SUMMARY_FORMAT
                         Output template to use when printing the summary
                         following execution. Accepts custom conversion flags:
                         !S: Converts filesizes to human readable units, green
                         if measured, red if None. !E: Colors exit code, green
                         if falsey, red if truthy, and red if None. !X: Colors
                         green if truthy, red if falsey. !N: Colors green if
-                        not None, red if None (default: Summary: Exit Code:
-                        {exit_code!E} Command: {command} Log files location:
-                        {logs_prefix} Wall Clock Time: {wall_clock_time:.3f}
-                        sec Memory Peak Usage (RSS): {peak_rss!S} Memory
-                        Average Usage (RSS): {average_rss!S} Virtual Memory
-                        Peak Usage (VSZ): {peak_vsz!S} Virtual Memory Average
-                        Usage (VSZ): {average_vsz!S} Memory Peak Percentage:
+                        not None, red if None (type: str, default: Summary:
+                        Exit Code: {exit_code!E} Command: {command} Log files
+                        location: {logs_prefix} Wall Clock Time:
+                        {wall_clock_time:.3f} sec Memory Peak Usage (RSS):
+                        {peak_rss!S} Memory Average Usage (RSS):
+                        {average_rss!S} Virtual Memory Peak Usage (VSZ):
+                        {peak_vsz!S} Virtual Memory Average Usage (VSZ):
+                        {average_vsz!S} Memory Peak Percentage:
                         {peak_pmem:.2f!N}% Memory Average Percentage:
                         {average_pmem:.2f!N}% CPU Peak Usage:
                         {peak_pcpu:.2f!N}% Average CPU Usage:
                         {average_pcpu:.2f!N}% )
-  --colors              Use colors in duct output. (default: False)
-  --clobber             Replace log files if they already exist. (default:
+  ARG:   --colors
+  ENV:   DUCT_COLORS
+                        Use colors in duct output. (default: False)
+  ARG:   --clobber
+  ENV:   DUCT_CLOBBER
+                        Replace log files if they already exist. (default:
                         False)
-  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ARG:   -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ENV:   DUCT_LOG_LEVEL
                         Level of log output to stderr, use NONE to entirely
-                        disable. (default: INFO)
-  -q, --quiet           [deprecated, use log level NONE] Disable duct logging
+                        disable. (type: <method 'upper' of 'str' objects>,
+                        default: INFO)
+  ARG:   -q, --quiet
+  ENV:   DUCT_QUIET
+                        [deprecated, use log level NONE] Disable duct logging
                         output (to stderr) (default: False)
-  --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
+  ARG:   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
+  ENV:   DUCT_SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval must be less than or
                         equal to report interval, and it achieves the best
                         results when sample is significantly less than the
-                        runtime of the process. (default: 1.0)
-  --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
+                        runtime of the process. (type: float, default: 1.0)
+  ARG:   --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
+  ENV:   DUCT_REPORT_INTERVAL
                         Interval in seconds at which to report aggregated
-                        data. (default: 60.0)
-  --fail-time FAIL_TIME, --f-t FAIL_TIME
+                        data. (type: float, default: 60.0)
+  ARG:   --fail-time FAIL_TIME, --f-t FAIL_TIME
+  ENV:   DUCT_FAIL_TIME
                         If command fails in less than this specified time
                         (seconds), duct would remove logs. Set to 0 if you
                         would like to keep logs for a failing command
                         regardless of its run time. Set to negative (e.g. -1)
                         if you would like to not keep logs for any failing
-                        command. (default: 3.0)
-  -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
-                        Record stdout, stderr, all, or none to log files. You
-                        can also provide value via DUCT_CAPTURE_OUTPUTS env
-                        variable. (default: all)
-  -o {all,none,stdout,stderr}, --outputs {all,none,stdout,stderr}
+                        command. (type: float, default: 3.0)
+  ARG:   -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
+  ENV:   DUCT_CAPTURE_OUTPUTS
+                        Record stdout, stderr, all, or none to log files.
+                        (type: <bound method parse of <enum 'Outputs'>>,
+                        default: all)
+  ARG:   -o {all,none,stdout,stderr}, --outputs {all,none,stdout,stderr}
+  ENV:   DUCT_OUTPUTS
                         Print stdout, stderr, all, or none to stdout/stderr
-                        respectively. (default: all)
-  -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
+                        respectively. (type: <bound method parse of <enum
+                        'Outputs'>>, default: all)
+  ARG:   -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
+  ENV:   DUCT_RECORD_TYPES
                         Record system-summary, processes-samples, or all
-                        (default: all)
-  -m MESSAGE, --message MESSAGE
+                        (type: <bound method parse of <enum 'RecordTypes'>>,
+                        default: all)
+  ARG:   -m MESSAGE, --message MESSAGE
+  ENV:   DUCT_MESSAGE
                         Record a descriptive message about the purpose of this
-                        execution. You can also provide value via DUCT_MESSAGE
-                        env variable. (default: )
-  --mode {new-session,current-session}
+                        execution. (type: str, default: )
+  ARG:   --mode {new-session,current-session}
+  ENV:   DUCT_MODE
                         Session mode: 'new-session' creates a new session for
                         the command (default), 'current-session' tracks the
                         current session instead of starting a new one. Useful
                         for tracking slurm jobs or other commands that should
-                        run in the current session. (default: new-session)
+                        run in the current session. (type: <bound method parse
+                        of <enum 'SessionMode'>>, default: new-session)
 
 ```
 <!-- END HELP -->
