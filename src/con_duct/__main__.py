@@ -96,6 +96,7 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
+  DUCT_MODE: see --mode
   DUCT_CONFIG_PATHS: colon-separated list of config file paths to use instead of defaults
 """
 
