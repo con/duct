@@ -43,14 +43,17 @@ class TestSuiteHelpers(unittest.TestCase):
         with pytest.raises(TypeError):
             main.execute(args)
 
-    @patch("con_duct.suite.main.argparse.ArgumentParser")
+    @patch("con_duct.suite.main.ArgumentParser")
     def test_parser_mock_sanity(self, mock_parser: MagicMock) -> None:
-        mock_args = MagicMock
+        mock_args = MagicMock()
         mock_args.command = None
-        mock_parser.parse_args.return_value = mock_args
+        mock_parser_instance = MagicMock()
+        mock_parser_instance.parse_args.return_value = mock_args
+        mock_parser_instance.strip_unknown.return_value = mock_args
+        mock_parser.return_value = mock_parser_instance
         argv = ["/path/to/con-duct", "plot", "--help"]
         main.main(argv)
-        mock_parser.return_value.print_help.assert_called_once()
+        mock_parser_instance.print_help.assert_called_once()
 
     @patch("con_duct.suite.main.sys.exit", new_callable=MagicMock)
     @patch("con_duct.suite.main.sys.stderr", new_callable=MagicMock)
