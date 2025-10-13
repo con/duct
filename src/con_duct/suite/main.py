@@ -3,7 +3,18 @@ import logging
 import os
 import sys
 from typing import List, Optional
-from jsonargparse import ArgumentParser
+
+try:
+    from jsonargparse import ArgumentParser
+except ImportError:
+    print(
+        "Error: con-duct requires jsonargparse to be installed.\n"
+        "Install it with: pip install con-duct[all]\n"
+        "or: pip install jsonargparse[yaml]",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
 from con_duct import __version__
 from con_duct.__main__ import DEFAULT_CONFIG_PATHS, DEFAULT_LOG_LEVEL
 from con_duct.suite.ls import LS_FIELD_CHOICES, ls
