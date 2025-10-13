@@ -3,8 +3,11 @@ from __future__ import annotations
 
 try:
     from jsonargparse import ArgumentParser
+    from jsonargparse._formatters import DefaultHelpFormatter
 except ImportError:
     from argparse import ArgumentParser  # type: ignore[assignment]
+
+    DefaultHelpFormatter = None  # type: ignore[misc, assignment]
 
 import argparse
 from collections import Counter
@@ -101,10 +104,21 @@ environment variables:
 """
 
 
-class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
-    def _fill_text(self, text: str, width: int, _indent: str) -> str:
-        # Override _fill_text to respect the newlines and indentation in descriptions
-        return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
+# Conditional inheritance based on jsonargparse availability
+if HAS_JSONARGPARSE:
+    # When jsonargparse is available, inherit from both DefaultHelpFormatter and ArgumentDefaultsHelpFormatter
+    # This gives us "ARG: ... ENV: DUCT_X" format plus default values
+    class CustomHelpFormatter(DefaultHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):  # type: ignore[misc]
+        def _fill_text(self, text: str, width: int, _indent: str) -> str:
+            # Override _fill_text to respect the newlines and indentation in descriptions
+            return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
+
+else:
+    # Fallback mode: only inherit from ArgumentDefaultsHelpFormatter
+    class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
+        def _fill_text(self, text: str, width: int, _indent: str) -> str:
+            # Override _fill_text to respect the newlines and indentation in descriptions
+            return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
 
 
 def assert_num(*values: Any) -> None:
@@ -816,8 +830,7 @@ class Arguments:
             help="File string format to be used as a prefix for the files -- the captured "
             "stdout and stderr and the resource usage logs. The understood variables are "
             "{datetime}, {datetime_filesafe}, and {pid}. "
-            "Leading directories will be created if they do not exist. "
-            "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
+            "Leading directories will be created if they do not exist.",
         )
         parser.add_argument(
             "--summary-format",
@@ -887,8 +900,7 @@ class Arguments:
             default=Outputs.ALL,
             choices=list(Outputs),
             type=Outputs.parse,
-            help="Record stdout, stderr, all, or none to log files. "
-            "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
+            help="Record stdout, stderr, all, or none to log files.",
         )
         parser.add_argument(
             "-o",
@@ -911,8 +923,7 @@ class Arguments:
             "--message",
             type=str,
             default="",
-            help="Record a descriptive message about the purpose of this execution. "
-            "You can also provide value via DUCT_MESSAGE env variable.",
+            help="Record a descriptive message about the purpose of this execution.",
         )
         parser.add_argument(
             "--mode",
