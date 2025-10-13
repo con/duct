@@ -3,14 +3,19 @@ import contextlib
 from io import StringIO
 import json
 import os
+import re
+import subprocess
 import tempfile
 from typing import Any, Optional
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 import pytest
 from con_duct.__main__ import SummaryFormatter
-from con_duct.suite import main, plot, pprint_json
-from con_duct.suite.ls import MINIMUM_SCHEMA_VERSION, ls
+
+jsonargparse = pytest.importorskip("jsonargparse")
+
+from con_duct.suite import main, plot, pprint_json  # noqa: E402
+from con_duct.suite.ls import MINIMUM_SCHEMA_VERSION, ls  # noqa: E402
 
 try:
     import yaml
@@ -89,6 +94,14 @@ class TestSuiteHelpers(unittest.TestCase):
         # second call
         assert "--fakehelp" in mock_stderr.write.mock_calls[1][1][0]
         mock_exit.assert_called_once_with(2)
+
+    def test_con_duct_version(self) -> None:
+        """Test that con-duct --version returns correct version format."""
+        out = subprocess.check_output(["con-duct", "--version"])
+        output_str = out.decode("utf-8").strip()
+        assert output_str.startswith("con-duct ")
+        # Check that it has a version pattern
+        assert re.match(r"con-duct \d+\.\d+\.\d+", output_str)
 
 
 class TestPPrint(unittest.TestCase):
