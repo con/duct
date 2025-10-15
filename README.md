@@ -61,8 +61,7 @@ variable)
 
 default config file locations:
 ['/etc/duct/config.yaml', '${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml',
-'.duct/config.yaml'], Note: default values below are the ones overridden by
-the contents of: .duct/config.yaml
+'.duct/config.yaml'], Note: no existing default config file found.
 
 positional arguments:
   ARG:   command [command_args ...]
@@ -189,7 +188,7 @@ A suite of commands to manage or manipulate con-duct logs.
 
 default config file locations:
 ['/etc/duct/config.yaml', '${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml',
-'.duct/config.yaml']
+'.duct/config.yaml'], Note: no existing default config file found.
 
 options:
   ARG:   -h, --help     Show this help message and exit.
