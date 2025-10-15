@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-
-try:
-    from jsonargparse import ArgumentParser
-    from jsonargparse._formatters import DefaultHelpFormatter
-except ImportError:
-    from argparse import ArgumentParser  # type: ignore[assignment]
-
-    DefaultHelpFormatter = None  # type: ignore[misc, assignment]
-
 import argparse
 from collections import Counter
 from collections.abc import Iterable, Iterator
@@ -27,11 +18,12 @@ import socket
 import string
 import subprocess
 import sys
-import textwrap
 import threading
 import time
 from types import FrameType
 from typing import IO, Any, Optional, TextIO
+from jsonargparse import ArgumentParser
+from jsonargparse._formatters import DefaultHelpFormatter
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
@@ -39,7 +31,6 @@ __schema_version__ = "0.2.2"
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = "INFO"
-HAS_JSONARGPARSE = ArgumentParser.__module__.startswith("jsonargparse")
 
 DUCT_OUTPUT_PREFIX = ".duct/logs/{datetime_filesafe}-{pid}_"
 DEFAULT_CONFIG_PATHS = [
@@ -89,67 +80,11 @@ limitations:
   duct exits as soon as the primary process exits.
 
 configuration:
-  When jsonargparse is installed, all options can be configured via:
+  All options can be configured via:
   - YAML config files (default paths or DUCT_CONFIG_PATHS environment variable)
   - Environment variables with DUCT_ prefix (e.g., DUCT_SAMPLE_INTERVAL)
   - Command line arguments (highest precedence)
 """
-
-
-# Conditional inheritance based on jsonargparse availability
-if HAS_JSONARGPARSE:
-    from jsonargparse._formatters import get_env_var
-
-    # When jsonargparse is available, inherit from both DefaultHelpFormatter and ArgumentDefaultsHelpFormatter
-    # This gives us "ARG: ... ENV: DUCT_X" format plus default values
-    class CustomHelpFormatter(DefaultHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):  # type: ignore[misc]
-        def _fill_text(self, text: str, width: int, _indent: str) -> str:
-            # Override _fill_text to respect the newlines and indentation in descriptions
-            return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
-
-        def _format_action_invocation(self, action: argparse.Action) -> str:  # type: ignore[override]
-            """Override to suppress env vars for positional args and version actions."""
-            from jsonargparse._actions import _ActionHelpClassPath, _ActionPrintConfig
-
-            try:
-                from jsonargparse._completions import ShtabAction
-            except ImportError:
-                ShtabAction = type(None)  # type: ignore[misc, assignment]
-
-            # Get the base formatter (without ENV vars)
-            base_invocation = (
-                argparse.ArgumentDefaultsHelpFormatter._format_action_invocation(
-                    self, action
-                )
-            )
-
-            # Skip env vars for positional arguments (no option_strings)
-            if not action.option_strings:
-                return "ARG:   " + base_invocation
-
-            # Skip env vars for version and help actions
-            if isinstance(
-                action,
-                (
-                    _ActionHelpClassPath,
-                    _ActionPrintConfig,
-                    ShtabAction,
-                    argparse._HelpAction,
-                    argparse._VersionAction,
-                ),
-            ):
-                return "ARG:   " + base_invocation
-
-            # Otherwise show both ARG and ENV
-            env_var = get_env_var(self, action)
-            return f"ARG:   {base_invocation}\n  ENV:   {env_var}"
-
-else:
-    # Fallback mode: only inherit from ArgumentDefaultsHelpFormatter
-    class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
-        def _fill_text(self, text: str, width: int, _indent: str) -> str:
-            # Override _fill_text to respect the newlines and indentation in descriptions
-            return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
 
 
 def assert_num(*values: Any) -> None:
@@ -157,58 +92,55 @@ def assert_num(*values: Any) -> None:
         assert isinstance(value, (float, int))
 
 
-class StrEnum(str, Enum):
-    """Base class for string enums with value-based conversion support.
+class DuctHelpFormatter(DefaultHelpFormatter):  # type: ignore[misc]
+    """Custom formatter that suppresses environment variable display for certain arguments.
 
-    This enables both argparse and jsonargparse to work correctly with enum values,
-    particularly when the enum values differ from their names (e.g., "new-session" vs "NEW_SESSION").
-
-    The parse() classmethod can be used as the type converter in add_argument().
+    Suppresses ENV: lines for arguments that don't make sense as environment variables,
+    such as the command to execute, its arguments, and the version action.
     """
 
-    @classmethod
-    def parse(cls, value: str | "StrEnum") -> "StrEnum":
-        """Convert a string to this enum using value-based lookup.
+    def format_help(self) -> str:
+        import re
 
-        Works with both argparse and jsonargparse by using the enum constructor
-        which performs value-based lookup, rather than name-based bracket notation.
-        """
-        if isinstance(value, cls):
-            return value
-        return cls(value)
+        help_text = super().format_help()
+        # Remove ENV: lines for arguments that don't make sense as env vars
+        # See https://github.com/omni-us/jsonargparse/issues/786 for feature request
+        # to suppress env vars per-argument instead of needing this workaround
+        for env_var in ("DUCT_COMMAND", "DUCT_COMMAND_ARGS", "DUCT_VERSION"):
+            help_text = re.sub(
+                rf"^\s*ENV:\s+{env_var}\s*$", "", help_text, flags=re.MULTILINE
+            )
+        return help_text
 
-    def __str__(self) -> str:
-        return str(self.value)
 
-
-class Outputs(StrEnum):
-    ALL = "all"
-    NONE = "none"
-    STDOUT = "stdout"
-    STDERR = "stderr"
+class Outputs(str, Enum):
+    all = "all"
+    none = "none"
+    stdout = "stdout"
+    stderr = "stderr"
 
     def has_stdout(self) -> bool:
-        return self is Outputs.ALL or self is Outputs.STDOUT
+        return self is Outputs.all or self is Outputs.stdout
 
     def has_stderr(self) -> bool:
-        return self is Outputs.ALL or self is Outputs.STDERR
+        return self is Outputs.all or self is Outputs.stderr
 
 
-class RecordTypes(StrEnum):
-    ALL = "all"
-    SYSTEM_SUMMARY = "system-summary"
-    PROCESSES_SAMPLES = "processes-samples"
+class RecordTypes(str, Enum):
+    all = "all"
+    summary = "summary"
+    samples = "samples"
 
     def has_system_summary(self) -> bool:
-        return self is RecordTypes.ALL or self is RecordTypes.SYSTEM_SUMMARY
+        return self is RecordTypes.all or self is RecordTypes.summary
 
     def has_processes_samples(self) -> bool:
-        return self is RecordTypes.ALL or self is RecordTypes.PROCESSES_SAMPLES
+        return self is RecordTypes.all or self is RecordTypes.samples
 
 
-class SessionMode(StrEnum):
-    NEW_SESSION = "new-session"
-    CURRENT_SESSION = "current-session"
+class SessionMode(str, Enum):
+    new = "new"
+    current = "current"
 
 
 @dataclass
@@ -835,11 +767,10 @@ class Arguments:
         parser_kwargs = {
             "allow_abbrev": False,
             "description": ABOUT_DUCT,
-            "formatter_class": CustomHelpFormatter,
+            "formatter_class": DuctHelpFormatter,
+            "default_env": True,
+            "env_prefix": "DUCT",
         }
-        if HAS_JSONARGPARSE:
-            parser_kwargs["default_env"] = True
-            parser_kwargs["env_prefix"] = "DUCT"
 
         parser = ArgumentParser(**parser_kwargs)  # type: ignore[arg-type]
         parser.add_argument(
@@ -928,26 +859,23 @@ class Arguments:
         parser.add_argument(
             "-c",
             "--capture-outputs",
-            default=Outputs.ALL,
-            choices=list(Outputs),
-            type=Outputs.parse,
+            default=Outputs.all,
+            type=Outputs,
             help="Record stdout, stderr, all, or none to log files.",
         )
         parser.add_argument(
             "-o",
             "--outputs",
-            default=Outputs.ALL,
-            choices=list(Outputs),
-            type=Outputs.parse,
+            default=Outputs.all,
+            type=Outputs,
             help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
         )
         parser.add_argument(
             "-t",
             "--record-types",
-            default=RecordTypes.ALL,
-            choices=list(RecordTypes),
-            type=RecordTypes.parse,
-            help="Record system-summary, processes-samples, or all",
+            default=RecordTypes.all,
+            type=RecordTypes,
+            help="Record summary, samples, or all",
         )
         parser.add_argument(
             "-m",
@@ -957,20 +885,18 @@ class Arguments:
             help="Record a descriptive message about the purpose of this execution.",
         )
         parser.add_argument(
-            "--mode",
-            default=SessionMode.NEW_SESSION,
-            choices=list(SessionMode),
-            type=SessionMode.parse,
-            help="Session mode: 'new-session' creates a new session for the command (default), "
-            "'current-session' tracks the current session instead of starting a new one. "
+            "--session-mode",
+            default=SessionMode.new,
+            type=SessionMode,
+            help="Session mode: 'new' creates a new session for the command (default), "
+            "'current' tracks the current session instead of starting a new one. "
             "Useful for tracking slurm jobs or other commands that should run in the current session.",
         )
-        if HAS_JSONARGPARSE:
-            config_paths_env = os.environ.get("DUCT_CONFIG_PATHS")
-            if config_paths_env:
-                parser.default_config_files = config_paths_env.split(":")
-            else:
-                parser.default_config_files = DEFAULT_CONFIG_PATHS
+        config_paths_env = os.environ.get("DUCT_CONFIG_PATHS")
+        if config_paths_env:
+            parser.default_config_files = config_paths_env.split(":")
+        else:
+            parser.default_config_files = DEFAULT_CONFIG_PATHS
         args = parser.parse_args(args=cli_args)
         # Apply cli_kwargs as overrides (for testing)
         if cli_kwargs:
@@ -991,7 +917,7 @@ class Arguments:
             colors=args.colors,
             log_level=args.log_level,
             quiet=args.quiet,
-            session_mode=args.mode,
+            session_mode=args.session_mode,
             message=args.message,
         )
 
@@ -1216,7 +1142,7 @@ def execute(args: Arguments) -> int:
             [str(args.command)] + args.command_args,
             stdout=stdout_file,
             stderr=stderr_file,
-            start_new_session=(args.session_mode == SessionMode.NEW_SESSION),
+            start_new_session=(args.session_mode == SessionMode.new),
             cwd=report.working_directory,
         )
     except FileNotFoundError:
@@ -1234,11 +1160,11 @@ def execute(args: Arguments) -> int:
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
-        if args.session_mode == SessionMode.NEW_SESSION:
+        if args.session_mode == SessionMode.new:
             report.session_id = os.getsid(
                 process.pid
             )  # Get session ID of the new process
-        else:  # CURRENT_SESSION mode
+        else:  # current mode
             report.session_id = os.getsid(
                 os.getpid()
             )  # Get session ID of duct's own process

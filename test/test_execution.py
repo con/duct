@@ -84,8 +84,8 @@ def test_outputs_full(temp_output_dir: str) -> None:
     args = Arguments.from_argv(
         [script_path, "--duration", "1"],
         # It is our default, but let's be explicit
-        capture_outputs=Outputs.ALL,
-        outputs=Outputs.ALL,
+        capture_outputs=Outputs.all,
+        outputs=Outputs.all,
         output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
@@ -96,8 +96,8 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
         [script_path, "--duration", "1"],
-        capture_outputs=Outputs.NONE,
-        outputs=Outputs.ALL,
+        capture_outputs=Outputs.none,
+        outputs=Outputs.all,
         output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
@@ -111,8 +111,8 @@ def test_outputs_capture(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
         [script_path, "--duration", "1"],
-        capture_outputs=Outputs.ALL,
-        outputs=Outputs.NONE,
+        capture_outputs=Outputs.all,
+        outputs=Outputs.none,
         output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
@@ -125,8 +125,8 @@ def test_outputs_none(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     args = Arguments.from_argv(
         [script_path, "--duration", "1"],
-        capture_outputs=Outputs.NONE,
-        outputs=Outputs.NONE,
+        capture_outputs=Outputs.none,
+        outputs=Outputs.none,
         output_prefix=temp_output_dir,
     )
     assert execute(args) == 0

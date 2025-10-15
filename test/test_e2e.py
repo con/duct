@@ -40,11 +40,11 @@ def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> N
         assert len(all_child_pids) == num_children + 1
 
 
-@pytest.mark.parametrize("session_mode", ["new-session", "current-session"])
+@pytest.mark.parametrize("session_mode", ["new", "current"])
 def test_session_modes(temp_output_dir: str, session_mode: str) -> None:
     """Test that both session modes work correctly and collect appropriate data."""
     duct_prefix = f"{temp_output_dir}log_"
-    command = f"duct -q --s-i 0.01 --r-i 0.05 --mode {session_mode} -p {duct_prefix} sleep 0.3"
+    command = f"duct -q --s-i 0.01 --r-i 0.05 --session-mode {session_mode} -p {duct_prefix} sleep 0.3"
     subprocess.check_output(command, shell=True)
 
     # Check that log files were created
@@ -95,13 +95,13 @@ def test_session_mode_behavior_difference(temp_output_dir: str) -> None:
 
         # Run duct with new-session mode - should NOT see background process
         subprocess.check_output(
-            f"duct -q --s-i 0.01 --r-i 0.05 --mode new-session -p {new_session_prefix} sleep 2",
+            f"duct -q --s-i 0.01 --r-i 0.05 --session-mode new -p {new_session_prefix} sleep 2",
             shell=True,
         )
 
         # Run duct with current-session mode - should see background process
         subprocess.check_output(
-            f"duct -q --s-i 0.01 --r-i 0.05 --mode current-session -p {current_session_prefix} sleep 2",
+            f"duct -q --s-i 0.01 --r-i 0.05 --session-mode current -p {current_session_prefix} sleep 2",
             shell=True,
         )
 

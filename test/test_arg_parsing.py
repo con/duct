@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 from unittest import mock
 import pytest
-from con_duct.__main__ import HAS_JSONARGPARSE, Arguments
+from con_duct.__main__ import Arguments
 
 
 def test_duct_help() -> None:
@@ -77,31 +77,32 @@ def test_abreviation_disabled() -> None:
 @pytest.mark.parametrize(
     "mode_arg,expected_mode",
     [
-        ([], "new-session"),  # default
-        (["--mode", "new-session"], "new-session"),
-        (["--mode", "current-session"], "current-session"),
+        ([], "new"),  # default
+        (["--session-mode", "new"], "new"),
+        (["--session-mode", "current"], "current"),
     ],
 )
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
-    """Test that --mode argument is parsed correctly with both long and short forms."""
+    """Test that --session-mode argument is parsed correctly."""
     # Import here to avoid module loading issues in tests
     from con_duct.__main__ import Arguments
 
     cmd_args = mode_arg + ["echo", "test"]
     args = Arguments.from_argv(cmd_args)
-    assert str(args.session_mode) == expected_mode
+    assert args.session_mode.value == expected_mode
 
 
 def test_mode_invalid_value() -> None:
-    """Test that invalid --mode values are rejected."""
+    """Test that invalid --session-mode values are rejected."""
     try:
         subprocess.check_output(
-            ["duct", "--mode", "invalid-mode", "echo", "test"], stderr=subprocess.STDOUT
+            ["duct", "--session-mode", "invalid-mode", "echo", "test"],
+            stderr=subprocess.STDOUT,
         )
         pytest.fail("Command should have failed with invalid mode value")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "invalid parse value: 'invalid-mode'" in str(e.stdout)
+        assert "invalid" in str(e.stdout).lower()
 
 
 def test_message_parsing() -> None:
@@ -122,9 +123,6 @@ def test_message_parsing() -> None:
     assert args.message == ""
 
 
-@pytest.mark.skipif(
-    not HAS_JSONARGPARSE, reason="Env var support requires jsonargparse"
-)
 def test_message_env_variable() -> None:
     """Test that DUCT_MESSAGE environment variable is used as default."""
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
@@ -137,7 +135,6 @@ def test_message_env_variable() -> None:
         assert args.message == "cli message"
 
 
-@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
 def test_config_precedence(no_test_config: None) -> None:  # noqa: U100
     """Test precedence: CLI args > env vars > config files > defaults."""
     from con_duct import __main__
@@ -173,7 +170,6 @@ def test_config_precedence(no_test_config: None) -> None:  # noqa: U100
             os.chdir(old_cwd)
 
 
-@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
 def test_duct_config_paths_env_var(no_test_config: None) -> None:  # noqa: U100
     """Test that DUCT_CONFIG_PATHS environment variable overrides default paths."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -192,7 +188,6 @@ def test_duct_config_paths_env_var(no_test_config: None) -> None:  # noqa: U100
             assert args.message == "from config2"  # config2 overrides config1
 
 
-@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
 def test_default_config_paths_missing_ignored(
     no_test_config: None,  # noqa: U100
 ) -> None:
@@ -206,7 +201,6 @@ def test_default_config_paths_missing_ignored(
         assert args.sample_interval == 1.0
 
 
-@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
 def test_default_config_in_cwd_loaded(no_test_config: None) -> None:  # noqa: U100
     """Test that .duct/config.yaml in cwd is loaded by default."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -224,32 +218,24 @@ def test_default_config_in_cwd_loaded(no_test_config: None) -> None:  # noqa: U1
             os.chdir(old_cwd)
 
 
-@pytest.mark.skipif(HAS_JSONARGPARSE, reason="Test fallback mode")
-def test_fallback_mode_without_jsonargparse() -> None:
-    """Test that duct works without jsonargparse (fallback mode)."""
-    args = Arguments.from_argv(["echo", "hello"])
-    assert args.command == "echo"
-    assert args.sample_interval == 1.0  # Default value
-
-
 @pytest.mark.parametrize(
     "record_types_arg,expected_value",
     [
         ([], "all"),  # default
         (["--record-types", "all"], "all"),
-        (["--record-types", "system-summary"], "system-summary"),
-        (["--record-types", "processes-samples"], "processes-samples"),
+        (["--record-types", "summary"], "summary"),
+        (["--record-types", "samples"], "samples"),
     ],
 )
 def test_record_types_argument_parsing(
     record_types_arg: list, expected_value: str
 ) -> None:
-    """Test that --record-types argument with hyphenated values is parsed correctly."""
+    """Test that --record-types argument is parsed correctly."""
     from con_duct.__main__ import RecordTypes
 
     cmd_args = record_types_arg + ["echo", "test"]
     args = Arguments.from_argv(cmd_args)
-    assert str(args.record_types) == expected_value
+    assert args.record_types.value == expected_value
     # Verify it's actually an enum instance, not a string
     assert isinstance(args.record_types, RecordTypes)
 
@@ -266,25 +252,24 @@ def test_enum_defaults_are_enum_instances() -> None:
     assert isinstance(args.outputs, Outputs)
 
 
-@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
 def test_enum_conversion_from_config_file(no_test_config: None) -> None:  # noqa: U100
-    """Test that hyphenated enum values in config files are converted correctly."""
+    """Test that enum values in config files are converted correctly."""
     from con_duct.__main__ import RecordTypes, SessionMode
 
     with tempfile.TemporaryDirectory() as tmpdir:
         config_file = Path(tmpdir) / "config.yaml"
         config_file.write_text(
-            "mode: current-session\n"
-            "record_types: system-summary\n"
+            "session_mode: current\n"
+            "record_types: summary\n"
             "capture_outputs: stdout\n"
         )
         with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(config_file)}):
             args = Arguments.from_argv(["echo", "hello"])
 
             # Verify values are correct
-            assert str(args.session_mode) == "current-session"
-            assert str(args.record_types) == "system-summary"
-            assert str(args.capture_outputs) == "stdout"
+            assert args.session_mode.value == "current"
+            assert args.record_types.value == "summary"
+            assert args.capture_outputs.value == "stdout"
 
             # Verify they are enum instances, not strings
             assert isinstance(args.session_mode, SessionMode)
@@ -294,25 +279,16 @@ def test_enum_conversion_from_config_file(no_test_config: None) -> None:  # noqa
             assert not args.record_types.has_processes_samples()
 
 
-@pytest.mark.skipif(not HAS_JSONARGPARSE, reason="jsonargparse not available")
 def test_all_enum_values_from_config(no_test_config: None) -> None:  # noqa: U100
     """Test all possible enum values can be loaded from config files."""
     from con_duct.__main__ import RecordTypes, SessionMode
 
     test_cases = [
-        ("mode: new-session\n", "session_mode", SessionMode.NEW_SESSION),
-        ("mode: current-session\n", "session_mode", SessionMode.CURRENT_SESSION),
-        ("record_types: all\n", "record_types", RecordTypes.ALL),
-        (
-            "record_types: system-summary\n",
-            "record_types",
-            RecordTypes.SYSTEM_SUMMARY,
-        ),
-        (
-            "record_types: processes-samples\n",
-            "record_types",
-            RecordTypes.PROCESSES_SAMPLES,
-        ),
+        ("session_mode: new\n", "session_mode", SessionMode.new),
+        ("session_mode: current\n", "session_mode", SessionMode.current),
+        ("record_types: all\n", "record_types", RecordTypes.all),
+        ("record_types: summary\n", "record_types", RecordTypes.summary),
+        ("record_types: samples\n", "record_types", RecordTypes.samples),
     ]
 
     for config_content, attr_name, expected_value in test_cases:
