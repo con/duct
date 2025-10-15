@@ -88,22 +88,61 @@ limitations:
   If a command spawns child processes, duct will collect data on them, but
   duct exits as soon as the primary process exits.
 
-environment variables:
-  Many duct options can be configured by environment variables (which are
-  overridden by command line options).
-
-  DUCT_CONFIG_PATHS: colon-separated list of config file paths to use instead of defaults
+configuration:
+  When jsonargparse is installed, all options can be configured via:
+  - YAML config files (default paths or DUCT_CONFIG_PATHS environment variable)
+  - Environment variables with DUCT_ prefix (e.g., DUCT_SAMPLE_INTERVAL)
+  - Command line arguments (highest precedence)
 """
 
 
 # Conditional inheritance based on jsonargparse availability
 if HAS_JSONARGPARSE:
+    from jsonargparse._formatters import get_env_var
+
     # When jsonargparse is available, inherit from both DefaultHelpFormatter and ArgumentDefaultsHelpFormatter
     # This gives us "ARG: ... ENV: DUCT_X" format plus default values
     class CustomHelpFormatter(DefaultHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):  # type: ignore[misc]
         def _fill_text(self, text: str, width: int, _indent: str) -> str:
             # Override _fill_text to respect the newlines and indentation in descriptions
             return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
+
+        def _format_action_invocation(self, action: argparse.Action) -> str:  # type: ignore[override]
+            """Override to suppress env vars for positional args and version actions."""
+            from jsonargparse._actions import _ActionHelpClassPath, _ActionPrintConfig
+
+            try:
+                from jsonargparse._completions import ShtabAction
+            except ImportError:
+                ShtabAction = type(None)  # type: ignore[misc, assignment]
+
+            # Get the base formatter (without ENV vars)
+            base_invocation = (
+                argparse.ArgumentDefaultsHelpFormatter._format_action_invocation(
+                    self, action
+                )
+            )
+
+            # Skip env vars for positional arguments (no option_strings)
+            if not action.option_strings:
+                return "ARG:   " + base_invocation
+
+            # Skip env vars for version and help actions
+            if isinstance(
+                action,
+                (
+                    _ActionHelpClassPath,
+                    _ActionPrintConfig,
+                    ShtabAction,
+                    argparse._HelpAction,
+                    argparse._VersionAction,
+                ),
+            ):
+                return "ARG:   " + base_invocation
+
+            # Otherwise show both ARG and ENV
+            env_var = get_env_var(self, action)
+            return f"ARG:   {base_invocation}\n  ENV:   {env_var}"
 
 else:
     # Fallback mode: only inherit from ArgumentDefaultsHelpFormatter
