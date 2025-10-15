@@ -28,6 +28,24 @@ from con_duct.suite.pprint_json import pprint_json
 lgr = logging.getLogger("con-duct")
 
 
+class ConDuctHelpFormatter(CustomHelpFormatter):  # type: ignore[misc]
+    """Custom formatter that suppresses config validation errors in help output.
+
+    When con-duct shares config files with duct, validation errors may appear
+    in help output for duct-specific keys. This formatter filters them out.
+    """
+
+    def format_help(self) -> str:
+        import re
+
+        help_text = super().format_help()
+        # Remove the validation error message using regex
+        # Pattern matches from ", Note: tried getting defaults..." to "...is not expected"
+        pattern = r",\s*Note:\s*tried getting defaults.*?is not\s+expected"
+        help_text = re.sub(pattern, "", help_text, flags=re.DOTALL)
+        return help_text
+
+
 def execute(args: argparse.Namespace) -> int:
 
     if args.log_level == "NONE":
@@ -50,7 +68,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         "usage": "con-duct <command> [options]",
         "default_env": True,
         "env_prefix": "DUCT",
-        "formatter_class": CustomHelpFormatter,
+        "formatter_class": ConDuctHelpFormatter,
     }
 
     parser = ArgumentParser(**parser_kwargs)  # type: ignore[arg-type]
@@ -60,6 +78,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         parser.default_config_files = config_paths_env.split(":")
     else:
         parser.default_config_files = DEFAULT_CONFIG_PATHS
+
     parser.add_argument(
         "-l",
         "--log-level",
@@ -76,7 +95,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     )
 
     # Subcommand: pp
-    parser_pp = ArgumentParser(formatter_class=CustomHelpFormatter)
+    parser_pp = ArgumentParser(formatter_class=ConDuctHelpFormatter)
     parser_pp.add_argument("file_path", help="JSON file to pretty print.")
     parser_pp.add_argument(
         "-H",
@@ -87,7 +106,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     subparsers.add_subcommand("pp", parser_pp, help="Pretty print a JSON log.")
 
     # Subcommand: plot
-    parser_plot = ArgumentParser(formatter_class=CustomHelpFormatter)
+    parser_plot = ArgumentParser(formatter_class=ConDuctHelpFormatter)
     parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
     parser_plot.add_argument(
         "-o",
@@ -114,7 +133,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     )
 
     # Subcommand: ls
-    parser_ls = ArgumentParser(formatter_class=CustomHelpFormatter)
+    parser_ls = ArgumentParser(formatter_class=ConDuctHelpFormatter)
     parser_ls.add_argument(
         "-f",
         "--format",
