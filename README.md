@@ -52,32 +52,28 @@ limitations:
   If a command spawns child processes, duct will collect data on them, but
   duct exits as soon as the primary process exits.
 
-environment variables:
-  Many duct options can be configured by environment variables (which are
-  overridden by command line options).
-
-  DUCT_CONFIG_PATHS: colon-separated list of config file paths to use instead
-of defaults
+configuration:
+  When jsonargparse is installed, all options can be configured via:
+  - YAML config files (default paths or DUCT_CONFIG_PATHS environment
+variable)
+  - Environment variables with DUCT_ prefix (e.g., DUCT_SAMPLE_INTERVAL)
+  - Command line arguments (highest precedence)
 
 default config file locations:
 ['/etc/duct/config.yaml', '${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml',
-'.duct/config.yaml'], Note: no existing default config file found.
+'.duct/config.yaml'], Note: default values below are the ones overridden by
+the contents of: .duct/config.yaml
 
 positional arguments:
   ARG:   command [command_args ...]
-  ENV:   DUCT_COMMAND
                         The command to execute, along with its arguments.
                         (required)
-  ARG:   command_args
-  ENV:   DUCT_COMMAND_ARGS
-                        Arguments for the command.
+  ARG:   command_args   Arguments for the command.
 
 options:
   ARG:   -h, --help     Show this help message and exit.
-  ARG:   --version
-  ENV:   DUCT_VERSION
-                        show program's version number and exit
-  ARG:   -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+  ARG:   --version      show program's version number and exit
+  ARG:   -p, --output-prefix OUTPUT_PREFIX
   ENV:   DUCT_OUTPUT_PREFIX
                         File string format to be used as a prefix for the
                         files -- the captured stdout and stderr and the
@@ -113,7 +109,7 @@ options:
   ENV:   DUCT_CLOBBER
                         Replace log files if they already exist. (default:
                         False)
-  ARG:   -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ARG:   -l, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
   ENV:   DUCT_LOG_LEVEL
                         Level of log output to stderr, use NONE to entirely
                         disable. (type: <method 'upper' of 'str' objects>,
@@ -122,18 +118,18 @@ options:
   ENV:   DUCT_QUIET
                         [deprecated, use log level NONE] Disable duct logging
                         output (to stderr) (default: False)
-  ARG:   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
+  ARG:   --sample-interval, --s-i SAMPLE_INTERVAL
   ENV:   DUCT_SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval must be less than or
                         equal to report interval, and it achieves the best
                         results when sample is significantly less than the
                         runtime of the process. (type: float, default: 1.0)
-  ARG:   --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
+  ARG:   --report-interval, --r-i REPORT_INTERVAL
   ENV:   DUCT_REPORT_INTERVAL
                         Interval in seconds at which to report aggregated
                         data. (type: float, default: 60.0)
-  ARG:   --fail-time FAIL_TIME, --f-t FAIL_TIME
+  ARG:   --fail-time, --f-t FAIL_TIME
   ENV:   DUCT_FAIL_TIME
                         If command fails in less than this specified time
                         (seconds), duct would remove logs. Set to 0 if you
@@ -141,22 +137,22 @@ options:
                         regardless of its run time. Set to negative (e.g. -1)
                         if you would like to not keep logs for any failing
                         command. (type: float, default: 3.0)
-  ARG:   -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
+  ARG:   -c, --capture-outputs {all,none,stdout,stderr}
   ENV:   DUCT_CAPTURE_OUTPUTS
                         Record stdout, stderr, all, or none to log files.
                         (type: <bound method parse of <enum 'Outputs'>>,
                         default: all)
-  ARG:   -o {all,none,stdout,stderr}, --outputs {all,none,stdout,stderr}
+  ARG:   -o, --outputs {all,none,stdout,stderr}
   ENV:   DUCT_OUTPUTS
                         Print stdout, stderr, all, or none to stdout/stderr
                         respectively. (type: <bound method parse of <enum
                         'Outputs'>>, default: all)
-  ARG:   -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
+  ARG:   -t, --record-types {all,system-summary,processes-samples}
   ENV:   DUCT_RECORD_TYPES
                         Record system-summary, processes-samples, or all
                         (type: <bound method parse of <enum 'RecordTypes'>>,
                         default: all)
-  ARG:   -m MESSAGE, --message MESSAGE
+  ARG:   -m, --message MESSAGE
   ENV:   DUCT_MESSAGE
                         Record a descriptive message about the purpose of this
                         execution. (type: str, default: )
@@ -194,11 +190,13 @@ A suite of commands to manage or manipulate con-duct logs.
 default config file locations:
   ['/etc/duct/config.yaml',
   '${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml', '.duct/config.yaml'],
-  Note: no existing default config file found.
+  Note: tried getting defaults considering default_config_files but failed
+  due to: Problem in default config file ".duct/config.yaml": Validation
+  failed: Key 'sample_interval' is not expected
 
 options:
   ARG:   -h, --help     Show this help message and exit.
-  ARG:   -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ARG:   -l, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
   ENV:   DUCT_LOG_LEVEL
                         Level of log output to stderr, use NONE to entirely
                         disable. (type: <method 'upper' of 'str' objects>,
