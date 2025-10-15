@@ -492,6 +492,7 @@ class TestLS(unittest.TestCase):
                 fields=["prefix", "schema_version"],
                 eval_filter=None,
                 format=fmt,
+                reverse=False,
                 func=ls,
             )
         buf = StringIO()
@@ -523,6 +524,7 @@ class TestLS(unittest.TestCase):
             fields=["prefix", "schema_version"],
             eval_filter="filter_this=='yes'",
             format="summaries",
+            reverse=False,
             func=ls,
         )
         result = self._run_ls(paths, "summaries", args)
@@ -631,3 +633,39 @@ class TestLS(unittest.TestCase):
         # pyout header
         assert "PREFIX" in result
         assert os.path.join(self.temp_dir.name, "file1_") in result
+
+    def test_ls_reverse_order(self) -> None:
+        """Test that --reverse flag reverses the order of results."""
+        paths = ["file1_info.json", "file2_info.json"]
+
+        # Get normal order
+        args_normal = argparse.Namespace(
+            paths=[os.path.join(self.temp_dir.name, path) for path in paths],
+            colors=False,
+            fields=["prefix", "schema_version"],
+            eval_filter=None,
+            format="json",
+            reverse=False,
+            func=ls,
+        )
+        result_normal = self._run_ls(paths, "json", args_normal)
+        parsed_normal = json.loads(result_normal)
+
+        # Get reversed order
+        args_reverse = argparse.Namespace(
+            paths=[os.path.join(self.temp_dir.name, path) for path in paths],
+            colors=False,
+            fields=["prefix", "schema_version"],
+            eval_filter=None,
+            format="json",
+            reverse=True,
+            func=ls,
+        )
+        result_reverse = self._run_ls(paths, "json", args_reverse)
+        parsed_reverse = json.loads(result_reverse)
+
+        # Check that the order is actually reversed
+        assert len(parsed_normal) == 2
+        assert len(parsed_reverse) == 2
+        assert parsed_normal[0]["prefix"] == parsed_reverse[1]["prefix"]
+        assert parsed_normal[1]["prefix"] == parsed_reverse[0]["prefix"]
