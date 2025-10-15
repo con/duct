@@ -16,7 +16,11 @@ except ImportError:
     sys.exit(1)
 
 from con_duct import __version__
-from con_duct.__main__ import DEFAULT_CONFIG_PATHS, DEFAULT_LOG_LEVEL
+from con_duct.__main__ import (
+    DEFAULT_CONFIG_PATHS,
+    DEFAULT_LOG_LEVEL,
+    CustomHelpFormatter,
+)
 from con_duct.suite.ls import LS_FIELD_CHOICES, ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
@@ -46,6 +50,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         "usage": "con-duct <command> [options]",
         "default_env": True,
         "env_prefix": "DUCT",
+        "formatter_class": CustomHelpFormatter,
     }
 
     parser = ArgumentParser(**parser_kwargs)  # type: ignore[arg-type]
@@ -71,7 +76,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     )
 
     # Subcommand: pp
-    parser_pp = ArgumentParser()
+    parser_pp = ArgumentParser(formatter_class=CustomHelpFormatter)
     parser_pp.add_argument("file_path", help="JSON file to pretty print.")
     parser_pp.add_argument(
         "-H",
@@ -82,7 +87,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     subparsers.add_subcommand("pp", parser_pp, help="Pretty print a JSON log.")
 
     # Subcommand: plot
-    parser_plot = ArgumentParser()
+    parser_plot = ArgumentParser(formatter_class=CustomHelpFormatter)
     parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
     parser_plot.add_argument(
         "-o",
@@ -109,7 +114,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     )
 
     # Subcommand: ls
-    parser_ls = ArgumentParser()
+    parser_ls = ArgumentParser(formatter_class=CustomHelpFormatter)
     parser_ls.add_argument(
         "-f",
         "--format",
