@@ -18,6 +18,7 @@ import socket
 import string
 import subprocess
 import sys
+import textwrap
 import threading
 import time
 from types import FrameType
@@ -98,6 +99,10 @@ class DuctHelpFormatter(DefaultHelpFormatter):  # type: ignore[misc]
     Suppresses ENV: lines for arguments that don't make sense as environment variables,
     such as the command to execute, its arguments, and the version action.
     """
+
+    def _fill_text(self, text: str, width: int, _indent: str) -> str:
+        """Override to respect newlines and indentation in descriptions."""
+        return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
 
     def format_help(self) -> str:
         import re
