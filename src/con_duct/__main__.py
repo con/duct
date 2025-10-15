@@ -33,7 +33,7 @@ __schema_version__ = "0.2.2"
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = "INFO"
 
-DUCT_OUTPUT_PREFIX = ".duct/logs/{datetime_filesafe}-{pid}_"
+DEFAULT_OUTPUT_PREFIX = ".duct/logs/{datetime_filesafe}-{pid}_"
 DEFAULT_CONFIG_PATHS = [
     "/etc/duct/config.yaml",
     "${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml",
@@ -793,7 +793,7 @@ class Arguments:
             "-p",
             "--output-prefix",
             type=str,
-            default=DUCT_OUTPUT_PREFIX,
+            default=DEFAULT_OUTPUT_PREFIX,
             help="File string format to be used as a prefix for the files -- the captured "
             "stdout and stderr and the resource usage logs. The understood variables are "
             "{datetime}, {datetime_filesafe}, and {pid}. "

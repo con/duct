@@ -5,7 +5,12 @@ import sys
 from typing import List, Optional
 from jsonargparse import ArgumentParser
 from con_duct import __version__
-from con_duct.__main__ import DEFAULT_CONFIG_PATHS, DEFAULT_LOG_LEVEL, DuctHelpFormatter
+from con_duct.__main__ import (
+    DEFAULT_CONFIG_PATHS,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_OUTPUT_PREFIX,
+    DuctHelpFormatter,
+)
 from con_duct.suite.ls import LS_FIELD_CHOICES, ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
@@ -88,6 +93,14 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
+    parser.add_argument(
+        "-p",
+        "--output-prefix",
+        type=str,
+        default=DEFAULT_OUTPUT_PREFIX,
+        help="File prefix pattern used by duct. Shared with duct's "
+        "--output-prefix for config/env compatibility.",
+    )
     subparsers = parser.add_subcommands(
         dest="command", required=False, help="Available subcommands"
     )
@@ -165,7 +178,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         "paths",
         nargs="*",
         help="Path to duct report files, only `info.json` would be considered. "
-        "If not provided, the program will glob for files that match DUCT_OUTPUT_PREFIX.",
+        "If not provided, searches using the output-prefix pattern "
+        "(from --output-prefix, DUCT_OUTPUT_PREFIX env, or config).",
     )
     parser_ls.add_argument(
         "-e",
@@ -199,6 +213,8 @@ def main(argv: Optional[List[str]] = None) -> None:
         subcommand_args = getattr(args, args.command)
         # Manually set the func based on the command
         subcommand_args.func = command_funcs[args.command]
-        # Also preserve log_level from main parser
+        # Also preserve log_level and output_prefix from main parser
         subcommand_args.log_level = args.log_level
+        if hasattr(args, "output_prefix"):
+            subcommand_args.output_prefix = args.output_prefix
         sys.exit(execute(subcommand_args))

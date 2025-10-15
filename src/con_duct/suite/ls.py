@@ -6,7 +6,11 @@ import logging
 import re
 from types import ModuleType
 from typing import Any, Dict, List, Optional
-from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter, __schema_version__
+from con_duct.__main__ import (
+    DEFAULT_OUTPUT_PREFIX,
+    SummaryFormatter,
+    __schema_version__,
+)
 from con_duct.utils import parse_version
 
 try:
@@ -217,7 +221,13 @@ def pyout_ls(run_data_list: List[OrderedDict[str, Any]], enable_colors: bool) ->
 
 def ls(args: argparse.Namespace) -> int:
     if not args.paths:
-        pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*"
+        # Use output_prefix from args if provided, otherwise use default
+        output_prefix = getattr(args, "output_prefix", None) or DEFAULT_OUTPUT_PREFIX
+        lgr.debug(f"output_prefix: {output_prefix!r}")
+        if "{" in output_prefix:
+            pattern = f"{output_prefix[:output_prefix.index('{')]}*"
+        else:
+            pattern = f"{output_prefix}*"
         args.paths = [p for p in glob.glob(pattern)]
 
     if args.format == "auto":
