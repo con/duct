@@ -19,30 +19,21 @@ lgr = logging.getLogger("con-duct")
 
 
 class ConDuctHelpFormatter(DuctHelpFormatter):  # type: ignore[misc]
-    """Custom formatter that suppresses config validation errors in help output.
-
-    When con-duct shares config files with duct, validation errors may appear
-    in help output for duct-specific keys. This formatter filters them out.
-    Also suppresses environment variable display for subcommands.
-    """
+    """Custom formatter that suppresses extraneous help output."""
 
     def format_help(self) -> str:
         import re
 
         help_text = super().format_help()
-        # Remove the validation error message using regex
-        # Pattern matches from ", Note: tried getting defaults..." to "...is not expected"
+        # Remove complaints about extra keys (ie sample_interval, which is used in duct not con-duct)
         pattern = r",\s*Note:\s*tried getting defaults.*?is not\s+expected"
         help_text = re.sub(pattern, "", help_text, flags=re.DOTALL)
 
+        # TODO remove after https://github.com/omni-us/jsonargparse/pull/787 is released
         # Remove all ENV: lines from the subcommands section
-        # See https://github.com/omni-us/jsonargparse/issues/786 for feature request
-        # to suppress env vars per-argument instead of needing this workaround
-        # Split by "subcommands:" header, then remove ENV: lines from everything after
         parts = help_text.split("subcommands:", 1)
         if len(parts) == 2:
             before, after = parts
-            # Remove all ENV: lines from the subcommands section
             after = re.sub(r"^\s*ENV:\s+\S+\s*$", "", after, flags=re.MULTILINE)
             help_text = before + "subcommands:" + after
 
