@@ -292,7 +292,7 @@ def execute(args: argparse.Namespace) -> int:
     return result
 
 
-def duct_main() -> None:
+def duct_entrypoint() -> None:
     """Entry point for the 'duct' command - delegates to 'con-duct run'."""
     os.execvp("con-duct", ["con-duct", "run"] + sys.argv[1:])
 
