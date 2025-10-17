@@ -23,7 +23,7 @@ from types import FrameType
 from typing import IO, TYPE_CHECKING, Any, Optional, TextIO
 
 if TYPE_CHECKING:
-    from con_duct.suite.main import Arguments
+    from con_duct.suite.main import RunArguments
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
@@ -859,7 +859,7 @@ class ProcessSignalHandler:
             os._exit(1)
 
 
-def execute(args: Arguments) -> int:
+def execute(args: RunArguments) -> int:
     """A wrapper to execute a command, monitor and log the process details.
 
     Returns exit code of the executed process.

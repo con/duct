@@ -58,7 +58,7 @@ class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 
 @dataclass
-class Arguments:
+class RunArguments:
     command: str
     command_args: list[str]
     output_prefix: str
@@ -84,9 +84,8 @@ class Arguments:
             )
 
     @classmethod
-    def from_argv(
-        cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
-    ) -> "Arguments":
+    def create_parser(cls) -> argparse.ArgumentParser:
+        """Create and configure the argument parser for duct."""
         parser = argparse.ArgumentParser(
             allow_abbrev=False,
             description=ABOUT_DUCT,
@@ -218,6 +217,13 @@ class Arguments:
             "'current-session' tracks the current session instead of starting a new one. "
             "Useful for tracking slurm jobs or other commands that should run in the current session.",
         )
+        return parser
+
+    @classmethod
+    def from_argv(
+        cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
+    ) -> "RunArguments":
+        parser = cls.create_parser()
         args = parser.parse_args(
             args=cli_args,
             namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,
@@ -249,7 +255,25 @@ def run_command(args: argparse.Namespace) -> int:
         datefmt="%Y-%m-%dT%H:%M:%S%z",
         level=getattr(logging, os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()),
     )
-    duct_args = Arguments.from_argv(args.duct_args)
+    # Convert the parsed Namespace to a RunArguments object
+    duct_args = RunArguments(
+        command=args.command,
+        command_args=args.command_args,
+        output_prefix=args.output_prefix,
+        sample_interval=args.sample_interval,
+        report_interval=args.report_interval,
+        fail_time=args.fail_time,
+        capture_outputs=args.capture_outputs,
+        outputs=args.outputs,
+        record_types=args.record_types,
+        summary_format=args.summary_format,
+        clobber=args.clobber,
+        colors=args.colors,
+        log_level=args.log_level,
+        quiet=args.quiet,
+        session_mode=args.mode,
+        message=args.message,
+    )
     return duct_execute(duct_args)
 
 
@@ -288,15 +312,15 @@ def main(argv: Optional[List[str]] = None) -> None:
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # Subcommand: run
+    # Use the parser from RunArguments.create_parser() as a parent
+    # to get all the arguments for executing a command with monitoring
+    duct_parser = RunArguments.create_parser()
     parser_run = subparsers.add_parser(
         "run",
         help="Execute a command with duct monitoring.",
-        add_help=False,
-    )
-    parser_run.add_argument(
-        "duct_args",
-        nargs=argparse.REMAINDER,
-        help="Arguments to pass to duct",
+        parents=[duct_parser],
+        add_help=False,  # Parent parser already provides --help
+        formatter_class=CustomHelpFormatter,
     )
     parser_run.set_defaults(func=run_command)
 
