@@ -11,6 +11,7 @@ import json
 import logging
 import math
 import os
+import platform
 import re
 import shutil
 import signal
@@ -470,18 +471,29 @@ class Report:
     def collect_sample(self) -> Optional[Sample]:
         assert self.session_id is not None
         sample = Sample()
+
+        system = platform.system()
+        if system == "Darwin":
+            ps_command = [
+                "ps",
+                "-ax",
+                "-o",
+                "pid,sess,pcpu,pmem,rss,vsz,etime,stat,cmd",
+            ]
+        elif system == "Linux":
+            ps_command = [
+                "ps",
+                "-w",
+                "-s",
+                str(self.session_id),
+                "-o",
+                "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
+            ]
+        else:
+            raise NotImplementedError(f"Unsupported platform: {system}")
+
         try:
-            output = subprocess.check_output(
-                [
-                    "ps",
-                    "-w",
-                    "-s",
-                    str(self.session_id),
-                    "-o",
-                    "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
-                ],
-                text=True,
-            )
+            output = subprocess.check_output(*ps_command, text=True)
             for line in output.splitlines()[1:]:
                 if line:
                     pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(

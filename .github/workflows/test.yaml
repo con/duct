@@ -26,8 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          # - macos-12
-          # - macos-latest
+          - macos-15-intel
+          - macos-latest
           # - windows-latest
           - ubuntu-latest
         python-version:
