@@ -997,11 +997,3 @@ def execute(args: RunArguments) -> int:
     else:
         lgr.info(report.execution_summary_formatted)
     return report.process.returncode
-
-
-def main() -> None:
-    os.execvp("con-duct", ["con-duct", "run"] + sys.argv[1:])
-
-
-if __name__ == "__main__":
-    main()

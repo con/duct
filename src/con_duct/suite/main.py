@@ -292,6 +292,11 @@ def execute(args: argparse.Namespace) -> int:
     return result
 
 
+def duct_main() -> None:
+    """Entry point for the 'duct' command - delegates to 'con-duct run'."""
+    os.execvp("con-duct", ["con-duct", "run"] + sys.argv[1:])
+
+
 def main(argv: Optional[List[str]] = None) -> None:
     parser = argparse.ArgumentParser(
         prog="con-duct",
