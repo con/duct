@@ -32,8 +32,8 @@ usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
             [--sample-interval SAMPLE_INTERVAL]
             [--report-interval REPORT_INTERVAL] [--fail-time FAIL_TIME]
             [-c {all,none,stdout,stderr}] [-o {all,none,stdout,stderr}]
-            [-t {all,system-summary,processes-samples}] [-m MESSAGE]
-            [--mode {new-session,current-session}]
+            [-t {all,summary,samples}] [-m MESSAGE]
+            [--session-mode {new,current}]
             command [command_args ...] ...
 
 duct is a lightweight wrapper that collects execution data for an arbitrary
@@ -53,7 +53,7 @@ limitations:
   duct exits as soon as the primary process exits.
 
 configuration:
-  When jsonargparse is installed, all options can be configured via:
+  All options can be configured via:
   - YAML config files (default paths or DUCT_CONFIG_PATHS environment
 variable)
   - Environment variables with DUCT_ prefix (e.g., DUCT_SAMPLE_INTERVAL)
@@ -65,13 +65,18 @@ default config file locations:
 
 positional arguments:
   ARG:   command [command_args ...]
+
                         The command to execute, along with its arguments.
                         (required)
-  ARG:   command_args   Arguments for the command.
+  ARG:   command_args
+
+                        Arguments for the command.
 
 options:
   ARG:   -h, --help     Show this help message and exit.
-  ARG:   --version      show program's version number and exit
+  ARG:   --version
+
+                        show program's version number and exit
   ARG:   -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
   ENV:   DUCT_OUTPUT_PREFIX
                         File string format to be used as a prefix for the
@@ -139,30 +144,27 @@ options:
   ARG:   -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
   ENV:   DUCT_CAPTURE_OUTPUTS
                         Record stdout, stderr, all, or none to log files.
-                        (type: <bound method parse of <enum 'Outputs'>>,
-                        default: all)
+                        (type: Outputs, default: Outputs.all)
   ARG:   -o {all,none,stdout,stderr}, --outputs {all,none,stdout,stderr}
   ENV:   DUCT_OUTPUTS
                         Print stdout, stderr, all, or none to stdout/stderr
-                        respectively. (type: <bound method parse of <enum
-                        'Outputs'>>, default: all)
-  ARG:   -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
+                        respectively. (type: Outputs, default: Outputs.all)
+  ARG:   -t {all,summary,samples}, --record-types {all,summary,samples}
   ENV:   DUCT_RECORD_TYPES
-                        Record system-summary, processes-samples, or all
-                        (type: <bound method parse of <enum 'RecordTypes'>>,
-                        default: all)
+                        Record summary, samples, or all (type: RecordTypes,
+                        default: RecordTypes.all)
   ARG:   -m MESSAGE, --message MESSAGE
   ENV:   DUCT_MESSAGE
                         Record a descriptive message about the purpose of this
                         execution. (type: str, default: )
-  ARG:   --mode {new-session,current-session}
-  ENV:   DUCT_MODE
-                        Session mode: 'new-session' creates a new session for
-                        the command (default), 'current-session' tracks the
-                        current session instead of starting a new one. Useful
-                        for tracking slurm jobs or other commands that should
-                        run in the current session. (type: <bound method parse
-                        of <enum 'SessionMode'>>, default: new-session)
+  ARG:   --session-mode {new,current}
+  ENV:   DUCT_SESSION_MODE
+                        Session mode: 'new' creates a new session for the
+                        command (default), 'current' tracks the current
+                        session instead of starting a new one. Useful for
+                        tracking slurm jobs or other commands that should run
+                        in the current session. (type: SessionMode, default:
+                        SessionMode.new)
 
 ```
 <!-- END HELP -->
@@ -197,16 +199,30 @@ options:
                         Level of log output to stderr, use NONE to entirely
                         disable. (type: <method 'upper' of 'str' objects>,
                         default: INFO)
-  ARG:   --version      show program's version number and exit
+  ARG:   --version
+
+                        show program's version number and exit
+  ARG:   -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+  ENV:   DUCT_OUTPUT_PREFIX
+                        File prefix pattern used by duct. Shared with duct's
+                        --output-prefix for config/env compatibility. (type:
+                        str, default: .duct/logs/{datetime_filesafe}-{pid}_)
 
 subcommands:
 For more details of each subcommand, add it as an argument followed by
 --help.
 
-  ARG:   {pp,plot,ls}   Available subcommands
-    ARG:   pp           Pretty print a JSON log.
-    ARG:   plot         Plot resource usage for an execution.
-    ARG:   ls           Print execution information for all matching runs.
+  Available subcommands:
+                        Available subcommands
+    ARG:   pp
+
+                        Pretty print a JSON log.
+    ARG:   plot
+
+                        Plot resource usage for an execution.
+    ARG:   ls
+
+                        Print execution information for all matching runs.
 
 ```
 <!-- END EXTRAS HELP -->
