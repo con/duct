@@ -6,7 +6,7 @@ import logging
 import re
 from types import ModuleType
 from typing import Any, Dict, List, Optional
-from con_duct.__main__ import DUCT_OUTPUT_PREFIX, SummaryFormatter, __schema_version__
+from con_duct.duct_main import DUCT_OUTPUT_PREFIX, SummaryFormatter, __schema_version__
 from con_duct.utils import parse_version
 
 try:

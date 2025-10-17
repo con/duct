@@ -23,7 +23,7 @@ from types import FrameType
 from typing import IO, TYPE_CHECKING, Any, Optional, TextIO
 
 if TYPE_CHECKING:
-    from con_duct.suite.main import RunArguments
+    from con_duct.cli import RunArguments
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"

@@ -6,17 +6,17 @@ import sys
 import textwrap
 from typing import Any, List, Optional
 from con_duct import __version__
-from con_duct.__main__ import (
+from con_duct.duct_main import (
     DUCT_OUTPUT_PREFIX,
     EXECUTION_SUMMARY_FORMAT,
     Outputs,
     RecordTypes,
     SessionMode,
 )
-from con_duct.__main__ import execute as duct_execute
-from con_duct.suite.ls import LS_FIELD_CHOICES, ls
-from con_duct.suite.plot import matplotlib_plot
-from con_duct.suite.pprint_json import pprint_json
+from con_duct.duct_main import execute as duct_execute
+from con_duct.ls import LS_FIELD_CHOICES, ls
+from con_duct.plot import matplotlib_plot
+from con_duct.pprint_json import pprint_json
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
