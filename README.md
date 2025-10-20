@@ -182,6 +182,18 @@ options:
 ```
 <!-- END EXTRAS HELP -->
 
+## Example Plot
+
+Visualize resource usage over time with `con-duct plot`:
+
+```bash
+con-duct plot path/to/usage.json
+```
+
+![Plot for mriqc processing on a single subject/session](https://raw.githubusercontent.com/con/duct-gallery/master/images/mriqc-processing-on-a-single-subject-session.svg)
+
+*Example: MRIQC processing on a single subject/session (from [duct-gallery](https://github.com/con/duct-gallery))*
+
 ## FAQs
 
 ### git-annex add keeps adding duct logs directly into git

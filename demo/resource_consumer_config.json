@@ -1,0 +1,63 @@
+{
+  "description": "resource consumption for example output/image",
+  "phases": [
+    {
+      "name": "Warmup",
+      "duration": 500
+    },
+    {
+      "name": "Light Load",
+      "duration": 500,
+      "rss_mb": 25,
+      "vss_mb": 50,
+      "cpu_cores": 1,
+      "cpu_intensity": 0.3
+    },
+    {
+      "name": "Memory Ramp",
+      "duration": 500,
+      "rss_mb": 75,
+      "vss_mb": 150
+    },
+    {
+      "name": "CPU Burst",
+      "duration": 500,
+      "cpu_cores": 4,
+      "cpu_intensity": 1.0
+    },
+    {
+      "name": "Mixed Load",
+      "duration": 500,
+      "rss_mb": 100,
+      "vss_mb": 200,
+      "cpu_cores": 2,
+      "cpu_intensity": 0.6
+    },
+    {
+      "name": "Memory Spike",
+      "duration": 500,
+      "rss_mb": 300
+    },
+    {
+      "name": "Gradual Release",
+      "duration": 500,
+      "release_rss_mb": 200,
+      "release_vss_mb": 100,
+      "cpu_cores": 1,
+      "cpu_intensity": 0.2
+    },
+    {
+      "name": "Final Burst",
+      "duration": 500,
+      "rss_mb": 150,
+      "cpu_cores": 3,
+      "cpu_intensity": 0.9
+    },
+    {
+      "name": "Cooldown",
+      "duration": 500,
+      "release_rss_mb": 150,
+      "release_vss_mb": 150
+    }
+  ]
+}
