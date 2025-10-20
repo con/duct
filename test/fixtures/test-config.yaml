@@ -1,0 +1,4 @@
+# Fast test configuration for duct tests
+# These values speed up test execution
+sample_interval: 0.01
+report_interval: 0.1

@@ -3,13 +3,41 @@ import logging
 import os
 import sys
 from typing import List, Optional
+from jsonargparse import ArgumentParser
 from con_duct import __version__
+from con_duct.__main__ import (
+    DEFAULT_CONFIG_PATHS,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_OUTPUT_PREFIX,
+    DuctHelpFormatter,
+)
 from con_duct.suite.ls import LS_FIELD_CHOICES, ls
 from con_duct.suite.plot import matplotlib_plot
 from con_duct.suite.pprint_json import pprint_json
 
 lgr = logging.getLogger("con-duct")
-DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
+
+
+class ConDuctHelpFormatter(DuctHelpFormatter):  # type: ignore[misc]
+    """Custom formatter that suppresses extraneous help output."""
+
+    def format_help(self) -> str:
+        import re
+
+        help_text = super().format_help()
+        # Remove complaints about extra keys (ie sample_interval, which is used in duct not con-duct)
+        pattern = r",\s*Note:\s*tried getting defaults.*?is not\s+expected"
+        help_text = re.sub(pattern, "", help_text, flags=re.DOTALL)
+
+        # TODO remove after https://github.com/omni-us/jsonargparse/pull/787 is released
+        # Remove all ENV: lines from the subcommands section
+        parts = help_text.split("subcommands:", 1)
+        if len(parts) == 2:
+            before, after = parts
+            after = re.sub(r"^\s*ENV:\s+\S+\s*$", "", after, flags=re.MULTILINE)
+            help_text = before + "subcommands:" + after
+
+        return help_text
 
 
 def execute(args: argparse.Namespace) -> int:
@@ -28,11 +56,23 @@ def execute(args: argparse.Namespace) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> None:
-    parser = argparse.ArgumentParser(
-        prog="con-duct",
-        description="A suite of commands to manage or manipulate con-duct logs.",
-        usage="con-duct <command> [options]",
-    )
+    parser_kwargs = {
+        "prog": "con-duct",
+        "description": "A suite of commands to manage or manipulate con-duct logs.",
+        "usage": "con-duct <command> [options]",
+        "default_env": True,
+        "env_prefix": "DUCT",
+        "formatter_class": ConDuctHelpFormatter,
+    }
+
+    parser = ArgumentParser(**parser_kwargs)  # type: ignore[arg-type]
+
+    config_paths_env = os.environ.get("DUCT_CONFIG_PATHS")
+    if config_paths_env:
+        parser.default_config_files = config_paths_env.split(":")
+    else:
+        parser.default_config_files = DEFAULT_CONFIG_PATHS
+
     parser.add_argument(
         "-l",
         "--log-level",
@@ -44,10 +84,20 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
-    subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
+    parser.add_argument(
+        "-p",
+        "--output-prefix",
+        type=str,
+        default=DEFAULT_OUTPUT_PREFIX,
+        help="File prefix pattern used by duct. Shared with duct's "
+        "--output-prefix for config/env compatibility.",
+    )
+    subparsers = parser.add_subcommands(
+        dest="command", required=False, help="Available subcommands"
+    )
 
     # Subcommand: pp
-    parser_pp = subparsers.add_parser("pp", help="Pretty print a JSON log.")
+    parser_pp = ArgumentParser(formatter_class=ConDuctHelpFormatter)
     parser_pp.add_argument("file_path", help="JSON file to pretty print.")
     parser_pp.add_argument(
         "-H",
@@ -55,12 +105,10 @@ def main(argv: Optional[List[str]] = None) -> None:
         action="store_true",
         help="Convert numeric values to human-readable format",
     )
-    parser_pp.set_defaults(func=pprint_json)
+    subparsers.add_subcommand("pp", parser_pp, help="Pretty print a JSON log.")
 
     # Subcommand: plot
-    parser_plot = subparsers.add_parser(
-        "plot", help="Plot resource usage for an execution."
-    )
+    parser_plot = ArgumentParser(formatter_class=ConDuctHelpFormatter)
     parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
     parser_plot.add_argument(
         "-o",
@@ -82,12 +130,12 @@ def main(argv: Optional[List[str]] = None) -> None:
     #     choices=("matplotlib",)
     #     help="which backend to plot with
     # )
-    parser_plot.set_defaults(func=matplotlib_plot)
-
-    parser_ls = subparsers.add_parser(
-        "ls",
-        help="Print execution information for all matching runs.",
+    subparsers.add_subcommand(
+        "plot", parser_plot, help="Plot resource usage for an execution."
     )
+
+    # Subcommand: ls
+    parser_ls = ArgumentParser(formatter_class=ConDuctHelpFormatter)
     parser_ls.add_argument(
         "-f",
         "--format",
@@ -114,14 +162,15 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_ls.add_argument(
         "--colors",
         action="store_true",
-        default=os.getenv("DUCT_COLORS", False),
+        default=False,
         help="Use colors in duct output.",
     )
     parser_ls.add_argument(
         "paths",
         nargs="*",
         help="Path to duct report files, only `info.json` would be considered. "
-        "If not provided, the program will glob for files that match DUCT_OUTPUT_PREFIX.",
+        "If not provided, searches using the output-prefix pattern "
+        "(from --output-prefix, DUCT_OUTPUT_PREFIX env, or config).",
     )
     parser_ls.add_argument(
         "-e",
@@ -132,11 +181,31 @@ def main(argv: Optional[List[str]] = None) -> None:
         "Example: --eval-filter \"filter_this=='yes'\" filters entries where 'filter_this' is 'yes'. "
         "You can use 're' for regex operations (e.g., --eval-filter \"re.search('2025.02.09.*', prefix)\").",
     )
-    parser_ls.set_defaults(func=ls)
+    subparsers.add_subcommand(
+        "ls", parser_ls, help="Print execution information for all matching runs."
+    )
 
-    args = parser.parse_args(argv)
+    # Map command names to their handler functions
+    command_funcs = {
+        "pp": pprint_json,
+        "plot": matplotlib_plot,
+        "ls": ls,
+    }
+
+    # Parse args - use _skip_validation to allow unknown keys in config files
+    # This allows sharing config files between duct and con-duct
+    args = parser.parse_args(argv, _skip_validation=True)
+    args = parser.strip_unknown(args)
 
     if args.command is None:
         parser.print_help()
     else:
-        sys.exit(execute(args))
+        # Get the subcommand namespace (e.g., args.ls for "ls" command)
+        subcommand_args = getattr(args, args.command)
+        # Manually set the func based on the command
+        subcommand_args.func = command_funcs[args.command]
+        # Also preserve log_level and output_prefix from main parser
+        subcommand_args.log_level = args.log_level
+        if hasattr(args, "output_prefix"):
+            subcommand_args.output_prefix = args.output_prefix
+        sys.exit(execute(subcommand_args))

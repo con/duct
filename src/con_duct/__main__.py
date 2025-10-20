@@ -23,17 +23,22 @@ import threading
 import time
 from types import FrameType
 from typing import IO, Any, Optional, TextIO
+from jsonargparse import ArgumentParser
+from jsonargparse._formatters import DefaultHelpFormatter
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
 
 
 lgr = logging.getLogger("con-duct")
-DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
+DEFAULT_LOG_LEVEL = "INFO"
 
-DUCT_OUTPUT_PREFIX = os.getenv(
-    "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
-)
+DEFAULT_OUTPUT_PREFIX = ".duct/logs/{datetime_filesafe}-{pid}_"
+DEFAULT_CONFIG_PATHS = [
+    "/etc/duct/config.yaml",
+    "${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml",
+    ".duct/config.yaml",
+]
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
     "stdout": "stdout",
@@ -75,24 +80,12 @@ limitations:
   If a command spawns child processes, duct will collect data on them, but
   duct exits as soon as the primary process exits.
 
-environment variables:
-  Many duct options can be configured by environment variables (which are
-  overridden by command line options).
-
-  DUCT_LOG_LEVEL: see --log-level
-  DUCT_OUTPUT_PREFIX: see --output-prefix
-  DUCT_SUMMARY_FORMAT: see --summary-format
-  DUCT_SAMPLE_INTERVAL: see --sample-interval
-  DUCT_REPORT_INTERVAL: see --report-interval
-  DUCT_CAPTURE_OUTPUTS: see --capture-outputs
-  DUCT_MESSAGE: see --message
+configuration:
+  All options can be configured via:
+  - YAML config files (default paths or DUCT_CONFIG_PATHS environment variable)
+  - Environment variables with DUCT_ prefix (e.g., DUCT_SAMPLE_INTERVAL)
+  - Command line arguments (highest precedence)
 """
-
-
-class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
-    def _fill_text(self, text: str, width: int, _indent: str) -> str:
-        # Override _fill_text to respect the newlines and indentation in descriptions
-        return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
 
 
 def assert_num(*values: Any) -> None:
@@ -100,43 +93,59 @@ def assert_num(*values: Any) -> None:
         assert isinstance(value, (float, int))
 
 
-class Outputs(str, Enum):
-    ALL = "all"
-    NONE = "none"
-    STDOUT = "stdout"
-    STDERR = "stderr"
+class DuctHelpFormatter(DefaultHelpFormatter):  # type: ignore[misc]
+    """Custom formatter that suppresses environment variable display for certain arguments.
 
-    def __str__(self) -> str:
-        return self.value
+    Suppresses ENV: lines for arguments that don't make sense as environment variables,
+    such as the command to execute, its arguments, and the version action.
+    """
+
+    def _fill_text(self, text: str, width: int, _indent: str) -> str:
+        """Override to respect newlines and indentation in descriptions."""
+        return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
+
+    def format_help(self) -> str:
+        import re
+
+        help_text = super().format_help()
+        # Remove ENV: lines for arguments that don't make sense as env vars
+        # See https://github.com/omni-us/jsonargparse/issues/786 for feature request
+        # to suppress env vars per-argument instead of needing this workaround
+        for env_var in ("DUCT_COMMAND", "DUCT_COMMAND_ARGS", "DUCT_VERSION"):
+            help_text = re.sub(
+                rf"^\s*ENV:\s+{env_var}\s*$", "", help_text, flags=re.MULTILINE
+            )
+        return help_text
+
+
+class Outputs(str, Enum):
+    all = "all"
+    none = "none"
+    stdout = "stdout"
+    stderr = "stderr"
 
     def has_stdout(self) -> bool:
-        return self is Outputs.ALL or self is Outputs.STDOUT
+        return self is Outputs.all or self is Outputs.stdout
 
     def has_stderr(self) -> bool:
-        return self is Outputs.ALL or self is Outputs.STDERR
+        return self is Outputs.all or self is Outputs.stderr
 
 
 class RecordTypes(str, Enum):
-    ALL = "all"
-    SYSTEM_SUMMARY = "system-summary"
-    PROCESSES_SAMPLES = "processes-samples"
-
-    def __str__(self) -> str:
-        return self.value
+    all = "all"
+    summary = "summary"
+    samples = "samples"
 
     def has_system_summary(self) -> bool:
-        return self is RecordTypes.ALL or self is RecordTypes.SYSTEM_SUMMARY
+        return self is RecordTypes.all or self is RecordTypes.summary
 
     def has_processes_samples(self) -> bool:
-        return self is RecordTypes.ALL or self is RecordTypes.PROCESSES_SAMPLES
+        return self is RecordTypes.all or self is RecordTypes.samples
 
 
 class SessionMode(str, Enum):
-    NEW_SESSION = "new-session"
-    CURRENT_SESSION = "current-session"
-
-    def __str__(self) -> str:
-        return self.value
+    new = "new"
+    current = "current"
 
 
 @dataclass
@@ -760,11 +769,15 @@ class Arguments:
     def from_argv(
         cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
     ) -> Arguments:
-        parser = argparse.ArgumentParser(
-            allow_abbrev=False,
-            description=ABOUT_DUCT,
-            formatter_class=CustomHelpFormatter,
-        )
+        parser_kwargs = {
+            "allow_abbrev": False,
+            "description": ABOUT_DUCT,
+            "formatter_class": DuctHelpFormatter,
+            "default_env": True,
+            "env_prefix": "DUCT",
+        }
+
+        parser = ArgumentParser(**parser_kwargs)  # type: ignore[arg-type]
         parser.add_argument(
             "command",
             metavar="command [command_args ...]",
@@ -780,17 +793,16 @@ class Arguments:
             "-p",
             "--output-prefix",
             type=str,
-            default=DUCT_OUTPUT_PREFIX,
+            default=DEFAULT_OUTPUT_PREFIX,
             help="File string format to be used as a prefix for the files -- the captured "
             "stdout and stderr and the resource usage logs. The understood variables are "
             "{datetime}, {datetime_filesafe}, and {pid}. "
-            "Leading directories will be created if they do not exist. "
-            "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
+            "Leading directories will be created if they do not exist.",
         )
         parser.add_argument(
             "--summary-format",
             type=str,
-            default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
+            default=EXECUTION_SUMMARY_FORMAT,
             help="Output template to use when printing the summary following execution. "
             "Accepts custom conversion flags: "
             "!S: Converts filesizes to human readable units, green if measured, red if None. "
@@ -801,7 +813,7 @@ class Arguments:
         parser.add_argument(
             "--colors",
             action="store_true",
-            default=os.getenv("DUCT_COLORS", False),
+            default=False,
             help="Use colors in duct output.",
         )
         parser.add_argument(
@@ -827,7 +839,7 @@ class Arguments:
             "--sample-interval",
             "--s-i",
             type=float,
-            default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
+            default=1.0,
             help="Interval in seconds between status checks of the running process. "
             "Sample interval must be less than or equal to report interval, and it achieves the "
             "best results when sample is significantly less than the runtime of the process.",
@@ -836,14 +848,14 @@ class Arguments:
             "--report-interval",
             "--r-i",
             type=float,
-            default=float(os.getenv("DUCT_REPORT_INTERVAL", "60.0")),
+            default=60.0,
             help="Interval in seconds at which to report aggregated data.",
         )
         parser.add_argument(
             "--fail-time",
             "--f-t",
             type=float,
-            default=float(os.getenv("DUCT_FAIL_TIME", "3.0")),
+            default=3.0,
             help="If command fails in less than this specified time (seconds), duct would remove logs. "
             "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
             "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
@@ -852,49 +864,49 @@ class Arguments:
         parser.add_argument(
             "-c",
             "--capture-outputs",
-            default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
-            choices=list(Outputs),
+            default=Outputs.all,
             type=Outputs,
-            help="Record stdout, stderr, all, or none to log files. "
-            "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
+            help="Record stdout, stderr, all, or none to log files.",
         )
         parser.add_argument(
             "-o",
             "--outputs",
-            default="all",
-            choices=list(Outputs),
+            default=Outputs.all,
             type=Outputs,
             help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
         )
         parser.add_argument(
             "-t",
             "--record-types",
-            default="all",
-            choices=list(RecordTypes),
+            default=RecordTypes.all,
             type=RecordTypes,
-            help="Record system-summary, processes-samples, or all",
+            help="Record summary, samples, or all",
         )
         parser.add_argument(
             "-m",
             "--message",
             type=str,
-            default=os.getenv("DUCT_MESSAGE", ""),
-            help="Record a descriptive message about the purpose of this execution. "
-            "You can also provide value via DUCT_MESSAGE env variable.",
+            default="",
+            help="Record a descriptive message about the purpose of this execution.",
         )
         parser.add_argument(
-            "--mode",
-            default="new-session",
-            choices=list(SessionMode),
+            "--session-mode",
+            default=SessionMode.new,
             type=SessionMode,
-            help="Session mode: 'new-session' creates a new session for the command (default), "
-            "'current-session' tracks the current session instead of starting a new one. "
+            help="Session mode: 'new' creates a new session for the command (default), "
+            "'current' tracks the current session instead of starting a new one. "
             "Useful for tracking slurm jobs or other commands that should run in the current session.",
         )
-        args = parser.parse_args(
-            args=cli_args,
-            namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,
-        )
+        config_paths_env = os.environ.get("DUCT_CONFIG_PATHS")
+        if config_paths_env:
+            parser.default_config_files = config_paths_env.split(":")
+        else:
+            parser.default_config_files = DEFAULT_CONFIG_PATHS
+        args = parser.parse_args(args=cli_args)
+        # Apply cli_kwargs as overrides (for testing)
+        if cli_kwargs:
+            for key, value in cli_kwargs.items():
+                setattr(args, key, value)
         return cls(
             command=args.command,
             command_args=args.command_args,
@@ -910,7 +922,7 @@ class Arguments:
             colors=args.colors,
             log_level=args.log_level,
             quiet=args.quiet,
-            session_mode=args.mode,
+            session_mode=args.session_mode,
             message=args.message,
         )
 
@@ -1135,7 +1147,7 @@ def execute(args: Arguments) -> int:
             [str(args.command)] + args.command_args,
             stdout=stdout_file,
             stderr=stderr_file,
-            start_new_session=(args.session_mode == SessionMode.NEW_SESSION),
+            start_new_session=(args.session_mode == SessionMode.new),
             cwd=report.working_directory,
         )
     except FileNotFoundError:
@@ -1153,11 +1165,11 @@ def execute(args: Arguments) -> int:
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
-        if args.session_mode == SessionMode.NEW_SESSION:
+        if args.session_mode == SessionMode.new:
             report.session_id = os.getsid(
                 process.pid
             )  # Get session ID of the new process
-        else:  # CURRENT_SESSION mode
+        else:  # current mode
             report.session_id = os.getsid(
                 os.getpid()
             )  # Get session ID of duct's own process

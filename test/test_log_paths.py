@@ -36,7 +36,7 @@ def test_prepare_dir_paths_available(
 ) -> None:
     mock_exists.return_value = False
     log_paths = LogPaths.create(path)
-    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.all)
     mock_mkdir.assert_called_once_with(path, exist_ok=True)
 
 
@@ -56,7 +56,7 @@ def test_prefix_with_filepart_and_directory_part(
 ) -> None:
     mock_exists.return_value = False
     log_paths = LogPaths.create(path)
-    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.all)
     mock_mkdir.assert_called_once_with(os.path.dirname(path), exist_ok=True)
     expected_calls = [call(each, "w") for _name, each in log_paths]
     mock_open.assert_has_calls(expected_calls, any_order=True)
@@ -70,7 +70,7 @@ def test_prefix_with_filepart_only(
 ) -> None:
     mock_exists.return_value = False
     log_paths = LogPaths.create("filepartonly")
-    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.all)
     mock_mkdir.assert_not_called()
     expected_calls = [call(each, "w") for _name, each in log_paths]
     mock_open.assert_has_calls(expected_calls, any_order=True)
@@ -85,7 +85,7 @@ def test_prepare_file_paths_available_all(
     mock_exists.return_value = False
     prefix = "prefix_"
     log_paths = LogPaths.create(prefix)
-    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.all)
     expected_calls = [call(each, "w") for _name, each in log_paths]
     mock_open.assert_has_calls(expected_calls, any_order=True)
 
@@ -99,9 +99,9 @@ def test_prepare_file_paths_available_stdout(
     mock_exists.return_value = False
     prefix = "prefix_"
     log_paths = LogPaths.create(prefix)
-    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.STDOUT)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.stdout)
     expected_calls = [
-        call(each, "w") for name, each in log_paths if name != Outputs.STDERR
+        call(each, "w") for name, each in log_paths if name != Outputs.stderr
     ]
     mock_open.assert_has_calls(expected_calls, any_order=True)
 
@@ -115,9 +115,9 @@ def test_prepare_file_paths_available_stderr(
     mock_exists.return_value = False
     prefix = "prefix_"
     log_paths = LogPaths.create(prefix)
-    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.STDERR)
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.stderr)
     expected_calls = [
-        call(each, "w") for name, each in log_paths if name != Outputs.STDOUT
+        call(each, "w") for name, each in log_paths if name != Outputs.stdout
     ]
     mock_open.assert_has_calls(expected_calls, any_order=True)
 
@@ -131,8 +131,8 @@ def test_prepare_file_paths_available_no_streams(
     mock_exists.return_value = False
     prefix = "prefix_"
     log_paths = LogPaths.create(prefix)
-    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.NONE)
-    streams = [Outputs.STDOUT, Outputs.STDERR]
+    log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.none)
+    streams = [Outputs.stdout, Outputs.stderr]
     expected_calls = [
         call(each, "w") for name, each in log_paths if name not in streams
     ]
@@ -148,6 +148,6 @@ def test_prepare_paths_not_available_no_clobber(
     mock_exists.return_value = True
     log_paths = LogPaths.create("doesntmatter")
     with pytest.raises(FileExistsError):
-        log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
+        log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.all)
     mock_mkdir.assert_not_called()
     mock_open.assert_not_called()

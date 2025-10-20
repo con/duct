@@ -32,8 +32,8 @@ usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
             [--sample-interval SAMPLE_INTERVAL]
             [--report-interval REPORT_INTERVAL] [--fail-time FAIL_TIME]
             [-c {all,none,stdout,stderr}] [-o {all,none,stdout,stderr}]
-            [-t {all,system-summary,processes-samples}] [-m MESSAGE]
-            [--mode {new-session,current-session}]
+            [-t {all,summary,samples}] [-m MESSAGE]
+            [--session-mode {new,current}]
             command [command_args ...] ...
 
 duct is a lightweight wrapper that collects execution data for an arbitrary
@@ -52,97 +52,119 @@ limitations:
   If a command spawns child processes, duct will collect data on them, but
   duct exits as soon as the primary process exits.
 
-environment variables:
-  Many duct options can be configured by environment variables (which are
-  overridden by command line options).
+configuration:
+  All options can be configured via:
+  - YAML config files (default paths or DUCT_CONFIG_PATHS environment
+variable)
+  - Environment variables with DUCT_ prefix (e.g., DUCT_SAMPLE_INTERVAL)
+  - Command line arguments (highest precedence)
 
-  DUCT_LOG_LEVEL: see --log-level
-  DUCT_OUTPUT_PREFIX: see --output-prefix
-  DUCT_SUMMARY_FORMAT: see --summary-format
-  DUCT_SAMPLE_INTERVAL: see --sample-interval
-  DUCT_REPORT_INTERVAL: see --report-interval
-  DUCT_CAPTURE_OUTPUTS: see --capture-outputs
-  DUCT_MESSAGE: see --message
+default config file locations:
+['/etc/duct/config.yaml', '${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml',
+'.duct/config.yaml'], Note: no existing default config file found.
 
 positional arguments:
-  command [command_args ...]
+  ARG:   command [command_args ...]
+
                         The command to execute, along with its arguments.
-  command_args          Arguments for the command.
+                        (required)
+  ARG:   command_args
+
+                        Arguments for the command.
 
 options:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+  ARG:   -h, --help     Show this help message and exit.
+  ARG:   --version
+
+                        show program's version number and exit
+  ARG:   -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+  ENV:   DUCT_OUTPUT_PREFIX
                         File string format to be used as a prefix for the
                         files -- the captured stdout and stderr and the
                         resource usage logs. The understood variables are
                         {datetime}, {datetime_filesafe}, and {pid}. Leading
-                        directories will be created if they do not exist. You
-                        can also provide value via DUCT_OUTPUT_PREFIX env
-                        variable. (default:
+                        directories will be created if they do not exist.
+                        (type: str, default:
                         .duct/logs/{datetime_filesafe}-{pid}_)
-  --summary-format SUMMARY_FORMAT
+  ARG:   --summary-format SUMMARY_FORMAT
+  ENV:   DUCT_SUMMARY_FORMAT
                         Output template to use when printing the summary
                         following execution. Accepts custom conversion flags:
                         !S: Converts filesizes to human readable units, green
                         if measured, red if None. !E: Colors exit code, green
                         if falsey, red if truthy, and red if None. !X: Colors
                         green if truthy, red if falsey. !N: Colors green if
-                        not None, red if None (default: Summary: Exit Code:
-                        {exit_code!E} Command: {command} Log files location:
-                        {logs_prefix} Wall Clock Time: {wall_clock_time:.3f}
-                        sec Memory Peak Usage (RSS): {peak_rss!S} Memory
-                        Average Usage (RSS): {average_rss!S} Virtual Memory
-                        Peak Usage (VSZ): {peak_vsz!S} Virtual Memory Average
-                        Usage (VSZ): {average_vsz!S} Memory Peak Percentage:
+                        not None, red if None (type: str, default: Summary:
+                        Exit Code: {exit_code!E} Command: {command} Log files
+                        location: {logs_prefix} Wall Clock Time:
+                        {wall_clock_time:.3f} sec Memory Peak Usage (RSS):
+                        {peak_rss!S} Memory Average Usage (RSS):
+                        {average_rss!S} Virtual Memory Peak Usage (VSZ):
+                        {peak_vsz!S} Virtual Memory Average Usage (VSZ):
+                        {average_vsz!S} Memory Peak Percentage:
                         {peak_pmem:.2f!N}% Memory Average Percentage:
                         {average_pmem:.2f!N}% CPU Peak Usage:
                         {peak_pcpu:.2f!N}% Average CPU Usage:
                         {average_pcpu:.2f!N}% )
-  --colors              Use colors in duct output. (default: False)
-  --clobber             Replace log files if they already exist. (default:
+  ARG:   --colors
+  ENV:   DUCT_COLORS
+                        Use colors in duct output. (default: False)
+  ARG:   --clobber
+  ENV:   DUCT_CLOBBER
+                        Replace log files if they already exist. (default:
                         False)
-  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ARG:   -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ENV:   DUCT_LOG_LEVEL
                         Level of log output to stderr, use NONE to entirely
-                        disable. (default: INFO)
-  -q, --quiet           [deprecated, use log level NONE] Disable duct logging
+                        disable. (type: <method 'upper' of 'str' objects>,
+                        default: INFO)
+  ARG:   -q, --quiet
+  ENV:   DUCT_QUIET
+                        [deprecated, use log level NONE] Disable duct logging
                         output (to stderr) (default: False)
-  --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
+  ARG:   --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
+  ENV:   DUCT_SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval must be less than or
                         equal to report interval, and it achieves the best
                         results when sample is significantly less than the
-                        runtime of the process. (default: 1.0)
-  --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
+                        runtime of the process. (type: float, default: 1.0)
+  ARG:   --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
+  ENV:   DUCT_REPORT_INTERVAL
                         Interval in seconds at which to report aggregated
-                        data. (default: 60.0)
-  --fail-time FAIL_TIME, --f-t FAIL_TIME
+                        data. (type: float, default: 60.0)
+  ARG:   --fail-time FAIL_TIME, --f-t FAIL_TIME
+  ENV:   DUCT_FAIL_TIME
                         If command fails in less than this specified time
                         (seconds), duct would remove logs. Set to 0 if you
                         would like to keep logs for a failing command
                         regardless of its run time. Set to negative (e.g. -1)
                         if you would like to not keep logs for any failing
-                        command. (default: 3.0)
-  -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
-                        Record stdout, stderr, all, or none to log files. You
-                        can also provide value via DUCT_CAPTURE_OUTPUTS env
-                        variable. (default: all)
-  -o {all,none,stdout,stderr}, --outputs {all,none,stdout,stderr}
+                        command. (type: float, default: 3.0)
+  ARG:   -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
+  ENV:   DUCT_CAPTURE_OUTPUTS
+                        Record stdout, stderr, all, or none to log files.
+                        (type: Outputs, default: Outputs.all)
+  ARG:   -o {all,none,stdout,stderr}, --outputs {all,none,stdout,stderr}
+  ENV:   DUCT_OUTPUTS
                         Print stdout, stderr, all, or none to stdout/stderr
-                        respectively. (default: all)
-  -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
-                        Record system-summary, processes-samples, or all
-                        (default: all)
-  -m MESSAGE, --message MESSAGE
+                        respectively. (type: Outputs, default: Outputs.all)
+  ARG:   -t {all,summary,samples}, --record-types {all,summary,samples}
+  ENV:   DUCT_RECORD_TYPES
+                        Record summary, samples, or all (type: RecordTypes,
+                        default: RecordTypes.all)
+  ARG:   -m MESSAGE, --message MESSAGE
+  ENV:   DUCT_MESSAGE
                         Record a descriptive message about the purpose of this
-                        execution. You can also provide value via DUCT_MESSAGE
-                        env variable. (default: )
-  --mode {new-session,current-session}
-                        Session mode: 'new-session' creates a new session for
-                        the command (default), 'current-session' tracks the
-                        current session instead of starting a new one. Useful
-                        for tracking slurm jobs or other commands that should
-                        run in the current session. (default: new-session)
+                        execution. (type: str, default: )
+  ARG:   --session-mode {new,current}
+  ENV:   DUCT_SESSION_MODE
+                        Session mode: 'new' creates a new session for the
+                        command (default), 'current' tracks the current
+                        session instead of starting a new one. Useful for
+                        tracking slurm jobs or other commands that should run
+                        in the current session. (type: SessionMode, default:
+                        SessionMode.new)
 
 ```
 <!-- END HELP -->
@@ -166,18 +188,41 @@ usage: con-duct <command> [options]
 
 A suite of commands to manage or manipulate con-duct logs.
 
-positional arguments:
-  {pp,plot,ls}          Available subcommands
-    pp                  Pretty print a JSON log.
-    plot                Plot resource usage for an execution.
-    ls                  Print execution information for all matching runs.
+default config file locations:
+['/etc/duct/config.yaml', '${XDG_CONFIG_HOME:-~/.config}/duct/config.yaml',
+'.duct/config.yaml'], Note: no existing default config file found.
 
 options:
-  -h, --help            show this help message and exit
-  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ARG:   -h, --help     Show this help message and exit.
+  ARG:   -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  ENV:   DUCT_LOG_LEVEL
                         Level of log output to stderr, use NONE to entirely
-                        disable.
-  --version             show program's version number and exit
+                        disable. (type: <method 'upper' of 'str' objects>,
+                        default: INFO)
+  ARG:   --version
+
+                        show program's version number and exit
+  ARG:   -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+  ENV:   DUCT_OUTPUT_PREFIX
+                        File prefix pattern used by duct. Shared with duct's
+                        --output-prefix for config/env compatibility. (type:
+                        str, default: .duct/logs/{datetime_filesafe}-{pid}_)
+
+subcommands:
+For more details of each subcommand, add it as an argument followed by
+--help.
+
+  Available subcommands:
+                        Available subcommands
+    ARG:   pp
+
+                        Pretty print a JSON log.
+    ARG:   plot
+
+                        Plot resource usage for an execution.
+    ARG:   ls
+
+                        Print execution information for all matching runs.
 
 ```
 <!-- END EXTRAS HELP -->
