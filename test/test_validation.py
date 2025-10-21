@@ -1,6 +1,7 @@
 import argparse
 import pytest
-from con_duct.__main__ import Arguments, assert_num
+from con_duct.cli import RunArguments as Arguments
+from con_duct.duct_main import assert_num
 
 
 def test_sample_less_than_report_interval() -> None:

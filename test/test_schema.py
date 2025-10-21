@@ -1,8 +1,9 @@
 import json
 import os
 from pathlib import Path
-from con_duct.__main__ import Arguments, execute
-from con_duct.suite.ls import LS_FIELD_CHOICES, _flatten_dict
+from con_duct.cli import RunArguments as Arguments
+from con_duct.duct_main import execute
+from con_duct.ls import LS_FIELD_CHOICES, _flatten_dict
 
 
 def test_info_fields(temp_output_dir: str) -> None:

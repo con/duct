@@ -91,9 +91,6 @@ def test_abreviation_disabled() -> None:
 )
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
     """Test that --mode argument is parsed correctly with both long and short forms."""
-    # Import here to avoid module loading issues in tests
-    from con_duct.__main__ import Arguments
-
     cmd_args = mode_arg + ["echo", "test"]
     args = Arguments.from_argv(cmd_args)
     assert str(args.session_mode) == expected_mode

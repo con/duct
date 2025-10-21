@@ -10,8 +10,9 @@ import sys
 from time import sleep, time
 import pytest
 from utils import assert_files
-import con_duct.__main__ as __main__
-from con_duct.__main__ import SUFFIXES, Arguments, Outputs, execute
+from con_duct.cli import RunArguments as Arguments
+import con_duct.duct_main as duct_main
+from con_duct.duct_main import SUFFIXES, Outputs, execute
 
 TEST_SCRIPT_DIR = Path(__file__).with_name("data")
 
@@ -293,7 +294,7 @@ def test_signal_kill(temp_output_dir: str, fail_time: float | None) -> None:
 def test_duct_as_executable(temp_output_dir: str) -> None:
     ps_command = [
         sys.executable,
-        __main__.__file__,
+        duct_main.__file__,
         "-p",
         temp_output_dir,
         "-q",
