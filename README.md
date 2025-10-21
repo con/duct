@@ -1,46 +1,92 @@
-# duct
+# con-duct
 
 [![codecov](https://codecov.io/gh/con/duct/graph/badge.svg?token=JrPazw0Vn4)](https://codecov.io/gh/con/duct)
 [![PyPI version](https://badge.fury.io/py/con-duct.svg)](https://badge.fury.io/py/con-duct)
 [![RRID](https://img.shields.io/badge/RRID-SCR__025436-blue)](https://identifiers.org/RRID:SCR_025436)
 
+A lightweight wrapper that monitors the execution of commands, collecting resource usage data and system information.
+
+The `con-duct` CLI provides multiple subcommands for working with execution data:
+- **`run`**: Execute and monitor commands (also available via the `duct` convenience alias)
+- **`pp`**: Pretty-print JSON logs
+- **`plot`**: Visualize resource usage
+- **`ls`**: List execution information
+
 Also see our [Datalad Blog Post](https://blog.datalad.org/posts/intro-duct-tion/) for a hands on example.
 
 ## Installation
 
+Basic installation (includes `con-duct run` and `duct` commands):
+
     pip install con-duct
+
+With optional helpers for visualization and analysis (`pp`, `plot`, `ls` commands):
+
+    pip install con-duct[all]
 
 ## Quickstart
 
-Try it out!
+Try it out using either `duct` or `con-duct run`:
 
     duct --sample-interval 0.5 --report-interval 1 test/data/test_script.py --duration 3 --memory-size=1000
 
 `duct` is most useful when the report-interval is less than the duration of the script.
 
-## Summary:
+## Summary
 
-A process wrapper script that monitors the execution of a command.
+`con-duct` monitors command execution, collecting execution time, system information, and resource usage statistics of the command and all its child processes. It's intended to simplify recording resources necessary to execute a command, particularly in HPC environments.
+
+## Command Reference
+
+### con-duct
+
+<!-- BEGIN EXTRAS HELP -->
+```shell
+>con-duct --help
+
+usage: con-duct <command> [options]
+
+A suite of commands to manage or manipulate con-duct logs.
+
+positional arguments:
+  {run,pp,plot,ls}  Available subcommands
+    run             Execute a command with duct monitoring.
+    pp              Pretty print a JSON log.
+    plot            Plot resource usage for an execution.
+    ls              Print execution information for all matching runs.
+
+options:
+  -h, --help        show this help message and exit
+  --version         show program's version number and exit
+
+```
+<!-- END EXTRAS HELP -->
+
+### con-duct run / duct
 
 <!-- BEGIN HELP -->
 ```shell
 >duct --help
 
-usage: duct [-h] [--version] [-p OUTPUT_PREFIX]
-            [--summary-format SUMMARY_FORMAT] [--colors] [--clobber]
-            [-l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}] [-q]
-            [--sample-interval SAMPLE_INTERVAL]
-            [--report-interval REPORT_INTERVAL] [--fail-time FAIL_TIME]
-            [-c {all,none,stdout,stderr}] [-o {all,none,stdout,stderr}]
-            [-t {all,system-summary,processes-samples}] [-m MESSAGE]
-            [--mode {new-session,current-session}]
-            command [command_args ...] ...
+usage: con-duct run [-h] [-l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}] [-q]
+                    [--version] [-p OUTPUT_PREFIX]
+                    [--summary-format SUMMARY_FORMAT] [--colors] [--clobber]
+                    [--sample-interval SAMPLE_INTERVAL]
+                    [--report-interval REPORT_INTERVAL]
+                    [--fail-time FAIL_TIME] [-c {all,none,stdout,stderr}]
+                    [-o {all,none,stdout,stderr}]
+                    [-t {all,system-summary,processes-samples}] [-m MESSAGE]
+                    [--mode {new-session,current-session}]
+                    command [command_args ...] ...
 
 duct is a lightweight wrapper that collects execution data for an arbitrary
-command.  Execution data includes execution time, system information, and
-resource usage statistics of the command and all its child processes. It is
-intended to simplify the problem of recording the resources necessary to
-execute a command, particularly in an HPC environment.
+command. This command can be invoked as either 'duct' or 'con-duct run'.
+
+Execution data includes execution time, system information, and resource usage
+statistics of the command and all its child processes. It is intended to
+simplify the problem of recording the resources necessary to execute a
+command,
+particularly in an HPC environment.
 
 Resource usage is determined by polling (at a sample-interval).
 During execution, duct produces a JSON lines (see https://jsonlines.org) file
@@ -71,8 +117,13 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  -l, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+                        Level of log output to stderr, use NONE to entirely
+                        disable. (default: INFO)
+  -q, --quiet           [deprecated, use log level NONE] Disable duct logging
+                        output (to stderr) (default: False)
   --version             show program's version number and exit
-  -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
+  -p, --output-prefix OUTPUT_PREFIX
                         File string format to be used as a prefix for the
                         files -- the captured stdout and stderr and the
                         resource usage logs. The understood variables are
@@ -102,38 +153,33 @@ options:
   --colors              Use colors in duct output. (default: False)
   --clobber             Replace log files if they already exist. (default:
                         False)
-  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
-                        Level of log output to stderr, use NONE to entirely
-                        disable. (default: INFO)
-  -q, --quiet           [deprecated, use log level NONE] Disable duct logging
-                        output (to stderr) (default: False)
-  --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
+  --sample-interval, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval must be less than or
                         equal to report interval, and it achieves the best
                         results when sample is significantly less than the
                         runtime of the process. (default: 1.0)
-  --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
+  --report-interval, --r-i REPORT_INTERVAL
                         Interval in seconds at which to report aggregated
                         data. (default: 60.0)
-  --fail-time FAIL_TIME, --f-t FAIL_TIME
+  --fail-time, --f-t FAIL_TIME
                         If command fails in less than this specified time
                         (seconds), duct would remove logs. Set to 0 if you
                         would like to keep logs for a failing command
                         regardless of its run time. Set to negative (e.g. -1)
                         if you would like to not keep logs for any failing
                         command. (default: 3.0)
-  -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
+  -c, --capture-outputs {all,none,stdout,stderr}
                         Record stdout, stderr, all, or none to log files. You
                         can also provide value via DUCT_CAPTURE_OUTPUTS env
                         variable. (default: all)
-  -o {all,none,stdout,stderr}, --outputs {all,none,stdout,stderr}
+  -o, --outputs {all,none,stdout,stderr}
                         Print stdout, stderr, all, or none to stdout/stderr
                         respectively. (default: all)
-  -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
+  -t, --record-types {all,system-summary,processes-samples}
                         Record system-summary, processes-samples, or all
                         (default: all)
-  -m MESSAGE, --message MESSAGE
+  -m, --message MESSAGE
                         Record a descriptive message about the purpose of this
                         execution. You can also provide value via DUCT_MESSAGE
                         env variable. (default: )
@@ -146,41 +192,6 @@ options:
 
 ```
 <!-- END HELP -->
-
-# con-duct suite
-
-In addition to `duct`, this project also includes a set of optional helpers under the `con-duct` command.
-These helpers may use 3rd party python libraries.
-
-## Installation
-
-    pip install con-duct[all]
-
-## Extras Helptext
-
-<!-- BEGIN EXTRAS HELP -->
-```shell
->con-duct --help
-
-usage: con-duct <command> [options]
-
-A suite of commands to manage or manipulate con-duct logs.
-
-positional arguments:
-  {pp,plot,ls}          Available subcommands
-    pp                  Pretty print a JSON log.
-    plot                Plot resource usage for an execution.
-    ls                  Print execution information for all matching runs.
-
-options:
-  -h, --help            show this help message and exit
-  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
-                        Level of log output to stderr, use NONE to entirely
-                        disable.
-  --version             show program's version number and exit
-
-```
-<!-- END EXTRAS HELP -->
 
 ## FAQs
 
