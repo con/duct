@@ -48,7 +48,7 @@ def test_high_throughput_stdout(mock_stdout: MockStream, fixture_path: str) -> N
 def test_high_throughput_stderr(mock_stderr: MockStream, fixture_path: str) -> None:
     with tempfile.NamedTemporaryFile(mode="wb") as tmpfile:
         process = subprocess.Popen(
-            [Path(__file__).with_name("data") / "cat_to_err.py", fixture_path],
+            [Path(__file__).parent.parent / "data" / "cat_to_err.py", fixture_path],
             stdout=subprocess.DEVNULL,
             stderr=tmpfile,
         )

@@ -14,7 +14,7 @@ from con_duct.cli import RunArguments as Arguments
 import con_duct.duct_main as duct_main
 from con_duct.duct_main import SUFFIXES, Outputs, execute
 
-TEST_SCRIPT_DIR = Path(__file__).with_name("data")
+TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
 
 expected_files = [
     SUFFIXES["stdout"],
