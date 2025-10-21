@@ -164,3 +164,79 @@ def test_sample_equal_greater_than_report_interval() -> None:
             sample_interval=1.0,
             report_interval=0.1,
         )
+
+
+def test_execute_returns_int() -> None:
+    """Test that cli.execute() requires subcommand functions to return int"""
+    from typing import Any
+    from con_duct import cli
+
+    def return_non_int(*_args: Any) -> str:
+        return "NOPE"
+
+    args = argparse.Namespace(
+        command="invalid",
+        file_path="dummy.json",
+        func=return_non_int,
+        log_level="INFO",
+    )
+    with pytest.raises(TypeError):
+        cli.execute(args)
+
+
+def test_parser_mock_sanity() -> None:
+    """Test parser with mocked ArgumentParser"""
+    from unittest.mock import MagicMock, patch
+    from con_duct import cli
+
+    with patch("con_duct.cli.argparse.ArgumentParser") as mock_parser:
+        mock_args = MagicMock
+        mock_args.command = None
+        mock_parser.parse_args.return_value = mock_args
+        argv = ["/path/to/con-duct", "plot", "--help"]
+        cli.main(argv)
+        mock_parser.return_value.print_help.assert_called_once()
+
+
+def test_parser_sanity_green() -> None:
+    """Test parser with --help flag (success case)"""
+    from unittest.mock import MagicMock, patch
+    from con_duct import cli
+
+    with patch("con_duct.cli.sys.exit", new_callable=MagicMock) as mock_exit, patch(
+        "con_duct.cli.sys.stderr", new_callable=MagicMock
+    ) as mock_stderr, patch(
+        "con_duct.cli.sys.stdout", new_callable=MagicMock
+    ) as mock_stdout:
+        argv = ["--help"]
+        cli.main(argv)
+        # [0][1][0]: [first call][positional args set(0 is self)][first positional]
+        out = mock_stdout.write.mock_calls[0][1][0]
+        assert "usage: con-duct <command> [options]" in out
+        mock_stderr.write.assert_not_called()
+        mock_exit.assert_called_once_with(0)
+
+
+def test_parser_sanity_red() -> None:
+    """Test parser with invalid flag (error case)"""
+    from unittest.mock import MagicMock, patch
+    from con_duct import cli
+
+    with patch("con_duct.cli.sys.exit", new_callable=MagicMock) as mock_exit, patch(
+        "con_duct.cli.sys.stderr", new_callable=MagicMock
+    ) as mock_stderr, patch(
+        "con_duct.cli.sys.stdout", new_callable=MagicMock
+    ) as mock_stdout:
+        argv = ["--fakehelp"]
+        cli.main(argv)
+        # [0][1][0]: [first call][positional args set(0 is self)][first positional]
+        out = mock_stdout.write.mock_calls[0][1][0]
+        assert "usage: con-duct <command> [options]" in out
+        # First call
+        assert (
+            "usage: con-duct <command> [options]"
+            in mock_stderr.write.mock_calls[0][1][0]
+        )
+        # second call
+        assert "--fakehelp" in mock_stderr.write.mock_calls[1][1][0]
+        mock_exit.assert_called_once_with(2)
