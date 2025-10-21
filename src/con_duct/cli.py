@@ -23,10 +23,12 @@ DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
 ABOUT_DUCT = """
 duct is a lightweight wrapper that collects execution data for an arbitrary
-command.  Execution data includes execution time, system information, and
-resource usage statistics of the command and all its child processes. It is
-intended to simplify the problem of recording the resources necessary to
-execute a command, particularly in an HPC environment.
+command. This command can be invoked as either 'duct' or 'con-duct run'.
+
+Execution data includes execution time, system information, and resource usage
+statistics of the command and all its child processes. It is intended to
+simplify the problem of recording the resources necessary to execute a command,
+particularly in an HPC environment.
 
 Resource usage is determined by polling (at a sample-interval).
 During execution, duct produces a JSON lines (see https://jsonlines.org) file
@@ -323,6 +325,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_run = subparsers.add_parser(
         "run",
         help="Execute a command with duct monitoring.",
+        description=ABOUT_DUCT,
         parents=[duct_parser],
         add_help=False,  # Parent parser already provides --help
         formatter_class=CustomHelpFormatter,

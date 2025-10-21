@@ -3,20 +3,24 @@ import re
 import subprocess
 from unittest import mock
 import pytest
-from con_duct.__main__ import Arguments
+from con_duct.cli import RunArguments as Arguments
 
 
 def test_duct_help() -> None:
     out = subprocess.check_output(["duct", "--help", "ps"])
-    assert "usage: duct [-h]" in str(out)
+    # duct delegates to con-duct run, so usage shows con-duct
+    assert "usage: con-duct <command> [options] run" in str(out)
+    # Help text should mention both entry points
+    assert "'duct' or 'con-duct run'" in str(out)
 
 
 def test_duct_version() -> None:
     out = subprocess.check_output(["duct", "--version"])
     output_str = out.decode("utf-8").strip()
-    assert output_str.startswith("duct ")
-    # Check that it has a version pattern
-    assert re.match(r"duct \d+\.\d+\.\d+", output_str)
+    # duct now delegates to con-duct run, so version shows con-duct with full prog name
+    assert output_str.startswith("con-duct ")
+    # Check that it has a version pattern (version appears after prog name)
+    assert re.search(r"\d+\.\d+\.\d+", output_str)
 
 
 def test_con_duct_version() -> None:
@@ -30,7 +34,8 @@ def test_con_duct_version() -> None:
 def test_cmd_help() -> None:
     out = subprocess.check_output(["duct", "ps", "--help"])
     assert "ps [options]" in str(out)
-    assert "usage: duct [-h]" not in str(out)
+    # Should show ps help, not duct/con-duct help
+    assert "usage: con-duct <command> [options] run" not in str(out)
 
 
 @pytest.mark.parametrize(
@@ -46,7 +51,7 @@ def test_duct_unrecognized_arg(args: list) -> None:
         pytest.fail("Command should have failed with a non-zero exit code")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "duct: error: unrecognized arguments: --unknown" in str(e.stdout)
+        assert "error: unrecognized arguments: --unknown" in str(e.stdout)
 
 
 def test_duct_missing_cmd() -> None:
@@ -57,9 +62,7 @@ def test_duct_missing_cmd() -> None:
         pytest.fail("Command should have failed with a non-zero exit code")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "duct: error: the following arguments are required: command" in str(
-            e.stdout
-        )
+        assert "error: the following arguments are required: command" in str(e.stdout)
 
 
 def test_abreviation_disabled() -> None:
