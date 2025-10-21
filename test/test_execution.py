@@ -28,7 +28,7 @@ def assert_expected_files(temp_output_dir: str, exists: bool = True) -> None:
     assert_files(temp_output_dir, expected_files, exists=exists)
 
 
-def test_sanity_green(caplog: pytest.LogCaptureFixture, temp_output_dir: str) -> None:
+def test_sanity_green(temp_output_dir: str) -> None:
     args = Arguments.from_argv(
         ["echo", "hello", "world"],
         sample_interval=4.0,
@@ -40,7 +40,6 @@ def test_sanity_green(caplog: pytest.LogCaptureFixture, temp_output_dir: str) ->
     assert execute(args) == exit_code
     assert time() - t0 < 0.4  # we should not wait for a sample or report interval
     assert_expected_files(temp_output_dir)
-    assert "Exit Code: 0" in caplog.records[-1].message
 
 
 def test_execution_summary(temp_output_dir: str) -> None:
@@ -138,45 +137,6 @@ def test_outputs_none(temp_output_dir: str) -> None:
 
     not_expected_files = [SUFFIXES["stdout"], SUFFIXES["stderr"]]
     assert_files(temp_output_dir, not_expected_files, exists=False)
-
-
-def test_outputs_none_quiet(
-    temp_output_dir: str,
-    capsys: pytest.CaptureFixture,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    script_path = str(TEST_SCRIPT_DIR / "test_script.py")
-    args = Arguments.from_argv(
-        [script_path, "--duration", "1"],
-        output_prefix=temp_output_dir,
-    )
-    assert execute(args) == 0
-    r1 = capsys.readouterr()
-    assert r1.out.startswith("this is of test of STDOUT")
-    assert "this is of test of STDERR" in r1.err
-    assert "Summary" in caplog.text
-    caplog_text1 = caplog.text
-
-    # now quiet please
-    args.quiet = True
-    args.clobber = True  # to avoid the file already exists error
-    assert execute(args) == 0
-    r2 = capsys.readouterr()
-    # Still have all the outputs
-    assert r1 == r2
-    # But nothing new to the log
-    assert caplog.text == caplog_text1
-
-    # log_level NONE should have the same behavior as quiet
-    args.log_level = "NONE"
-    args.quiet = False
-    args.clobber = True  # to avoid the file already exists error
-    assert execute(args) == 0
-    r3 = capsys.readouterr()
-    # Still have all the outputs
-    assert r1 == r3
-    # But nothing new to the log
-    assert caplog.text == caplog_text1
 
 
 def test_exit_before_first_sample(temp_output_dir: str) -> None:

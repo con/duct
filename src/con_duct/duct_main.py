@@ -864,10 +864,6 @@ def execute(args: RunArguments) -> int:
 
     Returns exit code of the executed process.
     """
-    if args.log_level == "NONE" or args.quiet:
-        lgr.disabled = True
-    else:
-        lgr.setLevel(args.log_level)
     log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
     log_paths.prepare_paths(args.clobber, args.capture_outputs)
     stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)

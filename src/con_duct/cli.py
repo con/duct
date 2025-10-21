@@ -59,6 +59,49 @@ class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
         return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
 
 
+def create_common_parser() -> argparse.ArgumentParser:
+    """Create a parser with common arguments shared across all commands."""
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(
+        "-l",
+        "--log-level",
+        default=DEFAULT_LOG_LEVEL,
+        choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
+        type=str.upper,
+        help="Level of log output to stderr, use NONE to entirely disable.",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="[deprecated, use log level NONE] Disable duct logging output (to stderr)",
+    )
+    return parser
+
+
+def setup_logging(args: argparse.Namespace) -> None:
+    """Configure logging based on parsed arguments.
+
+    Handles both --log-level and --quiet flags, applying them consistently
+    across all subcommands.
+    """
+    log_level = args.log_level
+
+    # Handle deprecated --quiet flag
+    if args.quiet:
+        log_level = "NONE"
+
+    # Special case: NONE means disable all logging
+    if log_level == "NONE":
+        logging.disable(logging.CRITICAL)
+    else:
+        logging.basicConfig(
+            format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S%z",
+            level=log_level,
+        )
+
+
 @dataclass
 class RunArguments:
     command: str
@@ -88,10 +131,12 @@ class RunArguments:
     @classmethod
     def create_parser(cls) -> argparse.ArgumentParser:
         """Create and configure the argument parser for duct."""
+        common_parser = create_common_parser()
         parser = argparse.ArgumentParser(
             allow_abbrev=False,
             description=ABOUT_DUCT,
             formatter_class=CustomHelpFormatter,
+            parents=[common_parser],
         )
         parser.add_argument(
             "command",
@@ -136,20 +181,6 @@ class RunArguments:
             "--clobber",
             action="store_true",
             help="Replace log files if they already exist.",
-        )
-        parser.add_argument(
-            "-l",
-            "--log-level",
-            default=os.environ.get("DUCT_LOG_LEVEL", "INFO").upper(),
-            type=str.upper,
-            choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
-            help="Level of log output to stderr, use NONE to entirely disable.",
-        )
-        parser.add_argument(
-            "-q",
-            "--quiet",
-            action="store_true",
-            help="[deprecated, use log level NONE] Disable duct logging output (to stderr)",
         )
         parser.add_argument(
             "--sample-interval",
@@ -252,11 +283,6 @@ class RunArguments:
 
 def run_command(args: argparse.Namespace) -> int:
     """Execute a command with duct monitoring."""
-    logging.basicConfig(
-        format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S%z",
-        level=getattr(logging, os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()),
-    )
     # Convert the parsed Namespace to a RunArguments object
     duct_args = RunArguments(
         command=args.command,
@@ -280,12 +306,7 @@ def run_command(args: argparse.Namespace) -> int:
 
 
 def execute(args: argparse.Namespace) -> int:
-
-    if args.log_level == "NONE":
-        logging.disable(logging.CRITICAL)
-    else:
-        logging.basicConfig(level=args.log_level)
-
+    """Execute the subcommand function and return its exit code."""
     result = args.func(args)
     if not isinstance(result, int):
         raise TypeError(
@@ -306,16 +327,9 @@ def main(argv: Optional[List[str]] = None) -> None:
         usage="con-duct <command> [options]",
     )
     parser.add_argument(
-        "-l",
-        "--log-level",
-        default=DEFAULT_LOG_LEVEL,
-        choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
-        type=str.upper,
-        help="Level of log output to stderr, use NONE to entirely disable.",
-    )
-    parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
+    common_parser = create_common_parser()
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # Subcommand: run
@@ -333,7 +347,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_run.set_defaults(func=run_command)
 
     # Subcommand: pp
-    parser_pp = subparsers.add_parser("pp", help="Pretty print a JSON log.")
+    parser_pp = subparsers.add_parser(
+        "pp", help="Pretty print a JSON log.", parents=[common_parser]
+    )
     parser_pp.add_argument("file_path", help="JSON file to pretty print.")
     parser_pp.add_argument(
         "-H",
@@ -345,7 +361,7 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     # Subcommand: plot
     parser_plot = subparsers.add_parser(
-        "plot", help="Plot resource usage for an execution."
+        "plot", help="Plot resource usage for an execution.", parents=[common_parser]
     )
     parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
     parser_plot.add_argument(
@@ -373,6 +389,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_ls = subparsers.add_parser(
         "ls",
         help="Print execution information for all matching runs.",
+        parents=[common_parser],
     )
     parser_ls.add_argument(
         "-f",
@@ -425,4 +442,5 @@ def main(argv: Optional[List[str]] = None) -> None:
     if args.command is None:
         parser.print_help()
     else:
+        setup_logging(args)
         sys.exit(execute(args))
