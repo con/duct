@@ -1,3 +1,4 @@
+import argparse
 import os
 import re
 import subprocess
@@ -136,3 +137,30 @@ def test_message_env_variable() -> None:
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
         args = Arguments.from_argv(["-m", "cli message", "echo", "hello"])
         assert args.message == "cli message"
+
+
+def test_sample_less_than_report_interval() -> None:
+    args = Arguments.from_argv(
+        ["fake"],
+        sample_interval=0.01,
+        report_interval=0.1,
+    )
+    assert args.sample_interval <= args.report_interval
+
+
+def test_sample_equal_to_report_interval() -> None:
+    args = Arguments.from_argv(
+        ["fake"],
+        sample_interval=0.1,
+        report_interval=0.1,
+    )
+    assert args.sample_interval == args.report_interval
+
+
+def test_sample_equal_greater_than_report_interval() -> None:
+    with pytest.raises(argparse.ArgumentError):
+        Arguments.from_argv(
+            ["fake"],
+            sample_interval=1.0,
+            report_interval=0.1,
+        )
