@@ -344,12 +344,16 @@ def main(argv: Optional[List[str]] = None) -> None:
         add_help=False,  # Parent parser already provides --help
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False,
+        prog="con-duct run",
     )
     parser_run.set_defaults(func=run_command)
 
     # Subcommand: pp
     parser_pp = subparsers.add_parser(
-        "pp", help="Pretty print a JSON log.", parents=[common_parser]
+        "pp",
+        help="Pretty print a JSON log.",
+        parents=[common_parser],
+        prog="con-duct pp",
     )
     parser_pp.add_argument("file_path", help="JSON file to pretty print.")
     parser_pp.add_argument(
@@ -362,7 +366,10 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     # Subcommand: plot
     parser_plot = subparsers.add_parser(
-        "plot", help="Plot resource usage for an execution.", parents=[common_parser]
+        "plot",
+        help="Plot resource usage for an execution.",
+        parents=[common_parser],
+        prog="con-duct plot",
     )
     parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
     parser_plot.add_argument(
@@ -391,6 +398,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         "ls",
         help="Print execution information for all matching runs.",
         parents=[common_parser],
+        prog="con-duct ls",
     )
     parser_ls.add_argument(
         "-f",

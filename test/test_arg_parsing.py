@@ -8,8 +8,8 @@ from con_duct.cli import RunArguments as Arguments
 
 def test_duct_help() -> None:
     out = subprocess.check_output(["duct", "--help", "ps"])
-    # duct delegates to con-duct run, so usage shows con-duct
-    assert "usage: con-duct <command> [options] run" in str(out)
+    # duct delegates to con-duct run, so usage shows con-duct run
+    assert "usage: con-duct run" in str(out)
     # Help text should mention both entry points
     assert "'duct' or 'con-duct run'" in str(out)
 
