@@ -343,6 +343,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         parents=[duct_parser],
         add_help=False,  # Parent parser already provides --help
         formatter_class=CustomHelpFormatter,
+        allow_abbrev=False,
     )
     parser_run.set_defaults(func=run_command)
 
