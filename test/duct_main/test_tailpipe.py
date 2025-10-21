@@ -5,7 +5,7 @@ import tempfile
 from unittest.mock import patch
 import pytest
 from utils import MockStream
-from con_duct.__main__ import TailPipe
+from con_duct.duct_main import TailPipe
 
 # 10^7 line fixture is about 70MB
 FIXTURE_LIST = [f"ten_{i}" for i in range(1, 8)]
@@ -48,7 +48,7 @@ def test_high_throughput_stdout(mock_stdout: MockStream, fixture_path: str) -> N
 def test_high_throughput_stderr(mock_stderr: MockStream, fixture_path: str) -> None:
     with tempfile.NamedTemporaryFile(mode="wb") as tmpfile:
         process = subprocess.Popen(
-            [Path(__file__).with_name("data") / "cat_to_err.py", fixture_path],
+            [Path(__file__).parent.parent / "data" / "cat_to_err.py", fixture_path],
             stdout=subprocess.DEVNULL,
             stderr=tmpfile,
         )
