@@ -1,4 +1,5 @@
 import os
+import platform
 import re
 import subprocess
 from unittest import mock
@@ -27,6 +28,10 @@ def test_con_duct_version() -> None:
     assert re.match(r"con-duct \d+\.\d+\.\d+", output_str)
 
 
+@pytest.mark.skipif(
+    condition=platform.system() != "Linux",
+    reason="Test is specific to Linux platforms.",
+)
 def test_cmd_help() -> None:
     out = subprocess.check_output(["duct", "ps", "--help"])
     assert "ps [options]" in str(out)
@@ -62,7 +67,11 @@ def test_duct_missing_cmd() -> None:
         )
 
 
-def test_abreviation_disabled() -> None:
+@pytest.mark.skipif(
+    condition=platform.system() != "Linux",
+    reason="Test is specific to Linux platforms.",
+)
+def test_abbreviation_disabled() -> None:
     """
     If abbreviation is enabled, options passed to command (not duct) are still
     filtered through the argparse and causes problems.

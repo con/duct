@@ -4,7 +4,6 @@ import logging
 import multiprocessing
 import os
 from pathlib import Path
-import platform
 import signal
 import subprocess
 import sys
@@ -55,20 +54,10 @@ def test_execution_summary(temp_output_dir: str) -> None:
         info_dict = json.loads(info.read())
     execution_summary = info_dict["execution_summary"]
     # Since resources used should be small lets make sure values are roughly sane
-    if platform.system() == "Darwin":
-        assert execution_summary["average_rss"] is None
-        assert execution_summary["peak_rss"] is None
-        assert execution_summary["average_pmem"] is None
-        assert execution_summary["peak_pmem"] is None
-        assert execution_summary["average_pcpu"] is None
-        assert execution_summary["peak_pcpu"] is None
-    else:
-        assert execution_summary["average_rss"] < 10
-        assert execution_summary["peak_rss"] < 10
-        assert execution_summary["average_pmem"] < 10
-        assert execution_summary["peak_pmem"] < 10
-        assert execution_summary["average_pcpu"] < 10
-        assert execution_summary["peak_pcpu"] < 10
+    assert execution_summary["average_pmem"] < 10
+    assert execution_summary["peak_pmem"] < 10
+    assert execution_summary["average_pcpu"] < 10
+    assert execution_summary["peak_pcpu"] < 10
 
     assert execution_summary["exit_code"] == 0
     assert execution_summary["working_directory"] == os.getcwd()
