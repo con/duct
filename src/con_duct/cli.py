@@ -468,6 +468,7 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     if args.command is None:
         parser.print_help()
+        sys.exit(0)
     else:
         setup_logging(args)
         sys.exit(execute(args))
