@@ -20,10 +20,7 @@ import sys
 import threading
 import time
 from types import FrameType
-from typing import IO, TYPE_CHECKING, Any, Optional, TextIO
-
-if TYPE_CHECKING:
-    from con_duct.cli import RunArguments
+from typing import IO, Any, Optional, TextIO
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
@@ -859,14 +856,29 @@ class ProcessSignalHandler:
             os._exit(1)
 
 
-def execute(args: RunArguments) -> int:
+def execute(
+    command: str,
+    command_args: list[str],
+    output_prefix: str,
+    sample_interval: float,
+    report_interval: float,
+    fail_time: float,
+    clobber: bool,
+    capture_outputs: Outputs,
+    outputs: Outputs,
+    record_types: RecordTypes,
+    summary_format: str,
+    colors: bool,
+    session_mode: SessionMode,
+    message: str = "",
+) -> int:
     """A wrapper to execute a command, monitor and log the process details.
 
     Returns exit code of the executed process.
     """
-    log_paths = LogPaths.create(args.output_prefix, pid=os.getpid())
-    log_paths.prepare_paths(args.clobber, args.capture_outputs)
-    stdout, stderr = prepare_outputs(args.capture_outputs, args.outputs, log_paths)
+    log_paths = LogPaths.create(output_prefix, pid=os.getpid())
+    log_paths.prepare_paths(clobber, capture_outputs)
+    stdout, stderr = prepare_outputs(capture_outputs, outputs, log_paths)
     stdout_file: TextIO | IO[bytes] | int | None
     if isinstance(stdout, TailPipe):
         stdout_file = open(stdout.file_path, "wb")
@@ -879,28 +891,28 @@ def execute(args: RunArguments) -> int:
         stderr_file = stderr
 
     working_directory = os.getcwd()
-    full_command = " ".join([str(args.command)] + args.command_args)
+    full_command = " ".join([str(command)] + command_args)
     files_to_close = [stdout_file, stdout, stderr_file, stderr]
 
     report = Report(
-        args.command,
-        args.command_args,
+        command,
+        command_args,
         log_paths,
-        args.summary_format,
+        summary_format,
         working_directory,
-        args.colors,
-        args.clobber,
-        message=args.message,
+        colors,
+        clobber,
+        message=message,
     )
     files_to_close.append(report.usage_file)
 
     report.start_time = time.time()
     try:
         report.process = process = subprocess.Popen(
-            [str(args.command)] + args.command_args,
+            [str(command)] + command_args,
             stdout=stdout_file,
             stderr=stderr_file,
-            start_new_session=(args.session_mode == SessionMode.NEW_SESSION),
+            start_new_session=(session_mode == SessionMode.NEW_SESSION),
             cwd=report.working_directory,
         )
     except FileNotFoundError:
@@ -910,7 +922,7 @@ def execute(args: RunArguments) -> int:
         safe_close_files(files_to_close)
         remove_files(log_paths, assert_empty=True)
         # mimicking behavior of bash and zsh.
-        lgr.error("%s: command not found", args.command)
+        lgr.error("%s: command not found", command)
         return 127  # seems what zsh and bash return then
 
     handler = ProcessSignalHandler(process.pid)
@@ -918,7 +930,7 @@ def execute(args: RunArguments) -> int:
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
-        if args.session_mode == SessionMode.NEW_SESSION:
+        if session_mode == SessionMode.NEW_SESSION:
             report.session_id = os.getsid(
                 process.pid
             )  # Get session ID of the new process
@@ -930,12 +942,12 @@ def execute(args: RunArguments) -> int:
         # TODO: log this at least.
         pass
     stop_event = threading.Event()
-    if args.record_types.has_processes_samples():
+    if record_types.has_processes_samples():
         monitoring_args = [
             report,
             process,
-            args.report_interval,
-            args.sample_interval,
+            report_interval,
+            sample_interval,
             stop_event,
         ]
         monitoring_thread = threading.Thread(
@@ -945,7 +957,7 @@ def execute(args: RunArguments) -> int:
     else:
         monitoring_thread = None
 
-    if args.record_types.has_system_summary():
+    if record_types.has_system_summary():
         env_thread = threading.Thread(target=report.collect_environment)
         env_thread.start()
         sys_info_thread = threading.Thread(target=report.get_system_info)
@@ -977,17 +989,15 @@ def execute(args: RunArguments) -> int:
         sys_info_thread.join()
         lgr.debug("System information collection finished")
 
-    if args.record_types.has_system_summary():
+    if record_types.has_system_summary():
         with open(log_paths.info, "w") as system_logs:
             report.run_time_seconds = f"{report.end_time - report.start_time}"
             system_logs.write(report.dump_json())
     safe_close_files(files_to_close)
-    if process.returncode != 0 and (
-        report.elapsed_time < args.fail_time or args.fail_time < 0
-    ):
+    if process.returncode != 0 and (report.elapsed_time < fail_time or fail_time < 0):
         lgr.info(
             "Removing log files since command failed%s.",
-            f" in less than {args.fail_time} seconds" if args.fail_time > 0 else "",
+            f" in less than {fail_time} seconds" if fail_time > 0 else "",
         )
         remove_files(log_paths)
     else:

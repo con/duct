@@ -1,8 +1,7 @@
 import json
 import os
 from pathlib import Path
-from con_duct.cli import RunArguments as Arguments
-from con_duct.duct_main import execute
+from con_duct.cli import RunArguments
 from con_duct.ls import LS_FIELD_CHOICES, _flatten_dict
 
 
@@ -12,7 +11,7 @@ def test_info_fields(temp_output_dir: str) -> None:
 
     Fails when schema changes-- commit the new version and bump schema version
     """
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["echo", "hello", "world"],
         sample_interval=4.0,
         report_interval=60.0,
@@ -20,7 +19,7 @@ def test_info_fields(temp_output_dir: str) -> None:
         clobber=True,
     )
     # Execute duct
-    assert execute(args) == 0  # exit_code
+    assert args.execute() == 0  # exit_code
     os.remove(Path(temp_output_dir, "stdout"))
     os.remove(Path(temp_output_dir, "stderr"))
     os.remove(Path(temp_output_dir, "usage.json"))

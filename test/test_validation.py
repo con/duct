@@ -1,11 +1,11 @@
 import argparse
 import pytest
-from con_duct.cli import RunArguments as Arguments
+from con_duct.cli import RunArguments
 from con_duct.duct_main import assert_num
 
 
 def test_sample_less_than_report_interval() -> None:
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["fake"],
         sample_interval=0.01,
         report_interval=0.1,
@@ -14,7 +14,7 @@ def test_sample_less_than_report_interval() -> None:
 
 
 def test_sample_equal_to_report_interval() -> None:
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["fake"],
         sample_interval=0.1,
         report_interval=0.1,
@@ -24,7 +24,7 @@ def test_sample_equal_to_report_interval() -> None:
 
 def test_sample_equal_greater_than_report_interval() -> None:
     with pytest.raises(argparse.ArgumentError):
-        Arguments.from_argv(
+        RunArguments.from_argv(
             ["fake"],
             sample_interval=1.0,
             report_interval=0.1,

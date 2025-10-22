@@ -10,9 +10,9 @@ import sys
 from time import sleep, time
 import pytest
 from utils import assert_files
-from con_duct.cli import RunArguments as Arguments
+from con_duct.cli import RunArguments
 import con_duct.duct_main as duct_main
-from con_duct.duct_main import SUFFIXES, Outputs, execute
+from con_duct.duct_main import SUFFIXES, Outputs
 
 TEST_SCRIPT_DIR = Path(__file__).with_name("data")
 
@@ -29,7 +29,7 @@ def assert_expected_files(temp_output_dir: str, exists: bool = True) -> None:
 
 
 def test_sanity_green(temp_output_dir: str) -> None:
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["echo", "hello", "world"],
         sample_interval=4.0,
         report_interval=60.0,
@@ -37,19 +37,19 @@ def test_sanity_green(temp_output_dir: str) -> None:
     )
     t0 = time()
     exit_code = 0
-    assert execute(args) == exit_code
+    assert args.execute() == exit_code
     assert time() - t0 < 0.4  # we should not wait for a sample or report interval
     assert_expected_files(temp_output_dir)
 
 
 def test_execution_summary(temp_output_dir: str) -> None:
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["sleep", "0.1"],
         sample_interval=0.05,  # small enough to ensure we collect at least 1 sample
         report_interval=0.1,
         output_prefix=temp_output_dir,
     )
-    assert execute(args) == 0
+    assert args.execute() == 0
     with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
         info_dict = json.loads(info.read())
     execution_summary = info_dict["execution_summary"]
@@ -66,13 +66,13 @@ def test_execution_summary(temp_output_dir: str) -> None:
 def test_sanity_red(
     caplog: pytest.LogCaptureFixture, exit_code: int, temp_output_dir: str
 ) -> None:
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["sh", "-c", f"exit {exit_code}"],
         output_prefix=temp_output_dir,
         fail_time=0,  # keep log files regardless of exit code
     )
     caplog.set_level("INFO")
-    assert execute(args) == exit_code
+    assert args.execute() == exit_code
     assert f"Exit Code: {exit_code}" in caplog.records[-1].message
 
     # We still should execute normally
@@ -81,26 +81,26 @@ def test_sanity_red(
 
 def test_outputs_full(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         [script_path, "--duration", "1"],
         # It is our default, but let's be explicit
         capture_outputs=Outputs.ALL,
         outputs=Outputs.ALL,
         output_prefix=temp_output_dir,
     )
-    assert execute(args) == 0
+    assert args.execute() == 0
     assert_expected_files(temp_output_dir)
 
 
 def test_outputs_passthrough(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         [script_path, "--duration", "1"],
         capture_outputs=Outputs.NONE,
         outputs=Outputs.ALL,
         output_prefix=temp_output_dir,
     )
-    assert execute(args) == 0
+    assert args.execute() == 0
     expected_files = [SUFFIXES["info"], SUFFIXES["usage"]]
     assert_files(temp_output_dir, expected_files, exists=True)
     not_expected_files = [SUFFIXES["stdout"], SUFFIXES["stderr"]]
@@ -109,13 +109,13 @@ def test_outputs_passthrough(temp_output_dir: str) -> None:
 
 def test_outputs_capture(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         [script_path, "--duration", "1"],
         capture_outputs=Outputs.ALL,
         outputs=Outputs.NONE,
         output_prefix=temp_output_dir,
     )
-    assert execute(args) == 0
+    assert args.execute() == 0
     # TODO make this work assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
     assert_expected_files(temp_output_dir)
@@ -123,13 +123,13 @@ def test_outputs_capture(temp_output_dir: str) -> None:
 
 def test_outputs_none(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         [script_path, "--duration", "1"],
         capture_outputs=Outputs.NONE,
         outputs=Outputs.NONE,
         output_prefix=temp_output_dir,
     )
-    assert execute(args) == 0
+    assert args.execute() == 0
     # assert mock.call("this is of test of STDOUT\n") not in mock_stdout.write.mock_calls
 
     expected_files = [SUFFIXES["info"], SUFFIXES["usage"]]
@@ -140,23 +140,23 @@ def test_outputs_none(temp_output_dir: str) -> None:
 
 
 def test_exit_before_first_sample(temp_output_dir: str) -> None:
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["ls"], sample_interval=0.1, report_interval=0.1, output_prefix=temp_output_dir
     )
 
-    assert execute(args) == 0
+    assert args.execute() == 0
     assert_expected_files(temp_output_dir)
     # TODO check usagefile
 
 
 def test_run_less_than_report_interval(temp_output_dir: str) -> None:
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["sleep", "0.01"],
         sample_interval=0.001,
         report_interval=0.1,
         output_prefix=temp_output_dir,
     )
-    assert execute(args) == 0
+    assert args.execute() == 0
     # Specifically we need to assert that usage.json gets written anyway.
     assert_expected_files(temp_output_dir)
 
@@ -165,9 +165,9 @@ def test_execute_unknown_command(
     temp_output_dir: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     cmd = "this_command_does_not_exist_123abrakadabra"
-    args = Arguments.from_argv([cmd])
+    args = RunArguments.from_argv([cmd])
     with caplog.at_level(logging.ERROR):
-        assert execute(args) == 127
+        assert args.execute() == 127
     assert f"{cmd}: command not found" in caplog.text
     assert_expected_files(temp_output_dir, exists=False)
 
@@ -176,10 +176,10 @@ def _runner_for_signal_int(temp_output_dir: str, fail_time: float | None) -> int
     kws = {}
     if fail_time is not None:
         kws["fail_time"] = fail_time
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["sleep", "60.74016230000801"], output_prefix=temp_output_dir, **kws
     )
-    return execute(args)
+    return args.execute()
 
 
 @pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
@@ -215,8 +215,8 @@ def _runner_for_signal_kill(temp_output_dir: str, fail_time: float | None) -> in
     kws = {}
     if fail_time is not None:
         kws["fail_time"] = fail_time
-    args = Arguments.from_argv([script_path], output_prefix=temp_output_dir, **kws)
-    return execute(args)
+    args = RunArguments.from_argv([script_path], output_prefix=temp_output_dir, **kws)
+    return args.execute()
 
 
 @pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
@@ -268,11 +268,11 @@ def test_duct_as_executable(temp_output_dir: str) -> None:
 def test_message_in_json_output(temp_output_dir: str) -> None:
     """Test that message appears in JSON output when provided."""
     test_message = "Electrolytes, its what plants crave"
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["-m", test_message, "echo", "hello"],
         output_prefix=temp_output_dir,
     )
-    assert execute(args) == 0
+    assert args.execute() == 0
 
     # Check that message appears in info.json
     with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
@@ -284,11 +284,11 @@ def test_message_in_json_output(temp_output_dir: str) -> None:
 
 def test_no_message_in_json_output(temp_output_dir: str) -> None:
     """Test that message field is empty string when not provided."""
-    args = Arguments.from_argv(
+    args = RunArguments.from_argv(
         ["echo", "hello"],
         output_prefix=temp_output_dir,
     )
-    assert execute(args) == 0
+    assert args.execute() == 0
 
     # Check that message field is empty string in info.json
     with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:

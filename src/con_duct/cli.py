@@ -128,6 +128,28 @@ class RunArguments:
                 "--report-interval must be greater than or equal to --sample-interval.",
             )
 
+    def execute(self) -> int:
+        """Execute the command with these arguments.
+
+        This is a convenience method for tests and library usage.
+        """
+        return duct_execute(
+            command=self.command,
+            command_args=self.command_args,
+            output_prefix=self.output_prefix,
+            sample_interval=self.sample_interval,
+            report_interval=self.report_interval,
+            fail_time=self.fail_time,
+            clobber=self.clobber,
+            capture_outputs=self.capture_outputs,
+            outputs=self.outputs,
+            record_types=self.record_types,
+            summary_format=self.summary_format,
+            colors=self.colors,
+            session_mode=self.session_mode,
+            message=self.message,
+        )
+
     @classmethod
     def create_parser(cls) -> argparse.ArgumentParser:
         """Create and configure the argument parser for duct."""
@@ -283,8 +305,7 @@ class RunArguments:
 
 def run_command(args: argparse.Namespace) -> int:
     """Execute a command with duct monitoring."""
-    # Convert the parsed Namespace to a RunArguments object
-    duct_args = RunArguments(
+    return duct_execute(
         command=args.command,
         command_args=args.command_args,
         output_prefix=args.output_prefix,
@@ -297,12 +318,9 @@ def run_command(args: argparse.Namespace) -> int:
         summary_format=args.summary_format,
         clobber=args.clobber,
         colors=args.colors,
-        log_level=args.log_level,
-        quiet=args.quiet,
         session_mode=args.mode,
         message=args.message,
     )
-    return duct_execute(duct_args)
 
 
 def execute(args: argparse.Namespace) -> int:
