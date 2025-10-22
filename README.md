@@ -4,13 +4,13 @@
 [![PyPI version](https://badge.fury.io/py/con-duct.svg)](https://badge.fury.io/py/con-duct)
 [![RRID](https://img.shields.io/badge/RRID-SCR__025436-blue)](https://identifiers.org/RRID:SCR_025436)
 
-A lightweight wrapper that monitors the execution of commands, collecting resource usage data and system information.
+A lightweight wrapper that monitors the execution of commands and child processes, collecting stdout/stderr, resource usage data and system information.
 
 The `con-duct` CLI provides multiple subcommands for working with execution data:
 - **`run`**: Execute and monitor commands (also available via the `duct` convenience alias)
 - **`pp`**: Pretty-print JSON logs
 - **`plot`**: Visualize resource usage
-- **`ls`**: List execution information
+- **`ls`**: List previous executions.
 
 Also see our [Datalad Blog Post](https://blog.datalad.org/posts/intro-duct-tion/) for a hands on example.
 
@@ -31,10 +31,6 @@ Try it out using either `duct` or `con-duct run`:
     duct --sample-interval 0.5 --report-interval 1 test/data/test_script.py --duration 3 --memory-size=1000
 
 `duct` is most useful when the report-interval is less than the duration of the script.
-
-## Summary
-
-`con-duct` monitors command execution, collecting execution time, system information, and resource usage statistics of the command and all its child processes. It's intended to simplify recording resources necessary to execute a command, particularly in HPC environments.
 
 ## Command Reference
 
