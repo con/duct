@@ -70,12 +70,9 @@ jobs:
         name: Install system dependencies
         run: sudo apt-get install -y libjpeg-dev
 
-      - name: Run tests with coverage and mergify reporting
+      - name: Run tests with coverage
         if: matrix.toxenv == 'py' && matrix.os == 'ubuntu-latest'
-        env:
-          MERGIFY_TOKEN: ${{ secrets.MERGIFY_CIINSIGHTS_TOKEN }}
-        run: |
-          tox -e pyci -- -vv --cov-report=xml
+        run: tox -e py -- -vv --cov-report=xml
 
       - name: Run generic tests
         if: matrix.toxenv != 'py'
