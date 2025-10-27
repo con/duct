@@ -99,6 +99,12 @@ class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 def assert_num(*values: Any) -> None:
     for value in values:
+        if not isinstance(value, (float, int)):
+            lgr.error(
+                "Expected numeric value (float or int), got %s: %r",
+                type(value).__name__,
+                value,
+            )
         assert isinstance(value, (float, int))
 
 
