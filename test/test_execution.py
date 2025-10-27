@@ -44,9 +44,9 @@ def test_sanity_green(caplog: pytest.LogCaptureFixture, temp_output_dir: str) ->
 
 def test_execution_summary(temp_output_dir: str) -> None:
     args = Arguments.from_argv(
-        ["sleep", "0.1"],
-        sample_interval=0.05,  # small enough to ensure we collect at least 1 sample
-        report_interval=0.1,
+        ["sleep", "1"],
+        sample_interval=0.5,  # small enough to ensure we collect at least 1 sample
+        report_interval=1.0,
         output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
