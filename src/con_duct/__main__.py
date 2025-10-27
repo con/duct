@@ -23,8 +23,7 @@ import textwrap
 import threading
 import time
 from types import FrameType
-import typing
-from typing import IO, Any, Optional, TextIO
+from typing import IO, Any, Callable, Optional, TextIO
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
@@ -446,7 +445,7 @@ _get_sample_per_system = {
     "Linux": _get_sample_linux,
     "Darwin": _get_sample_mac,
 }
-_get_sample: typing.Callable[[int], Sample] = _get_sample_per_system[SYSTEM]
+_get_sample: Callable[[int], Sample] = _get_sample_per_system[SYSTEM]
 
 
 class Report:
