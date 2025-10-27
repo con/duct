@@ -113,13 +113,13 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -l, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
+  -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
                         Level of log output to stderr, use NONE to entirely
                         disable. (default: INFO)
   -q, --quiet           [deprecated, use log level NONE] Disable duct logging
                         output (to stderr) (default: False)
   --version             show program's version number and exit
-  -p, --output-prefix OUTPUT_PREFIX
+  -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
                         File string format to be used as a prefix for the
                         files -- the captured stdout and stderr and the
                         resource usage logs. The understood variables are
@@ -149,33 +149,33 @@ options:
   --colors              Use colors in duct output. (default: False)
   --clobber             Replace log files if they already exist. (default:
                         False)
-  --sample-interval, --s-i SAMPLE_INTERVAL
+  --sample-interval SAMPLE_INTERVAL, --s-i SAMPLE_INTERVAL
                         Interval in seconds between status checks of the
                         running process. Sample interval must be less than or
                         equal to report interval, and it achieves the best
                         results when sample is significantly less than the
                         runtime of the process. (default: 1.0)
-  --report-interval, --r-i REPORT_INTERVAL
+  --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
                         Interval in seconds at which to report aggregated
                         data. (default: 60.0)
-  --fail-time, --f-t FAIL_TIME
+  --fail-time FAIL_TIME, --f-t FAIL_TIME
                         If command fails in less than this specified time
                         (seconds), duct would remove logs. Set to 0 if you
                         would like to keep logs for a failing command
                         regardless of its run time. Set to negative (e.g. -1)
                         if you would like to not keep logs for any failing
                         command. (default: 3.0)
-  -c, --capture-outputs {all,none,stdout,stderr}
+  -c {all,none,stdout,stderr}, --capture-outputs {all,none,stdout,stderr}
                         Record stdout, stderr, all, or none to log files. You
                         can also provide value via DUCT_CAPTURE_OUTPUTS env
                         variable. (default: all)
-  -o, --outputs {all,none,stdout,stderr}
+  -o {all,none,stdout,stderr}, --outputs {all,none,stdout,stderr}
                         Print stdout, stderr, all, or none to stdout/stderr
                         respectively. (default: all)
-  -t, --record-types {all,system-summary,processes-samples}
+  -t {all,system-summary,processes-samples}, --record-types {all,system-summary,processes-samples}
                         Record system-summary, processes-samples, or all
                         (default: all)
-  -m, --message MESSAGE
+  -m MESSAGE, --message MESSAGE
                         Record a descriptive message about the purpose of this
                         execution. You can also provide value via DUCT_MESSAGE
                         env variable. (default: )
