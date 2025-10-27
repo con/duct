@@ -58,7 +58,6 @@ def test_execution_summary(temp_output_dir: str) -> None:
     assert execution_summary["peak_pmem"] < 10
     assert execution_summary["average_pcpu"] < 10
     assert execution_summary["peak_pcpu"] < 10
-
     assert execution_summary["exit_code"] == 0
     assert execution_summary["working_directory"] == os.getcwd()
 

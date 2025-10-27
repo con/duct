@@ -66,12 +66,11 @@ jobs:
           python -m pip install --upgrade pip wheel
           python -m pip install --upgrade --upgrade-strategy=eager tox
 
-      - if: matrix.os == 'ubuntu-latest'
-        name: Install system dependencies
+      - name: Install system dependencies
         run: sudo apt-get install -y libjpeg-dev
 
       - name: Run tests with coverage
-        if: matrix.toxenv == 'py' && matrix.os == 'ubuntu-latest'
+        if: matrix.toxenv == 'py'
         run: tox -e py -- -vv --cov-report=xml
 
       - name: Run generic tests
