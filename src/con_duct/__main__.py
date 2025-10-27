@@ -23,6 +23,7 @@ import textwrap
 import threading
 import time
 from types import FrameType
+import typing
 from typing import IO, Any, Optional, TextIO
 
 __version__ = version("con-duct")
@@ -361,6 +362,93 @@ class Sample:
         return d
 
 
+def _get_sample_linux(session_id: int) -> Sample | None:
+    sample = Sample()
+
+    ps_command = [
+        "ps",
+        "-w",
+        "-s",
+        str(session_id),
+        "-o",
+        "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
+    ]
+    output = subprocess.check_output(ps_command, text=True)
+
+    for line in output.splitlines()[1:]:
+        if not line:
+            continue
+
+        pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(maxsplit=7)
+
+        sample.add_pid(
+            pid=int(pid),
+            stats=ProcessStats(
+                pcpu=float(pcpu),
+                pmem=float(pmem),
+                rss=int(rss_kib) * 1024,
+                vsz=int(vsz_kib) * 1024,
+                timestamp=datetime.now().astimezone().isoformat(),
+                etime=etime,
+                stat=Counter([stat]),
+                cmd=cmd,
+            ),
+        )
+    sample.averages = Averages.from_sample(sample=sample)
+    return sample
+
+
+def _get_sample_mac(session_id: int) -> Sample:
+    sample = Sample()
+
+    ps_command = [
+        "ps",
+        "-ax",
+        "-o",
+        "pid,pcpu,pmem,rss,vsz,etime,stat,args",
+    ]
+    output = subprocess.check_output(ps_command, text=True)
+
+    for line in output.splitlines()[1:]:
+        if not line:
+            continue
+
+        pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
+
+        try:
+            sess = os.getsid(int(pid))
+        except Exception as exc:
+            lgr.debug(f"Error fetching session ID for PID {pid}: {str(exc)}")
+            sess = -1
+
+        if sess != session_id:
+            continue
+
+        sample.add_pid(
+            pid=int(pid),
+            stats=ProcessStats(
+                pcpu=float(pcpu),
+                pmem=float(pmem),
+                rss=int(rss_kb) * 1024,
+                vsz=int(vsz_kb) * 1024,
+                timestamp=datetime.now().astimezone().isoformat(),
+                etime=etime,
+                stat=Counter([stat]),
+                cmd=cmd,
+            ),
+        )
+
+    sample.averages = Averages.from_sample(sample=sample)
+    return sample
+
+
+_get_sample_per_system = {
+    "Linux": _get_sample_linux,
+    "Darwin": _get_sample_mac,
+}
+_get_sample: typing.Callable = _get_sample_per_system[SYSTEM]
+
+
 class Report:
     """Top level report"""
 
@@ -472,89 +560,12 @@ class Report:
     def collect_sample(self) -> Optional[Sample]:
         assert self.session_id is not None
 
-        sample = Sample()
         try:
-            if SYSTEM == "Darwin":
-                ps_command = [
-                    "ps",
-                    "-ax",
-                    "-o",
-                    "pid,pcpu,pmem,rss,vsz,etime,stat,args",
-                ]
-                output = subprocess.check_output(ps_command, text=True)
-
-                for line in output.splitlines()[1:]:
-                    if not line:
-                        continue
-
-                    pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(
-                        maxsplit=7
-                    )
-
-                    try:
-                        sess = int(os.getsid(int(pid)))
-                    except Exception as exc:
-                        lgr.debug(
-                            f"Error fetching session ID for PID {pid}: {str(exc)}"
-                        )
-                        sess = -1
-
-                    if int(sess) != self.session_id:
-                        continue
-
-                    sample.add_pid(
-                        int(pid),
-                        ProcessStats(
-                            pcpu=float(pcpu),
-                            pmem=float(pmem) + 0.1,
-                            rss=int(rss_kb) * 1000,
-                            vsz=int(vsz_kb) * 1000,
-                            timestamp=datetime.now().astimezone().isoformat(),
-                            etime=etime,
-                            stat=Counter([stat]),
-                            cmd=cmd,
-                        ),
-                    )
-            elif SYSTEM == "Linux":
-                ps_command = [
-                    "ps",
-                    "-w",
-                    "-s",
-                    str(self.session_id),
-                    "-o",
-                    "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
-                ]
-                output = subprocess.check_output(ps_command, text=True)
-
-                for line in output.splitlines()[1:]:
-                    if not line:
-                        continue
-
-                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(
-                        maxsplit=7
-                    )
-
-                    sample.add_pid(
-                        int(pid),
-                        ProcessStats(
-                            pcpu=float(pcpu),
-                            pmem=float(pmem),
-                            rss=int(rss_kib) * 1024,
-                            vsz=int(vsz_kib) * 1024,
-                            timestamp=datetime.now().astimezone().isoformat(),
-                            etime=etime,
-                            stat=Counter([stat]),
-                            cmd=cmd,
-                        ),
-                    )
-            else:
-                raise NotImplementedError(f"Unsupported platform: {SYSTEM}")
+            sample = _get_sample(session_id=self.session_id)
+            return sample
         except subprocess.CalledProcessError as exc:  # when session_id has no processes
             lgr.debug("Error collecting sample: %s", str(exc))
             return None
-
-        sample.averages = Averages.from_sample(sample)
-        return sample
 
     def update_from_sample(self, sample: Sample) -> None:
         self.full_run_stats = self.full_run_stats.aggregate(sample)
