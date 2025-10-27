@@ -362,7 +362,7 @@ class Sample:
         return d
 
 
-def _get_sample_linux(session_id: int) -> Sample | None:
+def _get_sample_linux(session_id: int) -> Sample:
     sample = Sample()
 
     ps_command = [
@@ -446,7 +446,7 @@ _get_sample_per_system = {
     "Linux": _get_sample_linux,
     "Darwin": _get_sample_mac,
 }
-_get_sample: typing.Callable = _get_sample_per_system[SYSTEM]
+_get_sample: typing.Callable[[int], Sample] = _get_sample_per_system[SYSTEM]
 
 
 class Report:
