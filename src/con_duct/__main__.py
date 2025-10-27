@@ -442,7 +442,6 @@ def _get_sample_mac(session_id: int) -> Sample:
                 cmd=cmd,
             ),
         )
-        print(f"{sample=}")
 
     sample.averages = Averages.from_sample(sample=sample)
     return sample
