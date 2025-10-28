@@ -869,7 +869,7 @@ def execute(
     record_types: RecordTypes,
     summary_format: str,
     colors: bool,
-    session_mode: SessionMode,
+    mode: SessionMode,
     message: str = "",
 ) -> int:
     """A wrapper to execute a command, monitor and log the process details.
@@ -917,7 +917,7 @@ def execute(
             [str(command)] + command_args,
             stdout=stdout_file,
             stderr=stderr_file,
-            start_new_session=(session_mode == SessionMode.NEW_SESSION),
+            start_new_session=(mode == SessionMode.NEW_SESSION),
             cwd=report.working_directory,
         )
     except FileNotFoundError:
@@ -935,7 +935,7 @@ def execute(
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
-        if session_mode == SessionMode.NEW_SESSION:
+        if mode == SessionMode.NEW_SESSION:
             report.session_id = os.getsid(
                 process.pid
             )  # Get session ID of the new process

@@ -37,7 +37,7 @@ def run_duct_command(cli_args: list[str], **kwargs: Any) -> int:
         "record_types": RecordTypes.ALL,
         "summary_format": EXECUTION_SUMMARY_FORMAT,
         "colors": False,
-        "session_mode": SessionMode.NEW_SESSION,
+        "mode": SessionMode.NEW_SESSION,
         "message": "",
     }
     defaults.update(kwargs)

@@ -317,22 +317,11 @@ def _create_ls_parser() -> argparse.ArgumentParser:
 
 def run_command(args: argparse.Namespace) -> int:
     """Execute a command with duct monitoring."""
-    return duct_execute(
-        command=args.command,
-        command_args=args.command_args,
-        output_prefix=args.output_prefix,
-        sample_interval=args.sample_interval,
-        report_interval=args.report_interval,
-        fail_time=args.fail_time,
-        capture_outputs=args.capture_outputs,
-        outputs=args.outputs,
-        record_types=args.record_types,
-        summary_format=args.summary_format,
-        clobber=args.clobber,
-        colors=args.colors,
-        session_mode=args.mode,
-        message=args.message,
-    )
+    kwargs = vars(args).copy()
+    # Remove arguments that are not for duct_execute
+    for key in ("func", "log_level", "quiet"):
+        kwargs.pop(key, None)
+    return duct_execute(**kwargs)
 
 
 def execute(args: argparse.Namespace) -> int:
