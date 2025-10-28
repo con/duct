@@ -3,7 +3,7 @@ import re
 import subprocess
 from unittest import mock
 import pytest
-from con_duct.cli import RunArguments
+from con_duct.cli import create_run_parser
 
 
 def test_duct_help() -> None:
@@ -92,8 +92,9 @@ def test_abreviation_disabled() -> None:
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
     """Test that --mode argument is parsed correctly with both long and short forms."""
     cmd_args = mode_arg + ["echo", "test"]
-    args = RunArguments.from_argv(cmd_args)
-    assert str(args.session_mode) == expected_mode
+    parser = create_run_parser()
+    args = parser.parse_args(cmd_args)
+    assert str(args.mode) == expected_mode
 
 
 def test_mode_invalid_value() -> None:
@@ -110,29 +111,33 @@ def test_mode_invalid_value() -> None:
 
 def test_message_parsing() -> None:
     """Test that -m/--message flag is correctly parsed."""
+    parser = create_run_parser()
+
     # Test short flag
-    args = RunArguments.from_argv(["-m", "test message", "echo", "hello"])
+    args = parser.parse_args(["-m", "test message", "echo", "hello"])
     assert args.message == "test message"
     assert args.command == "echo"
     assert args.command_args == ["hello"]
 
     # Test long flag
-    args = RunArguments.from_argv(["--message", "another message", "ls"])
+    args = parser.parse_args(["--message", "another message", "ls"])
     assert args.message == "another message"
     assert args.command == "ls"
 
     # Test without message (should be empty string)
-    args = RunArguments.from_argv(["echo", "hello"])
+    args = parser.parse_args(["echo", "hello"])
     assert args.message == ""
 
 
 def test_message_env_variable() -> None:
     """Test that DUCT_MESSAGE environment variable is used as default."""
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        args = RunArguments.from_argv(["echo", "hello"])
+        parser = create_run_parser()
+        args = parser.parse_args(["echo", "hello"])
         assert args.message == "env message"
 
     # Command line should override env variable
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        args = RunArguments.from_argv(["-m", "cli message", "echo", "hello"])
+        parser = create_run_parser()
+        args = parser.parse_args(["-m", "cli message", "echo", "hello"])
         assert args.message == "cli message"

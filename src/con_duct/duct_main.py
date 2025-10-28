@@ -876,6 +876,11 @@ def execute(
 
     Returns exit code of the executed process.
     """
+    if report_interval < sample_interval:
+        raise ValueError(
+            "--report-interval must be greater than or equal to --sample-interval."
+        )
+
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
     log_paths.prepare_paths(clobber, capture_outputs)
     stdout, stderr = prepare_outputs(capture_outputs, outputs, log_paths)

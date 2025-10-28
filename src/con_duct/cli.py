@@ -1,10 +1,9 @@
 import argparse
-from dataclasses import dataclass
 import logging
 import os
 import sys
 import textwrap
-from typing import Any, List, Optional
+from typing import List, Optional
 from con_duct import __version__
 from con_duct.duct_main import (
     DUCT_OUTPUT_PREFIX,
@@ -104,205 +103,128 @@ def setup_logging(args: argparse.Namespace) -> None:
         )
 
 
-@dataclass
-class RunArguments:
-    command: str
-    command_args: list[str]
-    output_prefix: str
-    sample_interval: float
-    report_interval: float
-    fail_time: float
-    clobber: bool
-    capture_outputs: Outputs
-    outputs: Outputs
-    record_types: RecordTypes
-    summary_format: str
-    colors: bool
-    log_level: str
-    quiet: bool
-    session_mode: SessionMode
-    message: str = ""
+def create_run_parser() -> argparse.ArgumentParser:
+    """Create and configure the argument parser for the 'run' command."""
+    common_parser = create_common_parser()
+    parser = argparse.ArgumentParser(
+        allow_abbrev=False,
+        description=ABOUT_DUCT,
+        formatter_class=CustomHelpFormatter,
+        parents=[common_parser],
+    )
+    parser.add_argument(
+        "command",
+        metavar="command [command_args ...]",
+        help="The command to execute, along with its arguments.",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    parser.add_argument(
+        "command_args", nargs=argparse.REMAINDER, help="Arguments for the command."
+    )
+    parser.add_argument(
+        "-p",
+        "--output-prefix",
+        type=str,
+        default=DUCT_OUTPUT_PREFIX,
+        help="File string format to be used as a prefix for the files -- the captured "
+        "stdout and stderr and the resource usage logs. The understood variables are "
+        "{datetime}, {datetime_filesafe}, and {pid}. "
+        "Leading directories will be created if they do not exist. "
+        "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
+    )
+    parser.add_argument(
+        "--summary-format",
+        type=str,
+        default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
+        help="Output template to use when printing the summary following execution. "
+        "Accepts custom conversion flags: "
+        "!S: Converts filesizes to human readable units, green if measured, red if None. "
+        "!E: Colors exit code, green if falsey, red if truthy, and red if None. "
+        "!X: Colors green if truthy, red if falsey. "
+        "!N: Colors green if not None, red if None",
+    )
+    parser.add_argument(
+        "--colors",
+        action="store_true",
+        default=os.getenv("DUCT_COLORS", False),
+        help="Use colors in duct output.",
+    )
+    parser.add_argument(
+        "--clobber",
+        action="store_true",
+        help="Replace log files if they already exist.",
+    )
+    parser.add_argument(
+        "--sample-interval",
+        "--s-i",
+        type=float,
+        default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
+        help="Interval in seconds between status checks of the running process. "
+        "Sample interval must be less than or equal to report interval, and it achieves the "
+        "best results when sample is significantly less than the runtime of the process.",
+    )
+    parser.add_argument(
+        "--report-interval",
+        "--r-i",
+        type=float,
+        default=float(os.getenv("DUCT_REPORT_INTERVAL", "60.0")),
+        help="Interval in seconds at which to report aggregated data.",
+    )
+    parser.add_argument(
+        "--fail-time",
+        "--f-t",
+        type=float,
+        default=float(os.getenv("DUCT_FAIL_TIME", "3.0")),
+        help="If command fails in less than this specified time (seconds), duct would remove logs. "
+        "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
+        "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
+    )
 
-    def __post_init__(self) -> None:
-        if self.report_interval < self.sample_interval:
-            raise argparse.ArgumentError(
-                None,
-                "--report-interval must be greater than or equal to --sample-interval.",
-            )
-
-    def execute(self) -> int:
-        """Execute the command with these arguments.
-
-        This is a convenience method for tests and library usage.
-        """
-        return duct_execute(
-            command=self.command,
-            command_args=self.command_args,
-            output_prefix=self.output_prefix,
-            sample_interval=self.sample_interval,
-            report_interval=self.report_interval,
-            fail_time=self.fail_time,
-            clobber=self.clobber,
-            capture_outputs=self.capture_outputs,
-            outputs=self.outputs,
-            record_types=self.record_types,
-            summary_format=self.summary_format,
-            colors=self.colors,
-            session_mode=self.session_mode,
-            message=self.message,
-        )
-
-    @classmethod
-    def create_parser(cls) -> argparse.ArgumentParser:
-        """Create and configure the argument parser for duct."""
-        common_parser = create_common_parser()
-        parser = argparse.ArgumentParser(
-            allow_abbrev=False,
-            description=ABOUT_DUCT,
-            formatter_class=CustomHelpFormatter,
-            parents=[common_parser],
-        )
-        parser.add_argument(
-            "command",
-            metavar="command [command_args ...]",
-            help="The command to execute, along with its arguments.",
-        )
-        parser.add_argument(
-            "--version", action="version", version=f"%(prog)s {__version__}"
-        )
-        parser.add_argument(
-            "command_args", nargs=argparse.REMAINDER, help="Arguments for the command."
-        )
-        parser.add_argument(
-            "-p",
-            "--output-prefix",
-            type=str,
-            default=DUCT_OUTPUT_PREFIX,
-            help="File string format to be used as a prefix for the files -- the captured "
-            "stdout and stderr and the resource usage logs. The understood variables are "
-            "{datetime}, {datetime_filesafe}, and {pid}. "
-            "Leading directories will be created if they do not exist. "
-            "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
-        )
-        parser.add_argument(
-            "--summary-format",
-            type=str,
-            default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
-            help="Output template to use when printing the summary following execution. "
-            "Accepts custom conversion flags: "
-            "!S: Converts filesizes to human readable units, green if measured, red if None. "
-            "!E: Colors exit code, green if falsey, red if truthy, and red if None. "
-            "!X: Colors green if truthy, red if falsey. "
-            "!N: Colors green if not None, red if None",
-        )
-        parser.add_argument(
-            "--colors",
-            action="store_true",
-            default=os.getenv("DUCT_COLORS", False),
-            help="Use colors in duct output.",
-        )
-        parser.add_argument(
-            "--clobber",
-            action="store_true",
-            help="Replace log files if they already exist.",
-        )
-        parser.add_argument(
-            "--sample-interval",
-            "--s-i",
-            type=float,
-            default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
-            help="Interval in seconds between status checks of the running process. "
-            "Sample interval must be less than or equal to report interval, and it achieves the "
-            "best results when sample is significantly less than the runtime of the process.",
-        )
-        parser.add_argument(
-            "--report-interval",
-            "--r-i",
-            type=float,
-            default=float(os.getenv("DUCT_REPORT_INTERVAL", "60.0")),
-            help="Interval in seconds at which to report aggregated data.",
-        )
-        parser.add_argument(
-            "--fail-time",
-            "--f-t",
-            type=float,
-            default=float(os.getenv("DUCT_FAIL_TIME", "3.0")),
-            help="If command fails in less than this specified time (seconds), duct would remove logs. "
-            "Set to 0 if you would like to keep logs for a failing command regardless of its run time. "
-            "Set to negative (e.g. -1) if you would like to not keep logs for any failing command.",
-        )
-
-        parser.add_argument(
-            "-c",
-            "--capture-outputs",
-            default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
-            choices=list(Outputs),
-            type=Outputs,
-            help="Record stdout, stderr, all, or none to log files. "
-            "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
-        )
-        parser.add_argument(
-            "-o",
-            "--outputs",
-            default="all",
-            choices=list(Outputs),
-            type=Outputs,
-            help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
-        )
-        parser.add_argument(
-            "-t",
-            "--record-types",
-            default="all",
-            choices=list(RecordTypes),
-            type=RecordTypes,
-            help="Record system-summary, processes-samples, or all",
-        )
-        parser.add_argument(
-            "-m",
-            "--message",
-            type=str,
-            default=os.getenv("DUCT_MESSAGE", ""),
-            help="Record a descriptive message about the purpose of this execution. "
-            "You can also provide value via DUCT_MESSAGE env variable.",
-        )
-        parser.add_argument(
-            "--mode",
-            default="new-session",
-            choices=list(SessionMode),
-            type=SessionMode,
-            help="Session mode: 'new-session' creates a new session for the command (default), "
-            "'current-session' tracks the current session instead of starting a new one. "
-            "Useful for tracking slurm jobs or other commands that should run in the current session.",
-        )
-        return parser
-
-    @classmethod
-    def from_argv(
-        cls, cli_args: Optional[list[str]] = None, **cli_kwargs: Any
-    ) -> "RunArguments":
-        parser = cls.create_parser()
-        args = parser.parse_args(
-            args=cli_args,
-            namespace=cli_kwargs and argparse.Namespace(**cli_kwargs) or None,
-        )
-        return cls(
-            command=args.command,
-            command_args=args.command_args,
-            output_prefix=args.output_prefix,
-            sample_interval=args.sample_interval,
-            report_interval=args.report_interval,
-            fail_time=args.fail_time,
-            capture_outputs=args.capture_outputs,
-            outputs=args.outputs,
-            record_types=args.record_types,
-            summary_format=args.summary_format,
-            clobber=args.clobber,
-            colors=args.colors,
-            log_level=args.log_level,
-            quiet=args.quiet,
-            session_mode=args.mode,
-            message=args.message,
-        )
+    parser.add_argument(
+        "-c",
+        "--capture-outputs",
+        default=os.getenv("DUCT_CAPTURE_OUTPUTS", "all"),
+        choices=list(Outputs),
+        type=Outputs,
+        help="Record stdout, stderr, all, or none to log files. "
+        "You can also provide value via DUCT_CAPTURE_OUTPUTS env variable.",
+    )
+    parser.add_argument(
+        "-o",
+        "--outputs",
+        default="all",
+        choices=list(Outputs),
+        type=Outputs,
+        help="Print stdout, stderr, all, or none to stdout/stderr respectively.",
+    )
+    parser.add_argument(
+        "-t",
+        "--record-types",
+        default="all",
+        choices=list(RecordTypes),
+        type=RecordTypes,
+        help="Record system-summary, processes-samples, or all",
+    )
+    parser.add_argument(
+        "-m",
+        "--message",
+        type=str,
+        default=os.getenv("DUCT_MESSAGE", ""),
+        help="Record a descriptive message about the purpose of this execution. "
+        "You can also provide value via DUCT_MESSAGE env variable.",
+    )
+    parser.add_argument(
+        "--mode",
+        default="new-session",
+        choices=list(SessionMode),
+        type=SessionMode,
+        help="Session mode: 'new-session' creates a new session for the command (default), "
+        "'current-session' tracks the current session instead of starting a new one. "
+        "Useful for tracking slurm jobs or other commands that should run in the current session.",
+    )
+    return parser
 
 
 def run_command(args: argparse.Namespace) -> int:
@@ -353,9 +275,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # Subcommand: run
-    # Use the parser from RunArguments.create_parser() as a parent
-    # to get all the arguments for executing a command with monitoring
-    duct_parser = RunArguments.create_parser()
+    duct_parser = create_run_parser()
     parser_run = subparsers.add_parser(
         "run",
         help="Execute a command with duct monitoring.",

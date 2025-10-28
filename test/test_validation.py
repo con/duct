@@ -1,31 +1,33 @@
-import argparse
 import pytest
-from con_duct.cli import RunArguments
+from utils import run_duct_command
 from con_duct.duct_main import assert_num
 
 
-def test_sample_less_than_report_interval() -> None:
-    args = RunArguments.from_argv(
-        ["fake"],
+def test_sample_less_than_report_interval(temp_output_dir: str) -> None:
+    run_duct_command(
+        ["echo", "test"],
         sample_interval=0.01,
         report_interval=0.1,
+        output_prefix=temp_output_dir,
     )
-    assert args.sample_interval <= args.report_interval
 
 
-def test_sample_equal_to_report_interval() -> None:
-    args = RunArguments.from_argv(
-        ["fake"],
+def test_sample_equal_to_report_interval(temp_output_dir: str) -> None:
+    run_duct_command(
+        ["echo", "test"],
         sample_interval=0.1,
         report_interval=0.1,
+        output_prefix=temp_output_dir,
     )
-    assert args.sample_interval == args.report_interval
 
 
 def test_sample_equal_greater_than_report_interval() -> None:
-    with pytest.raises(argparse.ArgumentError):
-        RunArguments.from_argv(
-            ["fake"],
+    with pytest.raises(
+        ValueError,
+        match="--report-interval must be greater than or equal to --sample-interval",
+    ):
+        run_duct_command(
+            ["echo", "test"],
             sample_interval=1.0,
             report_interval=0.1,
         )
