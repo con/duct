@@ -16,7 +16,7 @@ Also see our [Datalad Blog Post](https://blog.datalad.org/posts/intro-duct-tion/
 
 ## Installation
 
-Basic installation (includes `con-duct run` and `duct` commands):
+Basic installation (includes `con-duct` and `duct` commands):
 
     pip install con-duct
 
