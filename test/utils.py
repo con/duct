@@ -42,7 +42,7 @@ def run_duct_command(cli_args: list[str], **kwargs: Any) -> int:
     }
     defaults.update(kwargs)
 
-    return duct_execute(command=command, command_args=command_args, **defaults)
+    return duct_execute(command=command, command_args=command_args, **defaults)  # type: ignore[arg-type]
 
 
 class MockStream:
