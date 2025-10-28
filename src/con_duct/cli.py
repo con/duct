@@ -55,6 +55,8 @@ environment variables:
 
 
 class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
+    """Override allows helptext to respect newlines in ABOUT_DUCT"""
+
     def _fill_text(self, text: str, width: int, _indent: str) -> str:
         return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
 
