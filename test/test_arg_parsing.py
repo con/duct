@@ -3,7 +3,7 @@ import re
 import subprocess
 from unittest import mock
 import pytest
-from con_duct.cli import create_run_parser
+from con_duct.cli import _create_run_parser
 
 
 def test_duct_help() -> None:
@@ -92,7 +92,7 @@ def test_abreviation_disabled() -> None:
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
     """Test that --mode argument is parsed correctly with both long and short forms."""
     cmd_args = mode_arg + ["echo", "test"]
-    parser = create_run_parser()
+    parser = _create_run_parser()
     args = parser.parse_args(cmd_args)
     assert str(args.mode) == expected_mode
 
@@ -111,7 +111,7 @@ def test_mode_invalid_value() -> None:
 
 def test_message_parsing() -> None:
     """Test that -m/--message flag is correctly parsed."""
-    parser = create_run_parser()
+    parser = _create_run_parser()
 
     # Test short flag
     args = parser.parse_args(["-m", "test message", "echo", "hello"])
@@ -132,12 +132,12 @@ def test_message_parsing() -> None:
 def test_message_env_variable() -> None:
     """Test that DUCT_MESSAGE environment variable is used as default."""
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        parser = create_run_parser()
+        parser = _create_run_parser()
         args = parser.parse_args(["echo", "hello"])
         assert args.message == "env message"
 
     # Command line should override env variable
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        parser = create_run_parser()
+        parser = _create_run_parser()
         args = parser.parse_args(["-m", "cli message", "echo", "hello"])
         assert args.message == "cli message"

@@ -60,9 +60,9 @@ class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
         return "\n".join([textwrap.fill(line, width) for line in text.splitlines()])
 
 
-def create_common_parser() -> argparse.ArgumentParser:
+def _create_common_parser() -> argparse.ArgumentParser:
     """Create a parser with common arguments shared across all commands."""
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(add_help=False)  # help provided by child
     parser.add_argument(
         "-l",
         "--log-level",
@@ -103,14 +103,13 @@ def setup_logging(args: argparse.Namespace) -> None:
         )
 
 
-def create_run_parser() -> argparse.ArgumentParser:
+def _create_run_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser for the 'run' command."""
-    common_parser = create_common_parser()
     parser = argparse.ArgumentParser(
         allow_abbrev=False,
         description=ABOUT_DUCT,
         formatter_class=CustomHelpFormatter,
-        parents=[common_parser],
+        add_help=False,  # help provided by child
     )
     parser.add_argument(
         "command",
@@ -227,6 +226,95 @@ def create_run_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _create_pp_parser() -> argparse.ArgumentParser:
+    """Create and configure the argument parser for the 'pp' command."""
+    parser = argparse.ArgumentParser(
+        add_help=False,  # help provided by child
+    )
+    parser.add_argument("file_path", help="JSON file to pretty print.")
+    parser.add_argument(
+        "-H",
+        "--humanize",
+        action="store_true",
+        help="Convert numeric values to human-readable format",
+    )
+    return parser
+
+
+def _create_plot_parser() -> argparse.ArgumentParser:
+    """Create and configure the argument parser for the 'plot' command."""
+    parser = argparse.ArgumentParser(
+        add_help=False,  # help provided by child
+    )
+    parser.add_argument("file_path", help="duct-produced usage.json file.")
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Output path for the image file. If not specified, plot will be shown and not saved.",
+        default=None,
+    )
+    parser.add_argument(
+        "--min-ratio",
+        type=float,
+        default=3.0,
+        help="Minimum ratio for axis unit selection (default: 3.0). Lower values use larger units sooner. "
+        "Use -1 to always use base units (seconds, bytes).",
+    )
+    return parser
+
+
+def _create_ls_parser() -> argparse.ArgumentParser:
+    """Create and configure the argument parser for the 'ls' command."""
+    parser = argparse.ArgumentParser(
+        add_help=False,  # help provided by child
+    )
+    parser.add_argument(
+        "-f",
+        "--format",
+        choices=("auto", "pyout", "summaries", "json", "json_pp", "yaml"),
+        default="auto",
+        help="Output format. TODO Fixme. 'auto' chooses 'pyout' if pyout library is installed,"
+        " 'summaries' otherwise.",
+    )
+    parser.add_argument(
+        "-F",
+        "--fields",
+        nargs="+",
+        metavar="FIELD",
+        help=f"List of fields to show. Prefix is always included implicitly as the first field. "
+        f"Available choices: {', '.join(sorted(LS_FIELD_CHOICES))}.",
+        choices=LS_FIELD_CHOICES,
+        default=[
+            "command",
+            "exit_code",
+            "wall_clock_time",
+            "peak_rss",
+        ],
+    )
+    parser.add_argument(
+        "--colors",
+        action="store_true",
+        default=os.getenv("DUCT_COLORS", False),
+        help="Use colors in duct output.",
+    )
+    parser.add_argument(
+        "paths",
+        nargs="*",
+        help="Path to duct report files, only `info.json` would be considered. "
+        "If not provided, the program will glob for files that match DUCT_OUTPUT_PREFIX.",
+    )
+    parser.add_argument(
+        "-e",
+        "--eval-filter",
+        help="Python expression to filter results based on available fields. "
+        "The expression is evaluated for each entry, and only those that return True are included. "
+        "See --fields for all supported fields. "
+        "Example: --eval-filter \"filter_this=='yes'\" filters entries where 'filter_this' is 'yes'. "
+        "You can use 're' for regex operations (e.g., --eval-filter \"re.search('2025.02.09.*', prefix)\").",
+    )
+    return parser
+
+
 def run_command(args: argparse.Namespace) -> int:
     """Execute a command with duct monitoring."""
     return duct_execute(
@@ -271,17 +359,15 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
-    common_parser = create_common_parser()
+    common_parser = _create_common_parser()
     subparsers = parser.add_subparsers(dest="command", help="Available subcommands")
 
     # Subcommand: run
-    duct_parser = create_run_parser()
     parser_run = subparsers.add_parser(
         "run",
         help="Execute a command with duct monitoring.",
         description=ABOUT_DUCT,
-        parents=[duct_parser],
-        add_help=False,  # Parent parser already provides --help
+        parents=[common_parser, _create_run_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False,
         prog="con-duct run",
@@ -292,15 +378,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_pp = subparsers.add_parser(
         "pp",
         help="Pretty print a JSON log.",
-        parents=[common_parser],
+        parents=[common_parser, _create_pp_parser()],
         prog="con-duct pp",
-    )
-    parser_pp.add_argument("file_path", help="JSON file to pretty print.")
-    parser_pp.add_argument(
-        "-H",
-        "--humanize",
-        action="store_true",
-        help="Convert numeric values to human-readable format",
     )
     parser_pp.set_defaults(func=pprint_json)
 
@@ -308,81 +387,16 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_plot = subparsers.add_parser(
         "plot",
         help="Plot resource usage for an execution.",
-        parents=[common_parser],
+        parents=[common_parser, _create_plot_parser()],
         prog="con-duct plot",
     )
-    parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
-    parser_plot.add_argument(
-        "-o",
-        "--output",
-        help="Output path for the image file. If not specified, plot will be shown and not saved.",
-        default=None,
-    )
-    parser_plot.add_argument(
-        "--min-ratio",
-        type=float,
-        default=3.0,
-        help="Minimum ratio for axis unit selection (default: 3.0). Lower values use larger units sooner. "
-        "Use -1 to always use base units (seconds, bytes).",
-    )
-    # parser_plot.add_argument(
-    #     "-b",
-    #     "--backend",
-    #     default=DEFAULT_PLOT_BACKEND,
-    #     choices=("matplotlib",)
-    #     help="which backend to plot with
-    # )
     parser_plot.set_defaults(func=matplotlib_plot)
 
     parser_ls = subparsers.add_parser(
         "ls",
         help="Print execution information for all matching runs.",
-        parents=[common_parser],
+        parents=[common_parser, _create_ls_parser()],
         prog="con-duct ls",
-    )
-    parser_ls.add_argument(
-        "-f",
-        "--format",
-        choices=("auto", "pyout", "summaries", "json", "json_pp", "yaml"),
-        default="auto",  # TODO dry
-        help="Output format. TODO Fixme. 'auto' chooses 'pyout' if pyout library is installed,"
-        " 'summaries' otherwise.",
-    )
-    parser_ls.add_argument(
-        "-F",
-        "--fields",
-        nargs="+",
-        metavar="FIELD",
-        help=f"List of fields to show. Prefix is always included implicitly as the first field. "
-        f"Available choices: {', '.join(sorted(LS_FIELD_CHOICES))}.",
-        choices=LS_FIELD_CHOICES,
-        default=[
-            "command",
-            "exit_code",
-            "wall_clock_time",
-            "peak_rss",
-        ],
-    )
-    parser_ls.add_argument(
-        "--colors",
-        action="store_true",
-        default=os.getenv("DUCT_COLORS", False),
-        help="Use colors in duct output.",
-    )
-    parser_ls.add_argument(
-        "paths",
-        nargs="*",
-        help="Path to duct report files, only `info.json` would be considered. "
-        "If not provided, the program will glob for files that match DUCT_OUTPUT_PREFIX.",
-    )
-    parser_ls.add_argument(
-        "-e",
-        "--eval-filter",
-        help="Python expression to filter results based on available fields. "
-        "The expression is evaluated for each entry, and only those that return True are included. "
-        "See --fields for all supported fields. "
-        "Example: --eval-filter \"filter_this=='yes'\" filters entries where 'filter_this' is 'yes'. "
-        "You can use 're' for regex operations (e.g., --eval-filter \"re.search('2025.02.09.*', prefix)\").",
     )
     parser_ls.set_defaults(func=ls)
 
