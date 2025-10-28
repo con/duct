@@ -3,7 +3,7 @@ import json
 import logging
 from pprint import pprint
 from typing import Any
-from con_duct.__main__ import SummaryFormatter
+from con_duct.duct_main import SummaryFormatter
 
 lgr = logging.getLogger(__name__)
 

@@ -3,20 +3,24 @@ import re
 import subprocess
 from unittest import mock
 import pytest
-from con_duct.__main__ import Arguments
+from con_duct.cli import _create_run_parser
 
 
 def test_duct_help() -> None:
     out = subprocess.check_output(["duct", "--help", "ps"])
-    assert "usage: duct [-h]" in str(out)
+    # duct delegates to con-duct run, so usage shows con-duct run
+    assert "usage: con-duct run" in str(out)
+    # Help text should mention both entry points
+    assert "'duct' or 'con-duct run'" in str(out)
 
 
 def test_duct_version() -> None:
     out = subprocess.check_output(["duct", "--version"])
     output_str = out.decode("utf-8").strip()
-    assert output_str.startswith("duct ")
-    # Check that it has a version pattern
-    assert re.match(r"duct \d+\.\d+\.\d+", output_str)
+    # duct now delegates to con-duct run, so version shows con-duct with full prog name
+    assert output_str.startswith("con-duct ")
+    # Check that it has a version pattern (version appears after prog name)
+    assert re.search(r"\d+\.\d+\.\d+", output_str)
 
 
 def test_con_duct_version() -> None:
@@ -30,7 +34,8 @@ def test_con_duct_version() -> None:
 def test_cmd_help() -> None:
     out = subprocess.check_output(["duct", "ps", "--help"])
     assert "ps [options]" in str(out)
-    assert "usage: duct [-h]" not in str(out)
+    # Should show ps help, not duct/con-duct help
+    assert "usage: con-duct <command> [options] run" not in str(out)
 
 
 @pytest.mark.parametrize(
@@ -46,7 +51,7 @@ def test_duct_unrecognized_arg(args: list) -> None:
         pytest.fail("Command should have failed with a non-zero exit code")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "duct: error: unrecognized arguments: --unknown" in str(e.stdout)
+        assert "error: unrecognized arguments: --unknown" in str(e.stdout)
 
 
 def test_duct_missing_cmd() -> None:
@@ -57,9 +62,7 @@ def test_duct_missing_cmd() -> None:
         pytest.fail("Command should have failed with a non-zero exit code")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "duct: error: the following arguments are required: command" in str(
-            e.stdout
-        )
+        assert "error: the following arguments are required: command" in str(e.stdout)
 
 
 def test_abreviation_disabled() -> None:
@@ -88,12 +91,10 @@ def test_abreviation_disabled() -> None:
 )
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
     """Test that --mode argument is parsed correctly with both long and short forms."""
-    # Import here to avoid module loading issues in tests
-    from con_duct.__main__ import Arguments
-
     cmd_args = mode_arg + ["echo", "test"]
-    args = Arguments.from_argv(cmd_args)
-    assert str(args.session_mode) == expected_mode
+    parser = _create_run_parser()
+    args = parser.parse_args(cmd_args)
+    assert str(args.mode) == expected_mode
 
 
 def test_mode_invalid_value() -> None:
@@ -110,29 +111,33 @@ def test_mode_invalid_value() -> None:
 
 def test_message_parsing() -> None:
     """Test that -m/--message flag is correctly parsed."""
+    parser = _create_run_parser()
+
     # Test short flag
-    args = Arguments.from_argv(["-m", "test message", "echo", "hello"])
+    args = parser.parse_args(["-m", "test message", "echo", "hello"])
     assert args.message == "test message"
     assert args.command == "echo"
     assert args.command_args == ["hello"]
 
     # Test long flag
-    args = Arguments.from_argv(["--message", "another message", "ls"])
+    args = parser.parse_args(["--message", "another message", "ls"])
     assert args.message == "another message"
     assert args.command == "ls"
 
     # Test without message (should be empty string)
-    args = Arguments.from_argv(["echo", "hello"])
+    args = parser.parse_args(["echo", "hello"])
     assert args.message == ""
 
 
 def test_message_env_variable() -> None:
     """Test that DUCT_MESSAGE environment variable is used as default."""
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        args = Arguments.from_argv(["echo", "hello"])
+        parser = _create_run_parser()
+        args = parser.parse_args(["echo", "hello"])
         assert args.message == "env message"
 
     # Command line should override env variable
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
-        args = Arguments.from_argv(["-m", "cli message", "echo", "hello"])
+        parser = _create_run_parser()
+        args = parser.parse_args(["-m", "cli message", "echo", "hello"])
         assert args.message == "cli message"

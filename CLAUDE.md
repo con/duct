@@ -3,8 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build & Test Commands
-- Use `python -m venv .venv` to create a virtual environment
-- Use `source .venv/bin/activate` to activate a virtual environment
+- A virtual environment should be used (see .local.CLAUDE.md for venv location)
 - Install: `python -m pip install -e .[all]`
 - Run all tests: `tox`
 - Run specific test file: `tox -- -s -v test/test_file.py`
@@ -13,14 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Type check: `tox -e typing`
 
 ## Development and Project Structure
-- this project contains 2 entry points:
-  - 'duct' is used for execution
-    - duct should have no external dependencies
-    - all duct code should live in @src/con_duct/__main__.py
-  - 'con-duct' is used to work with duct logs
-    - con-duct may have external dependencies
-    - con-duct argparse live in @src/con_duct/suite/main.py
-    - each con-duct command has a separate file.
+- this project has one main entry point: 'con-duct' with subcommands
+  - 'duct' is a convenience alias to 'con-duct run'
+  - `run`: executes commands (no external dependencies)
+  - `ls`, `plot`, `pprint`: work with duct logs (may have external dependencies)
+- CLI argument parsing lives in @src/con_duct/cli.py
+- Main execution logic lives in @src/con_duct/duct_main.py
+- Each con-duct command has a separate file (ls.py, plot.py, pprint_json.py)
 
 
 - All tests are under `tests/` folder
