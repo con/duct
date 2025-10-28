@@ -1,22 +1,27 @@
+import argparse
 import os
 import re
 import subprocess
 from unittest import mock
 import pytest
-from con_duct.__main__ import Arguments
+from con_duct.cli import RunArguments as Arguments
 
 
 def test_duct_help() -> None:
     out = subprocess.check_output(["duct", "--help", "ps"])
-    assert "usage: duct [-h]" in str(out)
+    # duct delegates to con-duct run, so usage shows con-duct
+    assert "usage: con-duct <command> [options] run" in str(out)
+    # Help text should mention both entry points
+    assert "'duct' or 'con-duct run'" in str(out)
 
 
 def test_duct_version() -> None:
     out = subprocess.check_output(["duct", "--version"])
     output_str = out.decode("utf-8").strip()
-    assert output_str.startswith("duct ")
-    # Check that it has a version pattern
-    assert re.match(r"duct \d+\.\d+\.\d+", output_str)
+    # duct now delegates to con-duct run, so version shows con-duct with full prog name
+    assert output_str.startswith("con-duct ")
+    # Check that it has a version pattern (version appears after prog name)
+    assert re.search(r"\d+\.\d+\.\d+", output_str)
 
 
 def test_con_duct_version() -> None:
@@ -30,7 +35,8 @@ def test_con_duct_version() -> None:
 def test_cmd_help() -> None:
     out = subprocess.check_output(["duct", "ps", "--help"])
     assert "ps [options]" in str(out)
-    assert "usage: duct [-h]" not in str(out)
+    # Should show ps help, not duct/con-duct help
+    assert "usage: con-duct <command> [options] run" not in str(out)
 
 
 @pytest.mark.parametrize(
@@ -46,7 +52,7 @@ def test_duct_unrecognized_arg(args: list) -> None:
         pytest.fail("Command should have failed with a non-zero exit code")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "duct: error: unrecognized arguments: --unknown" in str(e.stdout)
+        assert "error: unrecognized arguments: --unknown" in str(e.stdout)
 
 
 def test_duct_missing_cmd() -> None:
@@ -57,9 +63,7 @@ def test_duct_missing_cmd() -> None:
         pytest.fail("Command should have failed with a non-zero exit code")
     except subprocess.CalledProcessError as e:
         assert e.returncode == 2
-        assert "duct: error: the following arguments are required: command" in str(
-            e.stdout
-        )
+        assert "error: the following arguments are required: command" in str(e.stdout)
 
 
 def test_abreviation_disabled() -> None:
@@ -88,9 +92,6 @@ def test_abreviation_disabled() -> None:
 )
 def test_mode_argument_parsing(mode_arg: list, expected_mode: str) -> None:
     """Test that --mode argument is parsed correctly with both long and short forms."""
-    # Import here to avoid module loading issues in tests
-    from con_duct.__main__ import Arguments
-
     cmd_args = mode_arg + ["echo", "test"]
     args = Arguments.from_argv(cmd_args)
     assert str(args.session_mode) == expected_mode
@@ -136,3 +137,106 @@ def test_message_env_variable() -> None:
     with mock.patch.dict(os.environ, {"DUCT_MESSAGE": "env message"}):
         args = Arguments.from_argv(["-m", "cli message", "echo", "hello"])
         assert args.message == "cli message"
+
+
+def test_sample_less_than_report_interval() -> None:
+    args = Arguments.from_argv(
+        ["fake"],
+        sample_interval=0.01,
+        report_interval=0.1,
+    )
+    assert args.sample_interval <= args.report_interval
+
+
+def test_sample_equal_to_report_interval() -> None:
+    args = Arguments.from_argv(
+        ["fake"],
+        sample_interval=0.1,
+        report_interval=0.1,
+    )
+    assert args.sample_interval == args.report_interval
+
+
+def test_sample_equal_greater_than_report_interval() -> None:
+    with pytest.raises(argparse.ArgumentError):
+        Arguments.from_argv(
+            ["fake"],
+            sample_interval=1.0,
+            report_interval=0.1,
+        )
+
+
+def test_execute_returns_int() -> None:
+    """Test that cli.execute() requires subcommand functions to return int"""
+    from typing import Any
+    from con_duct import cli
+
+    def return_non_int(*_args: Any) -> str:
+        return "NOPE"
+
+    args = argparse.Namespace(
+        command="invalid",
+        file_path="dummy.json",
+        func=return_non_int,
+        log_level="INFO",
+    )
+    with pytest.raises(TypeError):
+        cli.execute(args)
+
+
+def test_parser_mock_sanity() -> None:
+    """Test parser with mocked ArgumentParser"""
+    from unittest.mock import MagicMock, patch
+    from con_duct import cli
+
+    with patch("con_duct.cli.argparse.ArgumentParser") as mock_parser:
+        mock_args = MagicMock
+        mock_args.command = None
+        mock_parser.parse_args.return_value = mock_args
+        argv = ["/path/to/con-duct", "plot", "--help"]
+        cli.main(argv)
+        mock_parser.return_value.print_help.assert_called_once()
+
+
+def test_parser_sanity_green() -> None:
+    """Test parser with --help flag (success case)"""
+    from unittest.mock import MagicMock, patch
+    from con_duct import cli
+
+    with patch("con_duct.cli.sys.exit", new_callable=MagicMock) as mock_exit, patch(
+        "con_duct.cli.sys.stderr", new_callable=MagicMock
+    ) as mock_stderr, patch(
+        "con_duct.cli.sys.stdout", new_callable=MagicMock
+    ) as mock_stdout:
+        argv = ["--help"]
+        cli.main(argv)
+        # [0][1][0]: [first call][positional args set(0 is self)][first positional]
+        out = mock_stdout.write.mock_calls[0][1][0]
+        assert "usage: con-duct <command> [options]" in out
+        mock_stderr.write.assert_not_called()
+        mock_exit.assert_called_once_with(0)
+
+
+def test_parser_sanity_red() -> None:
+    """Test parser with invalid flag (error case)"""
+    from unittest.mock import MagicMock, patch
+    from con_duct import cli
+
+    with patch("con_duct.cli.sys.exit", new_callable=MagicMock) as mock_exit, patch(
+        "con_duct.cli.sys.stderr", new_callable=MagicMock
+    ) as mock_stderr, patch(
+        "con_duct.cli.sys.stdout", new_callable=MagicMock
+    ) as mock_stdout:
+        argv = ["--fakehelp"]
+        cli.main(argv)
+        # [0][1][0]: [first call][positional args set(0 is self)][first positional]
+        out = mock_stdout.write.mock_calls[0][1][0]
+        assert "usage: con-duct <command> [options]" in out
+        # First call
+        assert (
+            "usage: con-duct <command> [options]"
+            in mock_stderr.write.mock_calls[0][1][0]
+        )
+        # second call
+        assert "--fakehelp" in mock_stderr.write.mock_calls[1][1][0]
+        mock_exit.assert_called_once_with(2)
