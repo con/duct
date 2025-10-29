@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse
+import collections
 from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
@@ -403,6 +404,40 @@ def _get_sample_linux(session_id: int) -> Sample:
     return sample
 
 
+def _try_to_get_sid(pid: int) -> int:
+    """
+    It is possible that the `pid` returned by the top `ps` call no longer exists at time of `getsid` request.
+    """
+    try:
+        return os.getsid(pid)
+    except Exception as exc:
+        lgr.debug(f"Error fetching session ID for PID {pid}: {str(exc)}")
+        return -1
+
+
+def _add_sample_from_line_mac(
+    line: str, pid_to_sid: dict[int, int], session_id: int, sample: Sample
+) -> None:
+    pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
+
+    if pid_to_sid[int(pid)] != session_id:
+        return
+
+    sample.add_pid(
+        pid=int(pid),
+        stats=ProcessStats(
+            pcpu=float(pcpu),
+            pmem=float(pmem),
+            rss=int(rss_kb) * 1024,
+            vsz=int(vsz_kb) * 1024,
+            timestamp=datetime.now().astimezone().isoformat(),
+            etime=etime,
+            stat=Counter([stat]),
+            cmd=cmd,
+        ),
+    )
+
+
 def _get_sample_mac(session_id: int) -> Sample:
     sample = Sample()
 
@@ -414,36 +449,21 @@ def _get_sample_mac(session_id: int) -> Sample:
     ]
     output = subprocess.check_output(ps_command, text=True)
 
-    for line in output.splitlines()[1:]:
-        if not line:
-            continue
+    lines = [line for line in output.splitlines()[1:] if line]
+    pid_to_sid = {
+        (pid := int(line.split(maxsplit=1)[0])): _try_to_get_sid(pid=pid)
+        for line in lines
+    }
 
-        pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
-
-        try:
-            sess = os.getsid(int(pid))
-            # It is possible that the `pid` returned by the top `ps`
-            # call no longer exists at time of `getsid` request
-        except Exception as exc:
-            lgr.debug(f"Error fetching session ID for PID {pid}: {str(exc)}")
-            sess = -1
-
-        if sess != session_id:
-            continue
-
-        sample.add_pid(
-            pid=int(pid),
-            stats=ProcessStats(
-                pcpu=float(pcpu),
-                pmem=float(pmem),
-                rss=int(rss_kb) * 1024,
-                vsz=int(vsz_kb) * 1024,
-                timestamp=datetime.now().astimezone().isoformat(),
-                etime=etime,
-                stat=Counter([stat]),
-                cmd=cmd,
-            ),
-        )
+    collections.deque(
+        (
+            _add_sample_from_line_mac(
+                line=line, pid_to_sid=pid_to_sid, session_id=session_id, sample=sample
+            )
+            for line in lines
+        ),
+        maxlen=0,
+    )
 
     sample.averages = Averages.from_sample(sample=sample)
     return sample
