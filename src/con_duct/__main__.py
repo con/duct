@@ -422,7 +422,8 @@ def _get_sample_mac(session_id: int) -> Sample:
 
         try:
             sess = os.getsid(int(pid))
-            # It is possible that the `pid` returned by the top `ps` call no longer exists at time of `getsid` request
+            # It is possible that the `pid` returned by the top `ps`
+            # call no longer exists at time of `getsid` request
         except Exception as exc:
             lgr.debug(f"Error fetching session ID for PID {pid}: {str(exc)}")
             sess = -1
@@ -567,7 +568,7 @@ class Report:
         assert self.session_id is not None
 
         try:
-            sample = _get_sample(session_id=self.session_id)
+            sample = _get_sample(self.session_id)
             return sample
         except subprocess.CalledProcessError as exc:  # when session_id has no processes
             lgr.debug("Error collecting sample: %s", str(exc))
