@@ -1,9 +1,12 @@
 from __future__ import annotations
 import json
+import logging
 from pathlib import Path
 import subprocess
 import time
 import pytest
+
+logger = logging.getLogger(__name__)
 
 TEST_SCRIPT_DIR = Path(__file__).with_name("data")
 
@@ -33,6 +36,46 @@ def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> N
         for pid, proc in sample["processes"].items()
         if "sleep" in proc["cmd"]
     )
+
+    # ============================================================================
+    # TEMPORARY DEBUGGING - DO NOT MERGE
+    # TODO: Remove this debugging code after diagnosing macOS-15-intel failures
+    # ============================================================================
+    expected_count = 1 if mode == "setsid" else num_children + 1
+    actual_count = len(all_child_pids)
+
+    if actual_count != expected_count:
+        logger.error(f"Test parameters: mode={mode}, num_children={num_children}")
+        logger.error(f"Expected count: {expected_count}, Actual count: {actual_count}")
+        logger.error(f"Total samples collected: {len(all_samples)}")
+
+        for idx, sample in enumerate(all_samples):
+            timestamp = sample.get("timestamp", "N/A")
+            num_processes = len(sample.get("processes", {}))
+            logger.error(
+                f"Sample {idx}: timestamp={timestamp}, total_processes={num_processes}"
+            )
+
+            sleep_procs = {
+                pid: proc
+                for pid, proc in sample["processes"].items()
+                if "sleep" in proc["cmd"]
+            }
+            if sleep_procs:
+                logger.error(f"  Sleep processes in sample {idx}:")
+                for pid, proc in sleep_procs.items():
+                    logger.error(f"    PID {pid}: cmd='{proc['cmd']}'")
+            else:
+                logger.error(f"  No sleep processes found in sample {idx}")
+                logger.error(f"  All processes in sample {idx}:")
+                for pid, proc in sample["processes"].items():
+                    logger.error(f"    PID {pid}: cmd='{proc['cmd']}'")
+
+        logger.error(f"All unique sleep PIDs found: {sorted(all_child_pids)}")
+    # ============================================================================
+    # END TEMPORARY DEBUGGING
+    # ============================================================================
+
     # Add one pid for the hold-the-door process, see spawn_children.sh line 7
     if mode == "setsid":
         assert len(all_child_pids) == 1
