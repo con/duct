@@ -422,6 +422,7 @@ def _get_sample_mac(session_id: int) -> Sample:
 
         try:
             sess = os.getsid(int(pid))
+            # It is possible that the `pid` returned by the top `ps` call no longer exists at time of `getsid` request
         except Exception as exc:
             lgr.debug(f"Error fetching session ID for PID {pid}: {str(exc)}")
             sess = -1
