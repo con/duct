@@ -17,10 +17,13 @@ from con_duct.ls import LS_FIELD_CHOICES, ls
 from con_duct.plot import matplotlib_plot
 from con_duct.pprint_json import pprint_json
 
-# Default .env file search paths (colon-separated, in precedence order)
-DEFAULT_CONFIG_PATHS = (
-    "/etc/duct/.env:${XDG_CONFIG_HOME:-~/.config}/duct/.env:.duct/.env"
+# Default .env file search paths (in precedence order)
+DEFAULT_CONFIG_PATHS_LIST = (
+    "/etc/duct/.env",
+    "${XDG_CONFIG_HOME:-~/.config}/duct/.env",
+    ".duct/.env",
 )
+DEFAULT_CONFIG_PATHS = ":".join(DEFAULT_CONFIG_PATHS_LIST)
 
 
 def load_duct_env_files() -> None:
@@ -70,9 +73,7 @@ lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
 # Format default config paths as a bulleted list for help text
-_config_paths_list = "\n".join(
-    f"    - {path}" for path in DEFAULT_CONFIG_PATHS.split(":")
-)
+_config_paths_list = "\n".join(f"    - {path}" for path in DEFAULT_CONFIG_PATHS_LIST)
 
 ABOUT_DUCT = f"""
 duct is a lightweight wrapper that collects execution data for an arbitrary

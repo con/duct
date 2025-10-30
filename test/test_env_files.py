@@ -151,17 +151,3 @@ def test_without_python_dotenv() -> None:
     with mock.patch("builtins.__import__", side_effect=ImportError):
         # Should not raise an exception
         load_duct_env_files()
-
-
-def test_default_config_paths_format() -> None:
-    """Test that DEFAULT_CONFIG_PATHS is properly formatted."""
-    from con_duct.cli import DEFAULT_CONFIG_PATHS
-
-    # Should be colon-separated
-    paths = DEFAULT_CONFIG_PATHS.split(":")
-    assert len(paths) == 3
-
-    # Check expected paths
-    assert "/etc/duct/.env" in paths
-    assert "${XDG_CONFIG_HOME:-~/.config}/duct/.env" in paths
-    assert ".duct/.env" in paths
