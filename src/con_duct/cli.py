@@ -99,11 +99,7 @@ def _replay_early_logs() -> None:
     _early_log_buffer.clear()
 
 
-# Load .env files before setting any module-level constants from environment
-load_duct_env_files()
-
 lgr = logging.getLogger("con-duct")
-DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
 # Format default config paths as a bulleted list for help text
 _config_paths_list = "\n".join(f"    - {path}" for path in DEFAULT_CONFIG_PATHS_LIST)
@@ -172,7 +168,7 @@ def _create_common_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-l",
         "--log-level",
-        default=DEFAULT_LOG_LEVEL,
+        default=os.getenv("DUCT_LOG_LEVEL", "INFO").upper(),
         choices=("NONE", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
         type=str.upper,
         help="Level of log output to stderr, use NONE to entirely disable.",
@@ -446,6 +442,9 @@ def duct_entrypoint() -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> None:
+    # Load .env files before parser creation so defaults pick up env vars
+    load_duct_env_files()
+
     parser = argparse.ArgumentParser(
         prog="con-duct",
         description="A suite of commands to manage or manipulate con-duct logs.",
