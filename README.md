@@ -105,6 +105,54 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
+  DUCT_CONFIG_PATHS: colon-separated paths to .env files (see below)
+
+.env files:
+  Environment variables can also be set via .env files. By default, duct
+  searches the following locations (later files override earlier ones):
+
+    - /etc/duct/.env
+    - ${XDG_CONFIG_HOME:-~/.config}/duct/.env
+    - .duct/.env
+
+  Override the search paths by setting DUCT_CONFIG_PATHS with colon-separated
+  paths (e.g., export DUCT_CONFIG_PATHS="/custom/path.env:~/.myduct.env").
+
+  Example .env file content:
+    # Set default log level
+    DUCT_LOG_LEVEL=DEBUG
+
+    # Configure intervals
+    DUCT_SAMPLE_INTERVAL=2.0
+    DUCT_REPORT_INTERVAL=120.0
+
+    # Set default output location
+    DUCT_OUTPUT_PREFIX=~/duct-logs/{datetime_filesafe}-{pid}_
+
+    # Add execution notes (multiline)
+    DUCT_MESSAGE="Experiment run for paper revision
+    Using updated dataset from 2025-10-30
+    See lab notebook page 42 for details"
+
+  Supported .env syntax (via python-dotenv):
+    - KEY=value (basic assignment)
+    - KEY="value with spaces" (quoted values)
+    - KEY='single quotes' (single-quoted values)
+    - # comments (hash comments)
+    - Empty lines (ignored)
+    - Multiline values (use quotes)
+
+  Precedence (highest to lowest):
+    1. Command line arguments
+    2. Explicit environment variables
+    3. .env file values (later paths override earlier paths)
+    4. Hardcoded defaults
+
+  Notes:
+    - .env file support requires python-dotenv (pip install con-duct[all])
+    - DUCT_CONFIG_PATHS cannot be set in .env files (must be set before
+loading)
+    - Malformed, unreadable, or missing .env files are skipped and logged
 
 positional arguments:
   command [command_args ...]
