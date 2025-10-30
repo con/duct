@@ -75,8 +75,17 @@ def load_duct_env_files() -> None:
         expanded_path = os.path.expanduser(path)
         if os.path.exists(expanded_path):
             _early_log_buffer.append(("DEBUG", f"Loading .env file: {expanded_path}"))
-            load_dotenv(expanded_path, override=False)
-            loaded_count += 1
+            try:
+                load_dotenv(expanded_path, override=False)
+                loaded_count += 1
+            except PermissionError as e:
+                _early_log_buffer.append(
+                    ("WARNING", f"Cannot read .env file {expanded_path}: {e}")
+                )
+            except ValueError as e:
+                _early_log_buffer.append(
+                    ("WARNING", f"Skipping malformed .env file {expanded_path}: {e}")
+                )
         else:
             _early_log_buffer.append(
                 ("DEBUG", f".env file not found (skipping): {expanded_path}")
