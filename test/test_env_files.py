@@ -250,3 +250,53 @@ def test_early_logging_respects_level(
 
     # Now DEBUG messages should appear
     assert len(caplog.records) > 0
+
+
+def test_permission_denied_handling(tmp_path: Path) -> None:
+    """Test that permission denied errors are handled gracefully."""
+    pytest.importorskip("dotenv")
+    from con_duct import cli
+
+    # Create an unreadable .env file
+    env_file = tmp_path / "unreadable.env"
+    env_file.write_text("DUCT_LOG_LEVEL=DEBUG\n")
+    env_file.chmod(0o000)
+
+    cli._early_log_buffer.clear()
+
+    try:
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
+                # Should not raise an exception
+                cli.load_duct_env_files()
+
+        # Should have a WARNING message about permission denied
+        messages = [msg for level, msg in cli._early_log_buffer]
+        assert any("Cannot read .env file" in msg for msg in messages)
+        assert any("Permission denied" in msg for msg in messages)
+    finally:
+        # Clean up: restore permissions so pytest can delete the file
+        env_file.chmod(0o644)
+
+
+def test_malformed_env_file_handling(tmp_path: Path) -> None:
+    """Test that malformed .env files (null bytes) are handled gracefully."""
+    pytest.importorskip("dotenv")
+    from con_duct import cli
+
+    # Create a .env file with null bytes
+    env_file = tmp_path / "malformed.env"
+    env_file.write_bytes(b"DUCT_MESSAGE=before\x00after\n")
+
+    cli._early_log_buffer.clear()
+
+    with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
+            # Should not raise an exception
+            cli.load_duct_env_files()
+
+    # Should have a WARNING message about malformed file
+    messages = [msg for level, msg in cli._early_log_buffer]
+    assert any("Skipping malformed .env file" in msg for msg in messages)
+    # The error message varies by python-dotenv version, so just check it's there
+    assert any(level == "WARNING" for level, _ in cli._early_log_buffer)
