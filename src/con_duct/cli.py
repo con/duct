@@ -17,10 +17,64 @@ from con_duct.ls import LS_FIELD_CHOICES, ls
 from con_duct.plot import matplotlib_plot
 from con_duct.pprint_json import pprint_json
 
+# Default .env file search paths (colon-separated, in precedence order)
+DEFAULT_CONFIG_PATHS = (
+    "/etc/duct/.env:${XDG_CONFIG_HOME:-~/.config}/duct/.env:.duct/.env"
+)
+
+
+def load_duct_env_files() -> None:
+    """Load environment variables from .env files in multiple locations.
+
+    Searches for .env files specified in DUCT_CONFIG_PATHS (or DEFAULT_CONFIG_PATHS).
+    Files are loaded in reverse order so later files override earlier ones.
+
+    Environment variables already set in the environment will NOT be overridden
+    by values from .env files, maintaining proper precedence:
+    CLI args > explicit env vars > .env files > hardcoded defaults
+
+    Gracefully handles missing python-dotenv package or missing .env files.
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        # python-dotenv not installed, skip .env file loading
+        return
+
+    config_paths_str = os.getenv("DUCT_CONFIG_PATHS", DEFAULT_CONFIG_PATHS)
+
+    # Expand ${VAR:-default} syntax in the paths string ie ${XDG_CONFIG_HOME:-~/.config}
+    import re
+
+    def expand_var(match: re.Match) -> str:
+        var_expr = match.group(1)
+        if ":-" in var_expr:
+            var_name, default = var_expr.split(":-", 1)
+            return os.getenv(var_name, default)
+        return os.getenv(var_expr, "")
+
+    config_paths_str = re.sub(r"\$\{([^}]+)\}", expand_var, config_paths_str)
+    search_paths = [p.strip() for p in config_paths_str.split(":") if p.strip()]
+
+    # Load in reverse order so later paths override earlier ones (once set, vars are skipped)
+    for path in reversed(search_paths):
+        expanded_path = os.path.expanduser(path)
+        if os.path.exists(expanded_path):
+            load_dotenv(expanded_path, override=False)
+
+
+# Load .env files before setting any module-level constants from environment
+load_duct_env_files()
+
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
-ABOUT_DUCT = """
+# Format default config paths as a bulleted list for help text
+_config_paths_list = "\n".join(
+    f"    - {path}" for path in DEFAULT_CONFIG_PATHS.split(":")
+)
+
+ABOUT_DUCT = f"""
 duct is a lightweight wrapper that collects execution data for an arbitrary
 command. This command can be invoked as either 'duct' or 'con-duct run'.
 
@@ -50,6 +104,24 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
+  DUCT_CONFIG_PATHS: colon-separated paths to .env files (see below)
+
+.env files:
+  Environment variables can also be set via .env files. By default, duct
+  searches the following locations (later files override earlier ones):
+
+{_config_paths_list}
+
+  Override the search paths by setting DUCT_CONFIG_PATHS with colon-separated
+  paths (e.g., export DUCT_CONFIG_PATHS="/custom/path.env:~/.myduct.env").
+
+  Precedence (highest to lowest):
+    1. Command line arguments
+    2. Explicit environment variables
+    3. .env file values (later paths override earlier paths)
+    4. Hardcoded defaults
+
+  Note: .env file support requires python-dotenv (pip install con-duct[all]).
 """
 
 
