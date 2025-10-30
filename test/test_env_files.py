@@ -162,17 +162,14 @@ def test_early_logging_buffer(tmp_path: Path) -> None:
     env_file = tmp_path / "test.env"
     env_file.write_text("TEST_VAR=test_value\n")
 
-    # Clear the buffer before testing
-    cli._early_log_buffer.clear()
-
     with mock.patch.dict(os.environ, {}, clear=True):
         with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
-            cli.load_duct_env_files()
+            log_buffer = cli.load_duct_env_files()
 
     # Check that messages were buffered
-    assert len(cli._early_log_buffer) > 0
+    assert len(log_buffer) > 0
     # Should have messages about searching and loading
-    messages = [msg for level, msg in cli._early_log_buffer]
+    messages = [msg for level, msg in log_buffer]
     assert any("Searching for .env files" in msg for msg in messages)
     assert any("Loading .env file" in msg for msg in messages)
 
@@ -187,27 +184,21 @@ def test_early_logging_replay(tmp_path: Path, caplog: pytest.LogCaptureFixture) 
     env_file = tmp_path / "test.env"
     env_file.write_text("TEST_VAR=test_value\n")
 
-    # Clear the buffer and reload
-    cli._early_log_buffer.clear()
-
     with mock.patch.dict(os.environ, {}, clear=True):
         with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
-            cli.load_duct_env_files()
+            log_buffer = cli.load_duct_env_files()
 
     # Buffer should have messages
-    assert len(cli._early_log_buffer) > 0
+    assert len(log_buffer) > 0
 
     # Configure logging and replay
     with caplog.at_level(logging.DEBUG, logger="con-duct"):
-        cli._replay_early_logs()
+        cli._replay_early_logs(log_buffer)
 
     # Check that messages were logged
     assert len(caplog.records) > 0
     logged_messages = [record.message for record in caplog.records]
     assert any("Searching for .env files" in msg for msg in logged_messages)
-
-    # Buffer should be cleared after replay
-    assert len(cli._early_log_buffer) == 0
 
 
 def test_early_logging_respects_level(
@@ -222,31 +213,27 @@ def test_early_logging_respects_level(
     env_file = tmp_path / "test.env"
     env_file.write_text("TEST_VAR=test_value\n")
 
-    # Clear and reload
-    cli._early_log_buffer.clear()
-
     with mock.patch.dict(os.environ, {}, clear=True):
         with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
-            cli.load_duct_env_files()
+            log_buffer = cli.load_duct_env_files()
 
     # All buffered messages are DEBUG level
-    assert all(level == "DEBUG" for level, _ in cli._early_log_buffer)
+    assert all(level == "DEBUG" for level, _ in log_buffer)
 
     # Replay at INFO level - DEBUG messages should NOT appear
     with caplog.at_level(logging.INFO, logger="con-duct"):
-        cli._replay_early_logs()
+        cli._replay_early_logs(log_buffer)
 
     # Should have no DEBUG messages in the log
     assert len(caplog.records) == 0
 
     # Try again at DEBUG level
-    cli._early_log_buffer.clear()
     with mock.patch.dict(os.environ, {}, clear=True):
         with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
-            cli.load_duct_env_files()
+            log_buffer2 = cli.load_duct_env_files()
 
     with caplog.at_level(logging.DEBUG, logger="con-duct"):
-        cli._replay_early_logs()
+        cli._replay_early_logs(log_buffer2)
 
     # Now DEBUG messages should appear
     assert len(caplog.records) > 0
@@ -262,16 +249,14 @@ def test_permission_denied_handling(tmp_path: Path) -> None:
     env_file.write_text("DUCT_LOG_LEVEL=DEBUG\n")
     env_file.chmod(0o000)
 
-    cli._early_log_buffer.clear()
-
     try:
         with mock.patch.dict(os.environ, {}, clear=True):
             with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
                 # Should not raise an exception
-                cli.load_duct_env_files()
+                log_buffer = cli.load_duct_env_files()
 
         # Should have a WARNING message about permission denied
-        messages = [msg for level, msg in cli._early_log_buffer]
+        messages = [msg for level, msg in log_buffer]
         assert any("Cannot read .env file" in msg for msg in messages)
         assert any("Permission denied" in msg for msg in messages)
     finally:
@@ -288,15 +273,13 @@ def test_malformed_env_file_handling(tmp_path: Path) -> None:
     env_file = tmp_path / "malformed.env"
     env_file.write_bytes(b"DUCT_MESSAGE=before\x00after\n")
 
-    cli._early_log_buffer.clear()
-
     with mock.patch.dict(os.environ, {}, clear=True):
         with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
             # Should not raise an exception
-            cli.load_duct_env_files()
+            log_buffer = cli.load_duct_env_files()
 
     # Should have a WARNING message about malformed file
-    messages = [msg for level, msg in cli._early_log_buffer]
+    messages = [msg for level, msg in log_buffer]
     assert any("Skipping malformed .env file" in msg for msg in messages)
     # The error message varies by python-dotenv version, so just check it's there
-    assert any(level == "WARNING" for level, _ in cli._early_log_buffer)
+    assert any(level == "WARNING" for level, _ in log_buffer)
