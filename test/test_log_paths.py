@@ -4,7 +4,7 @@ import os
 import re
 from unittest.mock import MagicMock, call, patch
 import pytest
-from con_duct.__main__ import LogPaths, Outputs
+from con_duct.duct_main import LogPaths, Outputs
 
 
 def test_log_paths_filesafe_datetime_prefix() -> None:
@@ -28,8 +28,8 @@ def test_log_paths_pid_prefix() -> None:
         "/abs/path/",
     ],
 )
-@patch("con_duct.__main__.os.makedirs")
-@patch("con_duct.__main__.os.path.exists")
+@patch("con_duct.duct_main.os.makedirs")
+@patch("con_duct.duct_main.os.path.exists")
 @patch("builtins.open")
 def test_prepare_dir_paths_available(
     _mock_open: MagicMock, mock_exists: MagicMock, mock_mkdir: MagicMock, path: str
@@ -48,8 +48,8 @@ def test_prepare_dir_paths_available(
         "/abs/path/pre_",
     ],
 )
-@patch("con_duct.__main__.os.path.exists")
-@patch("con_duct.__main__.os.makedirs")
+@patch("con_duct.duct_main.os.path.exists")
+@patch("con_duct.duct_main.os.makedirs")
 @patch("builtins.open")
 def test_prefix_with_filepart_and_directory_part(
     mock_open: MagicMock, mock_mkdir: MagicMock, mock_exists: MagicMock, path: str
@@ -62,8 +62,8 @@ def test_prefix_with_filepart_and_directory_part(
     mock_open.assert_has_calls(expected_calls, any_order=True)
 
 
-@patch("con_duct.__main__.os.path.exists")
-@patch("con_duct.__main__.os.makedirs")
+@patch("con_duct.duct_main.os.path.exists")
+@patch("con_duct.duct_main.os.makedirs")
 @patch("builtins.open")
 def test_prefix_with_filepart_only(
     mock_open: MagicMock, mock_mkdir: MagicMock, mock_exists: MagicMock
@@ -76,8 +76,8 @@ def test_prefix_with_filepart_only(
     mock_open.assert_has_calls(expected_calls, any_order=True)
 
 
-@patch("con_duct.__main__.os.path.exists")
-@patch("con_duct.__main__.os.makedirs")
+@patch("con_duct.duct_main.os.path.exists")
+@patch("con_duct.duct_main.os.makedirs")
 @patch("builtins.open")
 def test_prepare_file_paths_available_all(
     mock_open: MagicMock, _mock_mkdir: MagicMock, mock_exists: MagicMock
@@ -90,8 +90,8 @@ def test_prepare_file_paths_available_all(
     mock_open.assert_has_calls(expected_calls, any_order=True)
 
 
-@patch("con_duct.__main__.os.path.exists")
-@patch("con_duct.__main__.os.makedirs")
+@patch("con_duct.duct_main.os.path.exists")
+@patch("con_duct.duct_main.os.makedirs")
 @patch("builtins.open")
 def test_prepare_file_paths_available_stdout(
     mock_open: MagicMock, _mock_mkdir: MagicMock, mock_exists: MagicMock
@@ -106,8 +106,8 @@ def test_prepare_file_paths_available_stdout(
     mock_open.assert_has_calls(expected_calls, any_order=True)
 
 
-@patch("con_duct.__main__.os.path.exists")
-@patch("con_duct.__main__.os.makedirs")
+@patch("con_duct.duct_main.os.path.exists")
+@patch("con_duct.duct_main.os.makedirs")
 @patch("builtins.open")
 def test_prepare_file_paths_available_stderr(
     mock_open: MagicMock, _mock_mkdir: MagicMock, mock_exists: MagicMock
@@ -122,8 +122,8 @@ def test_prepare_file_paths_available_stderr(
     mock_open.assert_has_calls(expected_calls, any_order=True)
 
 
-@patch("con_duct.__main__.os.path.exists")
-@patch("con_duct.__main__.os.makedirs")
+@patch("con_duct.duct_main.os.path.exists")
+@patch("con_duct.duct_main.os.makedirs")
 @patch("builtins.open")
 def test_prepare_file_paths_available_no_streams(
     mock_open: MagicMock, _mock_mkdir: MagicMock, mock_exists: MagicMock
@@ -139,8 +139,8 @@ def test_prepare_file_paths_available_no_streams(
     mock_open.assert_has_calls(expected_calls, any_order=True)
 
 
-@patch("con_duct.__main__.os.makedirs")
-@patch("con_duct.__main__.os.path.exists")
+@patch("con_duct.duct_main.os.makedirs")
+@patch("con_duct.duct_main.os.path.exists")
 @patch("builtins.open")
 def test_prepare_paths_not_available_no_clobber(
     mock_open: MagicMock, mock_exists: MagicMock, mock_mkdir: MagicMock
