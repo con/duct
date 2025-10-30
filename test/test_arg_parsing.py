@@ -8,10 +8,11 @@ from con_duct.cli import _create_run_parser
 
 def test_duct_help() -> None:
     out = subprocess.check_output(["duct", "--help", "ps"])
+    output_str = out.decode("utf-8")
     # duct delegates to con-duct run, so usage shows con-duct run
-    assert "usage: con-duct run" in str(out)
+    assert "usage: con-duct run" in output_str
     # Help text should mention both entry points
-    assert "'duct' or 'con-duct run'" in str(out)
+    assert "'duct' or 'con-duct run'" in output_str
 
 
 def test_duct_version() -> None:
