@@ -17,6 +17,10 @@ from con_duct.ls import LS_FIELD_CHOICES, ls
 from con_duct.plot import matplotlib_plot
 from con_duct.pprint_json import pprint_json
 
+# Buffer for log messages generated before logging is configured
+# Format: list of (level_name, message) tuples
+_early_log_buffer: List[tuple[str, str]] = []
+
 # Default .env file search paths (in precedence order)
 DEFAULT_CONFIG_PATHS_LIST = (
     "/etc/duct/.env",
@@ -42,9 +46,15 @@ def load_duct_env_files() -> None:
         from dotenv import load_dotenv
     except ImportError:
         # python-dotenv not installed, skip .env file loading
+        _early_log_buffer.append(
+            ("DEBUG", "python-dotenv not installed, skipping .env file loading")
+        )
         return
 
     config_paths_str = os.getenv("DUCT_CONFIG_PATHS", DEFAULT_CONFIG_PATHS)
+    _early_log_buffer.append(
+        ("DEBUG", f"Searching for .env files in: {config_paths_str}")
+    )
 
     # Expand ${VAR:-default} syntax in the paths string ie ${XDG_CONFIG_HOME:-~/.config}
     import re
@@ -60,10 +70,33 @@ def load_duct_env_files() -> None:
     search_paths = [p.strip() for p in config_paths_str.split(":") if p.strip()]
 
     # Load in reverse order so later paths override earlier ones (once set, vars are skipped)
+    loaded_count = 0
     for path in reversed(search_paths):
         expanded_path = os.path.expanduser(path)
         if os.path.exists(expanded_path):
+            _early_log_buffer.append(("DEBUG", f"Loading .env file: {expanded_path}"))
             load_dotenv(expanded_path, override=False)
+            loaded_count += 1
+        else:
+            _early_log_buffer.append(
+                ("DEBUG", f".env file not found (skipping): {expanded_path}")
+            )
+
+    if loaded_count > 0:
+        _early_log_buffer.append(("DEBUG", f"Loaded {loaded_count} .env file(s)"))
+    else:
+        _early_log_buffer.append(("DEBUG", "No .env files found"))
+
+
+def _replay_early_logs() -> None:
+    """Replay buffered log messages through the configured logger.
+
+    Should be called after setup_logging() to ensure buffered messages from
+    .env file loading are properly logged with the user's chosen log level.
+    """
+    for level_name, message in _early_log_buffer:
+        lgr.log(getattr(logging, level_name), message)
+    _early_log_buffer.clear()
 
 
 # Load .env files before setting any module-level constants from environment
@@ -469,4 +502,5 @@ def main(argv: Optional[List[str]] = None) -> None:
         return
 
     setup_logging(args)
+    _replay_early_logs()
     sys.exit(execute(args))
