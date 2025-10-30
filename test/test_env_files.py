@@ -151,3 +151,102 @@ def test_without_python_dotenv() -> None:
     with mock.patch("builtins.__import__", side_effect=ImportError):
         # Should not raise an exception
         load_duct_env_files()
+
+
+def test_early_logging_buffer(tmp_path: Path) -> None:
+    """Test that log messages are buffered during .env loading."""
+    pytest.importorskip("dotenv")
+    from con_duct import cli
+
+    # Create a test .env file
+    env_file = tmp_path / "test.env"
+    env_file.write_text("TEST_VAR=test_value\n")
+
+    # Clear the buffer before testing
+    cli._early_log_buffer.clear()
+
+    with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
+            cli.load_duct_env_files()
+
+    # Check that messages were buffered
+    assert len(cli._early_log_buffer) > 0
+    # Should have messages about searching and loading
+    messages = [msg for level, msg in cli._early_log_buffer]
+    assert any("Searching for .env files" in msg for msg in messages)
+    assert any("Loading .env file" in msg for msg in messages)
+
+
+def test_early_logging_replay(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Test that buffered messages are replayed through the logger."""
+    pytest.importorskip("dotenv")
+    import logging
+    from con_duct import cli
+
+    # Create a test .env file
+    env_file = tmp_path / "test.env"
+    env_file.write_text("TEST_VAR=test_value\n")
+
+    # Clear the buffer and reload
+    cli._early_log_buffer.clear()
+
+    with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
+            cli.load_duct_env_files()
+
+    # Buffer should have messages
+    assert len(cli._early_log_buffer) > 0
+
+    # Configure logging and replay
+    with caplog.at_level(logging.DEBUG, logger="con-duct"):
+        cli._replay_early_logs()
+
+    # Check that messages were logged
+    assert len(caplog.records) > 0
+    logged_messages = [record.message for record in caplog.records]
+    assert any("Searching for .env files" in msg for msg in logged_messages)
+
+    # Buffer should be cleared after replay
+    assert len(cli._early_log_buffer) == 0
+
+
+def test_early_logging_respects_level(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Test that replayed messages respect the configured log level."""
+    pytest.importorskip("dotenv")
+    import logging
+    from con_duct import cli
+
+    # Create a test .env file
+    env_file = tmp_path / "test.env"
+    env_file.write_text("TEST_VAR=test_value\n")
+
+    # Clear and reload
+    cli._early_log_buffer.clear()
+
+    with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
+            cli.load_duct_env_files()
+
+    # All buffered messages are DEBUG level
+    assert all(level == "DEBUG" for level, _ in cli._early_log_buffer)
+
+    # Replay at INFO level - DEBUG messages should NOT appear
+    with caplog.at_level(logging.INFO, logger="con-duct"):
+        cli._replay_early_logs()
+
+    # Should have no DEBUG messages in the log
+    assert len(caplog.records) == 0
+
+    # Try again at DEBUG level
+    cli._early_log_buffer.clear()
+    with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
+            cli.load_duct_env_files()
+
+    with caplog.at_level(logging.DEBUG, logger="con-duct"):
+        cli._replay_early_logs()
+
+    # Now DEBUG messages should appear
+    assert len(caplog.records) > 0
