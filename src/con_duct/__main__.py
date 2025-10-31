@@ -102,9 +102,10 @@ def assert_num(*values: Any) -> None:
     for value in values:
         if not isinstance(value, (float, int)):
             lgr.error(
-                "Expected numeric value (float or int), got %s: %r",
+                "Expected numeric value (float or int), got %s: %r among %r",
                 type(value).__name__,
                 value,
+                values,
             )
         assert isinstance(value, (float, int))
 
