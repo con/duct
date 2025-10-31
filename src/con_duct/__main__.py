@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse
+import collections
 from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
@@ -11,6 +12,7 @@ import json
 import logging
 import math
 import os
+import platform
 import re
 import shutil
 import signal
@@ -22,13 +24,14 @@ import textwrap
 import threading
 import time
 from types import FrameType
-from typing import IO, Any, Optional, TextIO
+from typing import IO, Any, Callable, Optional, TextIO
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
 
 
 lgr = logging.getLogger("con-duct")
+SYSTEM = platform.system()
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
 DUCT_OUTPUT_PREFIX = os.getenv(
@@ -97,6 +100,13 @@ class CustomHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 def assert_num(*values: Any) -> None:
     for value in values:
+        if not isinstance(value, (float, int)):
+            lgr.error(
+                "Expected numeric value (float or int), got %s: %r among %r",
+                type(value).__name__,
+                value,
+                values,
+            )
         assert isinstance(value, (float, int))
 
 
@@ -359,6 +369,121 @@ class Sample:
         return d
 
 
+def _get_sample_linux(session_id: int) -> Sample:
+    sample = Sample()
+
+    ps_command = [
+        "ps",
+        "-w",
+        "-s",
+        str(session_id),
+        "-o",
+        "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
+    ]
+    output = subprocess.check_output(ps_command, text=True)
+
+    for line in output.splitlines()[1:]:
+        if not line:
+            continue
+
+        pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(maxsplit=7)
+
+        sample.add_pid(
+            pid=int(pid),
+            stats=ProcessStats(
+                pcpu=float(pcpu),
+                pmem=float(pmem),
+                rss=int(rss_kib) * 1024,
+                vsz=int(vsz_kib) * 1024,
+                timestamp=datetime.now().astimezone().isoformat(),
+                etime=etime,
+                stat=Counter([stat]),
+                cmd=cmd,
+            ),
+        )
+    sample.averages = Averages.from_sample(sample=sample)
+    return sample
+
+
+def _try_to_get_sid(pid: int) -> int:
+    """
+    It is possible that the `pid` returned by the top `ps` call no longer exists at time of `getsid` request.
+    """
+    try:
+        return os.getsid(pid)
+    except Exception as exc:
+        lgr.debug(f"Error fetching session ID for PID {pid}: {str(exc)}")
+        return -1
+
+
+def _add_sample_from_line_mac(
+    line: str, pid_to_sid: dict[int, int], session_id: int, sample: Sample
+) -> None:
+    pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
+
+    if pid_to_sid[int(pid)] != session_id:
+        return
+
+    sample.add_pid(
+        pid=int(pid),
+        stats=ProcessStats(
+            pcpu=float(pcpu),
+            pmem=float(pmem),
+            rss=int(rss_kb) * 1024,
+            vsz=int(vsz_kb) * 1024,
+            timestamp=datetime.now().astimezone().isoformat(),
+            etime=etime,
+            stat=Counter([stat]),
+            cmd=cmd,
+        ),
+    )
+
+
+def _get_sample_mac(session_id: int) -> Sample:
+    sample = Sample()
+
+    ps_command = [
+        "ps",
+        "-ax",
+        "-o",
+        "pid,pcpu,pmem,rss,vsz,etime,stat,args",
+    ]
+    output = subprocess.check_output(ps_command, text=True)
+
+    lines = [line for line in output.splitlines()[1:] if line]
+    pid_to_sid = {
+        (pid := int(line.split(maxsplit=1)[0])): _try_to_get_sid(pid=pid)
+        for line in lines
+    }
+
+    collections.deque(
+        (
+            _add_sample_from_line_mac(
+                line=line, pid_to_sid=pid_to_sid, session_id=session_id, sample=sample
+            )
+            for line in lines
+        ),
+        maxlen=0,
+    )
+    try:
+        sample.averages = Averages.from_sample(sample=sample)
+    except AssertionError:
+        lgr.error(
+            "The output of %r command was %r, which had lead to an incorrect (empty?) Sample",
+            ps_command,
+            output,
+        )
+        raise
+    return sample
+
+
+_get_sample_per_system = {
+    "Linux": _get_sample_linux,
+    "Darwin": _get_sample_mac,
+}
+_get_sample: Callable[[int], Sample] = _get_sample_per_system[SYSTEM]
+
+
 class Report:
     """Top level report"""
 
@@ -469,43 +594,13 @@ class Report:
 
     def collect_sample(self) -> Optional[Sample]:
         assert self.session_id is not None
-        sample = Sample()
+
         try:
-            output = subprocess.check_output(
-                [
-                    "ps",
-                    "-w",
-                    "-s",
-                    str(self.session_id),
-                    "-o",
-                    "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
-                ],
-                text=True,
-            )
-            for line in output.splitlines()[1:]:
-                if line:
-                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(
-                        maxsplit=7,
-                    )
-                    sample.add_pid(
-                        int(pid),
-                        ProcessStats(
-                            pcpu=float(pcpu),
-                            pmem=float(pmem),
-                            rss=int(rss_kib) * 1024,
-                            vsz=int(vsz_kib) * 1024,
-                            timestamp=datetime.now().astimezone().isoformat(),
-                            etime=etime,
-                            stat=Counter([stat]),
-                            cmd=cmd,
-                        ),
-                    )
+            sample = _get_sample(self.session_id)
+            return sample
         except subprocess.CalledProcessError as exc:  # when session_id has no processes
             lgr.debug("Error collecting sample: %s", str(exc))
             return None
-
-        sample.averages = Averages.from_sample(sample)
-        return sample
 
     def update_from_sample(self, sample: Sample) -> None:
         self.full_run_stats = self.full_run_stats.aggregate(sample)
