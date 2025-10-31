@@ -465,8 +465,15 @@ def _get_sample_mac(session_id: int) -> Sample:
         ),
         maxlen=0,
     )
-
-    sample.averages = Averages.from_sample(sample=sample)
+    try:
+        sample.averages = Averages.from_sample(sample=sample)
+    except AssertionError:
+        lgr.error(
+            "The output of %r command was %r, which had lead to an incorrect (empty?) Sample",
+            ps_command,
+            output,
+        )
+        raise
     return sample
 
 
