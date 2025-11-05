@@ -416,12 +416,25 @@ def _try_to_get_sid(pid: int) -> int:
         return -1
 
 
+def _get_ps_lines_mac() -> list[str]:
+    ps_command = [
+        "ps",
+        "-ax",
+        "-o",
+        "pid,pcpu,pmem,rss,vsz,etime,stat,args",
+    ]
+    output = subprocess.check_output(ps_command, text=True)
+
+    lines = [line for line in output.splitlines()[1:] if line]
+    return lines
+
+
 def _add_sample_from_line_mac(
-    line: str, pid_to_sid: dict[int, int], session_id: int, sample: Sample
+    line: str, pid_to_matching_sid: dict[int, int], sample: Sample
 ) -> None:
     pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
 
-    if pid_to_sid[int(pid)] != session_id:
+    if pid_to_matching_sid.get(int(pid), None) is None:
         return
 
     sample.add_pid(
@@ -439,41 +452,58 @@ def _add_sample_from_line_mac(
     )
 
 
-def _get_sample_mac(session_id: int) -> Sample:
+def _get_sample_mac(session_id: int, max_retries: int = 5) -> Sample:
     sample = Sample()
 
-    ps_command = [
-        "ps",
-        "-ax",
-        "-o",
-        "pid,pcpu,pmem,rss,vsz,etime,stat,args",
-    ]
-    output = subprocess.check_output(ps_command, text=True)
+    # If no matching SIDs found, trigger retry
+    counter = 0
+    lines = []
+    pid_to_matching_sid = {}
+    while counter < max_retries:
+        lines = _get_ps_lines_mac()
+        pid_to_matching_sid = {
+            pid: sid
+            for line in lines
+            if (sid := _try_to_get_sid(pid=(pid := int(line.split(maxsplit=1)[0]))))
+            == session_id
+        }
 
-    lines = [line for line in output.splitlines()[1:] if line]
-    pid_to_sid = {
-        (pid := int(line.split(maxsplit=1)[0])): _try_to_get_sid(pid=pid)
-        for line in lines
-    }
+        if pid_to_matching_sid:
+            break
+
+        counter += 1
+        lgr.debug(
+            f"No processes found for session ID {session_id}. "
+            f"Retry attempt {counter}/{max_retries}."
+        )
+        time.sleep(
+            0.001
+        )  # TODO: allow passing update interval and make this a fraction of that
+
+    if counter == max_retries:
+        message = (
+            "Failed to find processes for session ID "
+            f"{session_id} after {max_retries} attempts."
+        )
+        lgr.error(msg=message)
+        raise RuntimeError(message)
 
     collections.deque(
         (
             _add_sample_from_line_mac(
-                line=line, pid_to_sid=pid_to_sid, session_id=session_id, sample=sample
+                line=line, pid_to_matching_sid=pid_to_matching_sid, sample=sample
             )
             for line in lines
         ),
         maxlen=0,
     )
+
     try:
         sample.averages = Averages.from_sample(sample=sample)
     except AssertionError:
-        lgr.error(
-            "The output of %r command was %r, which had lead to an incorrect (empty?) Sample",
-            ps_command,
-            output,
-        )
-        raise
+        message = f"Failed to compute averages for sample: {sample}"
+        lgr.error(msg=message)
+        raise RuntimeError(message)
     return sample
 
 
