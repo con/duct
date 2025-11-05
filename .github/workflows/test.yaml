@@ -66,6 +66,9 @@ jobs:
           python -m pip install --upgrade pip wheel
           python -m pip install --upgrade --upgrade-strategy=eager tox
 
+      - name: Print uname machine
+        run: python -c "import os; print(os.uname().machine)"
+
       - name: Install system dependencies
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install -y libjpeg-dev
