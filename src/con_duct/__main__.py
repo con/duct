@@ -431,7 +431,7 @@ def _get_ps_lines_mac() -> list[str]:
 
 def _add_sample_from_line_mac(
     line: str, pid_to_matching_sid: dict[int, int], sample: Sample
-) -> None:
+) -> None:  # type: ignore[func-returns-value] (https://github.com/python/mypy/issues/15785)
     pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
 
     if pid_to_matching_sid.get(int(pid), None) is None:
