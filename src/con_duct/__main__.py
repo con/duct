@@ -24,7 +24,7 @@ import textwrap
 import threading
 import time
 from types import FrameType
-from typing import IO, Any, Callable, Optional, TextIO
+from typing import IO, Any, Callable, Optional, TextIO, Union
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
@@ -431,11 +431,11 @@ def _get_ps_lines_mac() -> list[str]:
 
 def _add_sample_from_line_mac(
     line: str, pid_to_matching_sid: dict[int, int], sample: Sample
-) -> Sample:
+) -> Union[Sample, None]:  # Return is not actually used here; just making linter happy
     pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
 
     if pid_to_matching_sid.get(int(pid), None) is None:
-        return
+        return None
 
     sample.add_pid(
         pid=int(pid),
