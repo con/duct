@@ -242,7 +242,7 @@ def test_signal_int(temp_output_dir: str, fail_time: float | None) -> None:
     proc.join()
 
     # Once the command has been killed, duct should exit gracefully with exit code 0
-    if sys.platform == "darwin" and os.uname() == "x86_64":
+    if sys.platform == "darwin" and os.uname().machine == "x86_64":
         # macOS on Intel seems to occasionally return -2
         assert proc.exitcode in [0, -2]
     else:
