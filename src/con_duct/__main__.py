@@ -511,7 +511,7 @@ _get_sample_per_system = {
     "Linux": _get_sample_linux,
     "Darwin": _get_sample_mac,
 }
-_get_sample: Callable[[int], Sample] = _get_sample_per_system[SYSTEM]
+_get_sample: Callable[[int], Sample] = _get_sample_per_system[SYSTEM]  # type: ignore[assignment]
 
 
 class Report:
