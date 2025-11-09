@@ -25,10 +25,19 @@ import threading
 import time
 from types import FrameType
 from typing import IO, Any, Callable, Optional, TextIO, Union
+import warnings
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
 
+is_mac_intel = sys.platform == "darwin" and os.uname().machine == "x86_64"
+if is_mac_intel and not os.getenv("DUCT_IGNORE_INTEL_WARNING"):
+    message = (
+        "Detected system macOS running on intel architecture - "
+        "duct may experience issues with sampling and signal handling.\n\n"
+        "Set the environment variable `DUCT_IGNORE_INTEL_WARNING` to suppress this warning.\n"
+    )
+    warnings.warn(message=message, stacklevel=2)
 
 lgr = logging.getLogger("con-duct")
 SYSTEM = platform.system()
