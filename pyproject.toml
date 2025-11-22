@@ -8,3 +8,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.versioningit.write]
 file = "src/con_duct/_version.py"
+
+[tool.pytest.ini_options]
+markers = [
+    "flaky: mark a test as being unreliable"
+]

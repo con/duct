@@ -19,7 +19,7 @@ def test_sanity(temp_output_dir: str) -> None:
 def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> None:
     duct_prefix = f"{temp_output_dir}log_"
     script_path = TEST_SCRIPT_DIR / "spawn_children.sh"
-    dur = "0.3"
+    dur = "3"
     command = f"duct -q --s-i 0.001 --r-i 0.01 -p {duct_prefix} {script_path} {mode} {num_children} {dur}"
     subprocess.check_output(command, shell=True)
 
@@ -33,6 +33,7 @@ def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> N
         for pid, proc in sample["processes"].items()
         if "sleep" in proc["cmd"]
     )
+
     # Add one pid for the hold-the-door process, see spawn_children.sh line 7
     if mode == "setsid":
         assert len(all_child_pids) == 1

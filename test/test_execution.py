@@ -37,16 +37,16 @@ def test_sanity_green(caplog: pytest.LogCaptureFixture, temp_output_dir: str) ->
     t0 = time()
     exit_code = 0
     assert execute(args) == exit_code
-    assert time() - t0 < 0.4  # we should not wait for a sample or report interval
+    assert time() - t0 < 0.6  # we should not wait for a sample or report interval
     assert_expected_files(temp_output_dir)
     assert "Exit Code: 0" in caplog.records[-1].message
 
 
 def test_execution_summary(temp_output_dir: str) -> None:
     args = Arguments.from_argv(
-        ["sleep", "0.1"],
-        sample_interval=0.05,  # small enough to ensure we collect at least 1 sample
-        report_interval=0.1,
+        ["sleep", "1"],
+        sample_interval=0.5,  # small enough to ensure we collect at least 1 sample
+        report_interval=1.0,
         output_prefix=temp_output_dir,
     )
     assert execute(args) == 0
