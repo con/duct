@@ -26,8 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          # - macos-12
-          # - macos-latest
+          - macos-15-intel
+          - macos-latest
           # - windows-latest
           - ubuntu-latest
         python-version:
@@ -65,11 +65,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel
           python -m pip install --upgrade --upgrade-strategy=eager tox
-          sudo apt-get install -y libjpeg-dev
+
+      - name: Install system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get install -y libjpeg-dev
 
       - name: Run tests with coverage
         if: matrix.toxenv == 'py'
-        run: tox -e py -- -vv --cov-report=xml
+        run: tox -e py -- -vv -s --cov-report=xml
 
       - name: Run generic tests
         if: matrix.toxenv != 'py'
