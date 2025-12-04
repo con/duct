@@ -6,6 +6,7 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
+        exclude: '\.svg$'
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files
@@ -36,4 +37,3 @@ repos:
         entry: yamllint
         language: system
         types: [yaml]
-        args: ["."]
