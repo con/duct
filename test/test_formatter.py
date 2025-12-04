@@ -1,14 +1,14 @@
 import os
 from unittest import mock
 import pytest
-from con_duct.__main__ import Report, SummaryFormatter
+from con_duct.duct_main import Report, SummaryFormatter
 
 GREEN_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.GREEN
 RED_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.RED
 
 
-@mock.patch("con_duct.__main__.LogPaths")
-@mock.patch("con_duct.__main__.subprocess.Popen")
+@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct.duct_main.subprocess.Popen")
 def test_execution_summary_formatted_wall_clock_time_nan(
     mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock
 ) -> None:
@@ -31,8 +31,8 @@ def test_execution_summary_formatted_wall_clock_time_nan(
     assert "wall clock time: nan" in report.execution_summary_formatted.lower()
 
 
-@mock.patch("con_duct.__main__.LogPaths")
-@mock.patch("con_duct.__main__.subprocess.Popen")
+@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct.duct_main.subprocess.Popen")
 def test_execution_summary_formatted_wall_clock_time_rounded(
     mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock
 ) -> None:
@@ -302,8 +302,8 @@ def test_summary_formatter_N_e2e_colors() -> None:
     assert n_zero_applied == f"test {RED_START}-{formatter.RESET_SEQ}"
 
 
-@mock.patch("con_duct.__main__.LogPaths")
-@mock.patch("con_duct.__main__.subprocess.Popen")
+@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct.duct_main.subprocess.Popen")
 @pytest.mark.parametrize("colors", [True, False])
 def test_execution_summary_formatted_wall_clock_time_nowvalid(
     mock_popen: mock.MagicMock, mock_log_paths: mock.MagicMock, colors: bool
