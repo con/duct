@@ -10,7 +10,7 @@ import sys
 from time import sleep, time
 import pytest
 from utils import assert_files, run_duct_command
-import con_duct.duct_main as duct_main
+from con_duct import duct_main
 from con_duct.duct_main import SUFFIXES, Outputs
 
 TEST_SCRIPT_DIR = Path(__file__).with_name("data")
