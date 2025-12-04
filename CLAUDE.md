@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build & Test Commands
-- A virtual environment should be used (see .local.CLAUDE.md for venv location)
+- A virtual environment should be used (see .local.CLAUDE.md or ~/.claude/CLAUDE.md if they exist for venv locations)
 - Install: `python -m pip install -e .[all]`
 - Run all tests: `tox`
 - Run specific test file: `tox -- -s -v test/test_file.py`
