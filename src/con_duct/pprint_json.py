@@ -65,10 +65,17 @@ def humanize_data(data: Any, formatter: SummaryFormatter) -> Any:
 def pprint_json(args: argparse.Namespace) -> int:
     """
     Prints the contents of a JSON file using pprint.
+
+    Handles both standard JSON files and JSON Lines (usage.json) files.
     """
+    is_usage_file = args.file_path.endswith("usage.json")
+
     try:
         with open(args.file_path, "r") as file:
-            data = json.load(file)
+            if is_usage_file:
+                data = [json.loads(line) for line in file if line.strip()]
+            else:
+                data = json.load(file)
 
         if args.humanize:
             formatter = SummaryFormatter()
