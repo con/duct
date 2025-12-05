@@ -29,6 +29,21 @@ checks will be run automatically prior to commit if `pre-commit
 <https://pre-commit.com>`_ is installed in your environment.
 
 
+Installation
+------------
+
+When installing from a remote fork (such as from primary maintainer @asmacdo), it is possible that the branch to be installed locally does not have any Git tags.
+
+This confuses the `versioningit` tool, which is used by `pip` to set package versions based on these tags, which can cause `pip install` to fail with various errors.
+
+To resolve this, manually link the upstream and pull all tags:
+
+```bash
+git remote add upstream https://github.com/con/duct
+git fetch upstream
+```
+
+
 Testing
 -------
 If you are contributing code, please consider adding a unit test.
