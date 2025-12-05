@@ -148,3 +148,47 @@ def test_session_mode_behavior_difference(temp_output_dir: str) -> None:
             except subprocess.TimeoutExpired:
                 background_process.kill()
                 background_process.wait()
+
+
+def test_logging_levels(temp_output_dir: str) -> None:
+    """Test that --quiet and --log-level NONE suppress logging output."""
+    duct_prefix = f"{temp_output_dir}log_"
+
+    # Test normal logging - should see "Summary" in stderr
+    result = subprocess.run(
+        f"con-duct run -p {duct_prefix} sleep 0.1",
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "Summary" in result.stderr, "Normal run should log Summary"
+    assert "Exit Code:" in result.stderr
+
+    # Test --quiet flag - should suppress logging
+    result_quiet = subprocess.run(
+        f"con-duct run --quiet --clobber -p {duct_prefix} sleep 0.1",
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result_quiet.returncode == 0
+    assert "Summary" not in result_quiet.stderr, "--quiet should suppress logging"
+    assert (
+        result_quiet.stderr == ""
+    ), f"Expected empty stderr, got: {result_quiet.stderr!r}"
+
+    # Test --log-level NONE - should suppress logging
+    result_none = subprocess.run(
+        f"con-duct run --log-level NONE --clobber -p {duct_prefix} sleep 0.1",
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
+    assert result_none.returncode == 0
+    assert (
+        "Summary" not in result_none.stderr
+    ), "--log-level NONE should suppress logging"
+    assert (
+        result_none.stderr == ""
+    ), f"Expected empty stderr, got: {result_none.stderr!r}"
