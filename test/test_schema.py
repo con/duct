@@ -22,7 +22,7 @@ def test_info_fields(temp_output_dir: str) -> None:
     assert execute(args) == 0  # exit_code
     os.remove(Path(temp_output_dir, "stdout"))
     os.remove(Path(temp_output_dir, "stderr"))
-    os.remove(Path(temp_output_dir, "usage.json"))
+    os.remove(Path(temp_output_dir, "usage.jsonl"))
 
     info_file = Path(temp_output_dir, "info.json")
     actual_info_schema = _flatten_dict(json.loads(info_file.read_text())).keys()

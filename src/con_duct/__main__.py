@@ -782,7 +782,7 @@ class Arguments:
             type=str,
             default=DUCT_OUTPUT_PREFIX,
             help="File string format to be used as a prefix for the files -- the captured "
-            "stdout and stderr and the resource usage logs. The understood variables are "
+            "stdout and stderr and the resource usage logs (usage.jsonl). The understood variables are "
             "{datetime}, {datetime_filesafe}, and {pid}. "
             "Leading directories will be created if they do not exist. "
             "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",

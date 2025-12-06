@@ -187,7 +187,7 @@ options:
 Visualize resource usage over time with `con-duct plot`:
 
 ```bash
-con-duct plot path/to/usage.json
+con-duct plot path/to/usage.jsonl  # or legacy path/to/usage.json
 ```
 
 ![Plot for mriqc processing on a single subject/session](https://raw.githubusercontent.com/con/duct-gallery/master/images/mriqc-processing-on-a-single-subject-session.svg)
