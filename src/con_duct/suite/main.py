@@ -61,7 +61,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     parser_plot = subparsers.add_parser(
         "plot", help="Plot resource usage for an execution."
     )
-    parser_plot.add_argument("file_path", help="duct-produced usage.json file.")
+    parser_plot.add_argument("file_path", help="duct-produced usage file (.jsonl or legacy .json).")
     parser_plot.add_argument(
         "-o",
         "--output",

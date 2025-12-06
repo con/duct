@@ -1,0 +1,3 @@
+[console_scripts]
+con-duct = con_duct.suite.main:main
+duct = con_duct.__main__:main
