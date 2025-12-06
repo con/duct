@@ -23,7 +23,7 @@ def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> N
     command = f"duct -q --s-i 0.001 --r-i 0.01 -p {duct_prefix} {script_path} {mode} {num_children} {dur}"
     subprocess.check_output(command, shell=True)
 
-    with open(f"{duct_prefix}usage.json") as usage_file:
+    with open(f"{duct_prefix}usage.jsonl") as usage_file:
         all_samples = [json.loads(line) for line in usage_file]
 
     # Only count the child sleep processes
@@ -48,7 +48,7 @@ def test_session_modes(temp_output_dir: str, session_mode: str) -> None:
     subprocess.check_output(command, shell=True)
 
     # Check that log files were created
-    usage_file = Path(f"{duct_prefix}usage.json")
+    usage_file = Path(f"{duct_prefix}usage.jsonl")
     info_file = Path(f"{duct_prefix}info.json")
 
     assert usage_file.exists(), f"Usage file not created for {session_mode} mode"
@@ -106,10 +106,10 @@ def test_session_mode_behavior_difference(temp_output_dir: str) -> None:
         )
 
         # Read usage data from both
-        with open(f"{new_session_prefix}usage.json") as f:
+        with open(f"{new_session_prefix}usage.jsonl") as f:
             new_session_samples = [json.loads(line) for line in f]
 
-        with open(f"{current_session_prefix}usage.json") as f:
+        with open(f"{current_session_prefix}usage.jsonl") as f:
             current_session_samples = [json.loads(line) for line in f]
 
         # Check for our unique background process

@@ -276,6 +276,20 @@ class TestPlotMatplotlib:
         mock_plot_save.assert_called_once_with("outfile.png")
 
     @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_jsonl_file(self, mock_plot_save: MagicMock) -> None:
+        """Test that .jsonl files are handled correctly"""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.jsonl",
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+        )
+        assert main.execute(args) == 0
+        mock_plot_save.assert_called_once_with("outfile.png")
+
+    @patch("matplotlib.pyplot.savefig")
     def test_matplotlib_plot_file_not_found(self, mock_plot_save: MagicMock) -> None:
         args = argparse.Namespace(
             command="plot",

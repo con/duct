@@ -4,6 +4,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
+from con_duct.utils import is_jsonl_file, load_json_or_jsonl
 
 lgr = logging.getLogger(__name__)
 
@@ -88,11 +89,9 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             lgr.error("Error reading info file %s: %s", args.file_path, e)
             return 1
 
-    data = []
+    # Load the usage file - handles both .json (legacy) and .jsonl formats
     try:
-        with open(file_path, "r") as file:
-            for line in file:
-                data.append(json.loads(line))
+        data = load_json_or_jsonl(file_path)
     except FileNotFoundError:
         lgr.error("File %s was not found.", file_path)
         return 1
