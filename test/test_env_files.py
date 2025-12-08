@@ -331,3 +331,18 @@ def test_bare_variable_expansion(
 
     load_duct_env_files()
     assert os.environ.get("DUCT_TEST_BARE_VAR") == "found"
+
+
+def test_empty_config_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that empty DUCT_CONFIG_PATHS is handled gracefully."""
+    pytest.importorskip("dotenv")
+    from con_duct.cli import load_duct_env_files
+
+    monkeypatch.setenv("DUCT_CONFIG_PATHS", "")
+
+    # Should not raise an exception
+    log_buffer = load_duct_env_files()
+
+    # Should have logged that no files were found
+    messages = [msg for level, msg in log_buffer]
+    assert any("No .env files found" in msg for msg in messages)
