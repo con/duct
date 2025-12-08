@@ -105,7 +105,8 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
-  DUCT_CONFIG_PATHS: colon-separated paths to .env files (see below)
+  DUCT_CONFIG_PATHS: paths to .env files separated by platform path separator
+    (':' on Unix) (see below)
 
 .env files:
   Environment variables can also be set via .env files. By default, duct
@@ -115,8 +116,9 @@ environment variables:
     - ${XDG_CONFIG_HOME:-~/.config}/duct/.env
     - .duct/.env
 
-  Override the search paths by setting DUCT_CONFIG_PATHS with colon-separated
-  paths (e.g., export DUCT_CONFIG_PATHS="/custom/path.env:~/.myduct.env").
+  Override the search paths by setting DUCT_CONFIG_PATHS with paths separated
+  by the platform path separator (':' on Unix)
+  (e.g., export DUCT_CONFIG_PATHS="/custom/path.env:~/.myduct.env").
 
   Example .env file content:
     # Set default log level
@@ -226,7 +228,7 @@ options:
   -m MESSAGE, --message MESSAGE
                         Record a descriptive message about the purpose of this
                         execution. You can also provide value via DUCT_MESSAGE
-                        env variable. (default: )
+                        env variable. (default: user env!)
   --mode {new-session,current-session}
                         Session mode: 'new-session' creates a new session for
                         the command (default), 'current-session' tracks the
