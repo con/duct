@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import sys
 import pytest
+from con_duct import cli
 
 
 @pytest.fixture
@@ -33,12 +34,11 @@ def test_load_env_files_basic(
 ) -> None:
     """Test basic .env file loading."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     config_paths = f"{temp_env_files['system']}{os.pathsep}{temp_env_files['user']}"
     clean_env.setenv("DUCT_CONFIG_PATHS", config_paths)
 
-    load_duct_env_files()
+    cli.load_duct_env_files()
     # User config should override system config
     assert os.environ.get("DUCT_LOG_LEVEL") == "DEBUG"
     assert os.environ.get("DUCT_SAMPLE_INTERVAL") == "2.0"
@@ -50,7 +50,6 @@ def test_load_env_files_precedence(
 ) -> None:
     """Test that later files override earlier files."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     config_paths = os.pathsep.join(
         [
@@ -61,7 +60,7 @@ def test_load_env_files_precedence(
     )
     clean_env.setenv("DUCT_CONFIG_PATHS", config_paths)
 
-    load_duct_env_files()
+    cli.load_duct_env_files()
     # Project should override user which overrides system
     assert os.environ.get("DUCT_LOG_LEVEL") == "INFO"
     assert os.environ.get("DUCT_MESSAGE") == "test message"
@@ -75,12 +74,11 @@ def test_explicit_env_vars_win(
 ) -> None:
     """Test that explicit environment variables are not overridden by .env files."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     clean_env.setenv("DUCT_CONFIG_PATHS", str(temp_env_files["project"]))
     clean_env.setenv("DUCT_LOG_LEVEL", "CRITICAL")
 
-    load_duct_env_files()
+    cli.load_duct_env_files()
     # Explicit env var should NOT be overridden
     assert os.environ.get("DUCT_LOG_LEVEL") == "CRITICAL"
     # But .env file should still set other vars
@@ -92,13 +90,12 @@ def test_missing_env_file_ignored(
 ) -> None:
     """Test that missing .env files are silently ignored."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     nonexistent = tmp_path / "nonexistent.env"
     clean_env.setenv("DUCT_CONFIG_PATHS", str(nonexistent))
 
     # Should not raise an exception
-    load_duct_env_files()
+    cli.load_duct_env_files()
 
 
 def test_xdg_config_home_expansion(
@@ -106,7 +103,6 @@ def test_xdg_config_home_expansion(
 ) -> None:
     """Test that ${XDG_CONFIG_HOME:-~/.config} syntax is expanded correctly."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     # Create a .env file in a custom XDG location
     xdg_dir = tmp_path / "xdg_config"
@@ -119,14 +115,13 @@ def test_xdg_config_home_expansion(
     clean_env.setenv("XDG_CONFIG_HOME", str(xdg_dir))
     clean_env.setenv("DUCT_CONFIG_PATHS", "${XDG_CONFIG_HOME:-~/.config}/duct/.env")
 
-    load_duct_env_files()
+    cli.load_duct_env_files()
     assert os.environ.get("DUCT_LOG_LEVEL") == "ERROR"
 
 
 def test_multiline_values(tmp_path: Path, clean_env: pytest.MonkeyPatch) -> None:
     """Test that multiline values in .env files are handled correctly."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     # Create .env file with multiline value
     env_file = tmp_path / "multiline.env"
@@ -134,7 +129,7 @@ def test_multiline_values(tmp_path: Path, clean_env: pytest.MonkeyPatch) -> None
 
     clean_env.setenv("DUCT_CONFIG_PATHS", str(env_file))
 
-    load_duct_env_files()
+    cli.load_duct_env_files()
     message = os.environ.get("DUCT_MESSAGE")
     assert message is not None
     assert "Line 1" in message
@@ -144,12 +139,10 @@ def test_multiline_values(tmp_path: Path, clean_env: pytest.MonkeyPatch) -> None
 
 def test_without_python_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test graceful degradation when python-dotenv is not installed."""
-    from con_duct.cli import load_duct_env_files
-
     # Setting module to None in sys.modules causes ImportError on import
     monkeypatch.setitem(sys.modules, "dotenv", None)
 
-    log_buffer = load_duct_env_files()
+    log_buffer = cli.load_duct_env_files()
 
     # Should have a message about dotenv not being installed
     messages = [msg for level, msg in log_buffer]
@@ -159,7 +152,6 @@ def test_without_python_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_early_logging_buffer(tmp_path: Path, clean_env: pytest.MonkeyPatch) -> None:
     """Test that log messages are buffered during .env loading."""
     pytest.importorskip("dotenv")
-    from con_duct import cli
 
     # Create a test .env file
     env_file = tmp_path / "test.env"
@@ -182,7 +174,6 @@ def test_early_logging_replay(
 ) -> None:
     """Test that buffered messages are replayed through the logger."""
     pytest.importorskip("dotenv")
-    from con_duct import cli
 
     # Create a test .env file
     env_file = tmp_path / "test.env"
@@ -210,7 +201,6 @@ def test_early_logging_respects_level(
 ) -> None:
     """Test that replayed messages respect the configured log level."""
     pytest.importorskip("dotenv")
-    from con_duct import cli
 
     # Create a test .env file
     env_file = tmp_path / "test.env"
@@ -249,7 +239,6 @@ def test_permission_denied_handling(
 ) -> None:
     """Test that permission denied errors are handled gracefully."""
     pytest.importorskip("dotenv")
-    from con_duct import cli
 
     # Create an unreadable .env file
     env_file = tmp_path / "unreadable.env"
@@ -276,7 +265,6 @@ def test_malformed_env_file_handling(
 ) -> None:
     """Test that malformed .env files (null bytes) are handled gracefully."""
     pytest.importorskip("dotenv")
-    from con_duct import cli
 
     # Create a .env file with null bytes
     env_file = tmp_path / "malformed.env"
@@ -299,7 +287,6 @@ def test_default_config_paths_used(
 ) -> None:
     """Test that DEFAULT_CONFIG_PATHS is used when DUCT_CONFIG_PATHS is not set."""
     pytest.importorskip("dotenv")
-    from con_duct import cli
 
     # Create a .env file at the project-level default path (.duct/.env)
     duct_dir = tmp_path / ".duct"
@@ -318,7 +305,6 @@ def test_default_config_paths_used(
 def test_bare_variable_expansion(tmp_path: Path, clean_env: pytest.MonkeyPatch) -> None:
     """Test that ${VAR} without default is expanded correctly."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     # Create a .env file
     env_file = tmp_path / "test.env"
@@ -328,19 +314,18 @@ def test_bare_variable_expansion(tmp_path: Path, clean_env: pytest.MonkeyPatch) 
     clean_env.setenv("MY_CONFIG_DIR", str(tmp_path))
     clean_env.setenv("DUCT_CONFIG_PATHS", "${MY_CONFIG_DIR}/test.env")
 
-    load_duct_env_files()
+    cli.load_duct_env_files()
     assert os.environ.get("DUCT_TEST_BARE_VAR") == "found"
 
 
 def test_empty_config_paths(clean_env: pytest.MonkeyPatch) -> None:
     """Test that empty DUCT_CONFIG_PATHS is handled gracefully."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     clean_env.setenv("DUCT_CONFIG_PATHS", "")
 
     # Should not raise an exception
-    log_buffer = load_duct_env_files()
+    log_buffer = cli.load_duct_env_files()
 
     # Should have logged that no files were found
     messages = [msg for level, msg in log_buffer]
@@ -350,7 +335,6 @@ def test_empty_config_paths(clean_env: pytest.MonkeyPatch) -> None:
 def test_tilde_expansion(tmp_path: Path, clean_env: pytest.MonkeyPatch) -> None:
     """Test that ~ is expanded to home directory in paths."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     # Create a .env file
     env_file = tmp_path / "test.env"
@@ -360,7 +344,7 @@ def test_tilde_expansion(tmp_path: Path, clean_env: pytest.MonkeyPatch) -> None:
     clean_env.setenv("HOME", str(tmp_path))
     clean_env.setenv("DUCT_CONFIG_PATHS", "~/test.env")
 
-    load_duct_env_files()
+    cli.load_duct_env_files()
     assert os.environ.get("DUCT_TEST_TILDE") == "found"
 
 
@@ -369,7 +353,6 @@ def test_env_values_flow_to_argparse(
 ) -> None:
     """Test that .env values are picked up by argparse defaults."""
     pytest.importorskip("dotenv")
-    from con_duct import cli
 
     # Create a .env file with duct settings
     env_file = tmp_path / "test.env"
@@ -392,7 +375,6 @@ def test_env_log_level_flows_to_argparse(
 ) -> None:
     """Test that DUCT_LOG_LEVEL from .env is picked up by the common parser."""
     pytest.importorskip("dotenv")
-    from con_duct import cli
 
     # Create a .env file with log level
     env_file = tmp_path / "test.env"
@@ -414,7 +396,6 @@ def test_whitespace_in_config_paths(
 ) -> None:
     """Test that paths with spaces are handled correctly."""
     pytest.importorskip("dotenv")
-    from con_duct.cli import load_duct_env_files
 
     # Create a directory with spaces in the name
     spaced_dir = tmp_path / "path with spaces"
@@ -424,5 +405,5 @@ def test_whitespace_in_config_paths(
 
     clean_env.setenv("DUCT_CONFIG_PATHS", str(env_file))
 
-    load_duct_env_files()
+    cli.load_duct_env_files()
     assert os.environ.get("DUCT_TEST_SPACES") == "found"
