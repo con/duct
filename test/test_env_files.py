@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 from pathlib import Path
+import sys
 from unittest import mock
 import pytest
 
@@ -145,14 +146,18 @@ def test_multiline_values(tmp_path: Path) -> None:
             assert "Line 3" in message
 
 
-def test_without_python_dotenv() -> None:
+def test_without_python_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test graceful degradation when python-dotenv is not installed."""
     from con_duct.cli import load_duct_env_files
 
-    # Mock ImportError for dotenv
-    with mock.patch("builtins.__import__", side_effect=ImportError):
-        # Should not raise an exception
-        load_duct_env_files()
+    # Setting module to None in sys.modules causes ImportError on import
+    monkeypatch.setitem(sys.modules, "dotenv", None)
+
+    log_buffer = load_duct_env_files()
+
+    # Should have a DEBUG message about dotenv not being installed
+    messages = [msg for level, msg in log_buffer]
+    assert any("python-dotenv not installed" in msg for msg in messages)
 
 
 def test_early_logging_buffer(tmp_path: Path) -> None:
