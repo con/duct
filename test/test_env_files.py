@@ -363,3 +363,52 @@ def test_tilde_expansion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
 
     load_duct_env_files()
     assert os.environ.get("DUCT_TEST_TILDE") == "found"
+
+
+def test_env_values_flow_to_argparse(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that .env values are picked up by argparse defaults."""
+    pytest.importorskip("dotenv")
+    from con_duct import cli
+
+    # Create a .env file with duct settings
+    env_file = tmp_path / "test.env"
+    env_file.write_text("DUCT_SAMPLE_INTERVAL=99.5\nDUCT_REPORT_INTERVAL=300.0\n")
+
+    monkeypatch.setenv("DUCT_CONFIG_PATHS", str(env_file))
+    # Ensure these aren't already set
+    monkeypatch.delenv("DUCT_SAMPLE_INTERVAL", raising=False)
+    monkeypatch.delenv("DUCT_REPORT_INTERVAL", raising=False)
+
+    # Load .env files (normally called at start of main())
+    cli.load_duct_env_files()
+
+    # Now parse args - the defaults should come from env vars set by .env
+    args = cli._create_run_parser().parse_args(["echo", "test"])
+
+    assert args.sample_interval == 99.5
+    assert args.report_interval == 300.0
+
+
+def test_env_log_level_flows_to_argparse(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that DUCT_LOG_LEVEL from .env is picked up by the common parser."""
+    pytest.importorskip("dotenv")
+    from con_duct import cli
+
+    # Create a .env file with log level
+    env_file = tmp_path / "test.env"
+    env_file.write_text("DUCT_LOG_LEVEL=DEBUG\n")
+
+    monkeypatch.setenv("DUCT_CONFIG_PATHS", str(env_file))
+    monkeypatch.delenv("DUCT_LOG_LEVEL", raising=False)
+
+    # Load .env files
+    cli.load_duct_env_files()
+
+    # Parse using main() flow - log_level is in the common parser
+    args = cli._create_common_parser().parse_args([])
+
+    assert args.log_level == "DEBUG"
