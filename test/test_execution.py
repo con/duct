@@ -176,7 +176,7 @@ def test_run_less_than_report_interval(temp_output_dir: str) -> None:
         )
         == 0
     )
-    # Specifically we need to assert that usage.json gets written anyway.
+    # Specifically we need to assert that usage file gets written anyway.
     assert_expected_files(temp_output_dir)
 
 

@@ -36,7 +36,8 @@ ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
     "stdout": "stdout",
     "stderr": "stderr",
-    "usage": "usage.json",
+    "usage": "usage.jsonl",
+    "usage_legacy": "usage.json",
     "info": "info.json",
 }
 EXECUTION_SUMMARY_FORMAT = (
