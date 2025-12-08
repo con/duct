@@ -346,3 +346,20 @@ def test_empty_config_paths(monkeypatch: pytest.MonkeyPatch) -> None:
     # Should have logged that no files were found
     messages = [msg for level, msg in log_buffer]
     assert any("No .env files found" in msg for msg in messages)
+
+
+def test_tilde_expansion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that ~ is expanded to home directory in paths."""
+    pytest.importorskip("dotenv")
+    from con_duct.cli import load_duct_env_files
+
+    # Create a .env file
+    env_file = tmp_path / "test.env"
+    env_file.write_text("DUCT_TEST_TILDE=found\n")
+
+    # Temporarily change HOME to our temp directory
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("DUCT_CONFIG_PATHS", "~/test.env")
+
+    load_duct_env_files()
+    assert os.environ.get("DUCT_TEST_TILDE") == "found"
