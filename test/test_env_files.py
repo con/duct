@@ -290,3 +290,25 @@ def test_malformed_env_file_handling(tmp_path: Path) -> None:
     assert any("Skipping malformed .env file" in msg for msg in messages)
     # The error message varies by python-dotenv version, so just check it's there
     assert any(level == "WARNING" for level, _ in log_buffer)
+
+
+def test_default_config_paths_used(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that DEFAULT_CONFIG_PATHS is used when DUCT_CONFIG_PATHS is not set."""
+    pytest.importorskip("dotenv")
+    from con_duct import cli
+
+    # Create a .env file at the project-level default path (.duct/.env)
+    duct_dir = tmp_path / ".duct"
+    duct_dir.mkdir()
+    env_file = duct_dir / ".env"
+    env_file.write_text("DUCT_TEST_DEFAULT_PATH=found\n")
+
+    # Patch DEFAULT_CONFIG_PATHS to use our temp path
+    monkeypatch.setattr(cli, "DEFAULT_CONFIG_PATHS", str(env_file))
+    # Ensure DUCT_CONFIG_PATHS is not set
+    monkeypatch.delenv("DUCT_CONFIG_PATHS", raising=False)
+
+    cli.load_duct_env_files()
+    assert os.environ.get("DUCT_TEST_DEFAULT_PATH") == "found"
