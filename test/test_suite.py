@@ -74,51 +74,61 @@ class TestSuiteHelpers(unittest.TestCase):
         mock_exit.assert_called_once_with(2)
 
 
-class TestPPrint(unittest.TestCase):
+class TestPPrint:
 
-    @patch(
-        "builtins.open", new_callable=mock_open, read_data='{"mock_key": "mock_value"}'
-    )
     @patch("con_duct.pprint_json.pprint")
-    def test_pprint_json(self, mock_pprint: MagicMock, mock_open: MagicMock) -> None:
+    def test_pprint_json(self, mock_pprint: MagicMock, tmp_path: Any) -> None:
+        json_file = tmp_path / "test.json"
+        json_file.write_text('{"mock_key": "mock_value"}')
+
         args = argparse.Namespace(
             command="pp",
-            file_path="dummy.json",
+            file_path=str(json_file),
             func=pprint_json.pprint_json,
             log_level="INFO",
             humanize=False,
         )
         assert cli.execute(args) == 0
-
-        mock_open.assert_called_with("dummy.json", "r")
         mock_pprint.assert_called_once_with({"mock_key": "mock_value"})
 
-    @patch("builtins.open", side_effect=FileNotFoundError)
-    def test_file_not_found(self, _mock_open: MagicMock) -> None:
-        args = argparse.Namespace(
-            command="pp",
-            file_path="dummy.json",
-            func=pprint_json.pprint_json,
-            log_level="INFO",
-            humanize=False,
-        )
-        assert cli.execute(args) == 1
-
-    @patch("builtins.open", new_callable=mock_open, read_data='{"invalid": "json"')
     @patch("con_duct.pprint_json.pprint")
-    def test_pprint_invalid_json(
-        self, mock_pprint: MagicMock, mock_open: MagicMock
-    ) -> None:
+    def test_pprint_jsonl(self, mock_pprint: MagicMock, tmp_path: Any) -> None:
+        jsonl_file = tmp_path / "test.jsonl"
+        jsonl_file.write_text('{"line": 1}\n{"line": 2}\n')
+
         args = argparse.Namespace(
             command="pp",
-            file_path="dummy.json",
+            file_path=str(jsonl_file),
+            func=pprint_json.pprint_json,
+            log_level="INFO",
+            humanize=False,
+        )
+        assert cli.execute(args) == 0
+        mock_pprint.assert_called_once_with([{"line": 1}, {"line": 2}])
+
+    def test_file_not_found(self) -> None:
+        args = argparse.Namespace(
+            command="pp",
+            file_path="/nonexistent/path.json",
             func=pprint_json.pprint_json,
             log_level="INFO",
             humanize=False,
         )
         assert cli.execute(args) == 1
 
-        mock_open.assert_called_with("dummy.json", "r")
+    @patch("con_duct.pprint_json.pprint")
+    def test_pprint_invalid_json(self, mock_pprint: MagicMock, tmp_path: Any) -> None:
+        json_file = tmp_path / "invalid.json"
+        json_file.write_text('{"invalid": "json"')
+
+        args = argparse.Namespace(
+            command="pp",
+            file_path=str(json_file),
+            func=pprint_json.pprint_json,
+            log_level="INFO",
+            humanize=False,
+        )
+        assert cli.execute(args) == 1
         mock_pprint.assert_not_called()
 
 

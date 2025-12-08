@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 from utils import run_duct_command
+from con_duct.duct_main import SUFFIXES
 from con_duct.ls import LS_FIELD_CHOICES, _flatten_dict
 
 
@@ -20,11 +21,11 @@ def test_info_fields(temp_output_dir: str) -> None:
         )
         == 0
     )
-    os.remove(Path(temp_output_dir, "stdout"))
-    os.remove(Path(temp_output_dir, "stderr"))
-    os.remove(Path(temp_output_dir, "usage.json"))
+    os.remove(Path(temp_output_dir, SUFFIXES["stdout"]))
+    os.remove(Path(temp_output_dir, SUFFIXES["stderr"]))
+    os.remove(Path(temp_output_dir, SUFFIXES["usage"]))
 
-    info_file = Path(temp_output_dir, "info.json")
+    info_file = Path(temp_output_dir, SUFFIXES["info"])
     actual_info_schema = _flatten_dict(json.loads(info_file.read_text())).keys()
     os.remove(info_file)
 

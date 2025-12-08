@@ -4,6 +4,7 @@ import logging
 from pprint import pprint
 from typing import Any
 from con_duct.duct_main import SummaryFormatter
+from con_duct.json_utils import is_jsonl_file, load_info_file, load_usage_file
 
 lgr = logging.getLogger(__name__)
 
@@ -66,16 +67,13 @@ def pprint_json(args: argparse.Namespace) -> int:
     """
     Prints the contents of a JSON file using pprint.
 
-    Handles both standard JSON files and JSON Lines (usage.json) files.
+    Handles both standard JSON files and JSON Lines (usage.jsonl) files.
     """
-    is_usage_file = args.file_path.endswith("usage.json")
-
     try:
-        with open(args.file_path, "r") as file:
-            if is_usage_file:
-                data = [json.loads(line) for line in file if line.strip()]
-            else:
-                data = json.load(file)
+        if is_jsonl_file(args.file_path):
+            data: Any = load_usage_file(args.file_path)
+        else:
+            data = load_info_file(args.file_path)
 
         if args.humanize:
             formatter = SummaryFormatter()
