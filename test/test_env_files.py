@@ -224,26 +224,28 @@ def test_early_logging_respects_level(
         with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
             log_buffer = cli.load_duct_env_files()
 
-    # All buffered messages are DEBUG level
-    assert all(level == "DEBUG" for level, _ in log_buffer)
+    # Buffer should have both DEBUG and INFO messages
+    levels = {level for level, _ in log_buffer}
+    assert "DEBUG" in levels  # "Searching for .env files"
+    assert "INFO" in levels  # "Loading .env file"
 
-    # Replay at INFO level - DEBUG messages should NOT appear
-    with caplog.at_level(logging.INFO, logger="con-duct"):
+    # Replay at WARNING level - neither DEBUG nor INFO should appear
+    with caplog.at_level(logging.WARNING, logger="con-duct"):
         cli._replay_early_logs(log_buffer)
 
-    # Should have no DEBUG messages in the log
     assert len(caplog.records) == 0
 
-    # Try again at DEBUG level
+    # Replay at INFO level - only INFO messages should appear
+    caplog.clear()
     with mock.patch.dict(os.environ, {}, clear=True):
         with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": str(env_file)}):
             log_buffer2 = cli.load_duct_env_files()
 
-    with caplog.at_level(logging.DEBUG, logger="con-duct"):
+    with caplog.at_level(logging.INFO, logger="con-duct"):
         cli._replay_early_logs(log_buffer2)
 
-    # Now DEBUG messages should appear
     assert len(caplog.records) > 0
+    assert all(r.levelno >= logging.INFO for r in caplog.records)
 
 
 def test_permission_denied_handling(tmp_path: Path) -> None:

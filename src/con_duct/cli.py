@@ -72,7 +72,7 @@ def load_duct_env_files() -> List[tuple[str, str]]:
     for path in reversed(search_paths):
         expanded_path = os.path.expanduser(path)
         if os.path.exists(expanded_path):
-            log_buffer.append(("DEBUG", f"Loading .env file: {expanded_path}"))
+            log_buffer.append(("INFO", f"Loading .env file: {expanded_path}"))
             try:
                 load_dotenv(expanded_path, override=False)
                 loaded_count += 1
@@ -89,10 +89,8 @@ def load_duct_env_files() -> List[tuple[str, str]]:
                 ("DEBUG", f".env file not found (skipping): {expanded_path}")
             )
 
-    if loaded_count > 0:
-        log_buffer.append(("DEBUG", f"Loaded {loaded_count} .env file(s)"))
-    else:
-        log_buffer.append(("DEBUG", "No .env files found"))
+    if loaded_count == 0:
+        log_buffer.append(("INFO", "No .env files found"))
 
     return log_buffer
 
