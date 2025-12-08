@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import re
 import sys
 import textwrap
 from typing import List, Optional
@@ -56,8 +57,6 @@ def load_duct_env_files() -> List[tuple[str, str]]:
     log_buffer.append(("DEBUG", f"Searching for .env files in: {config_paths_str}"))
 
     # Expand ${VAR:-default} syntax in the paths string ie ${XDG_CONFIG_HOME:-~/.config}
-    import re
-
     def expand_var(match: re.Match) -> str:
         var_expr = match.group(1)
         if ":-" in var_expr:
