@@ -312,3 +312,22 @@ def test_default_config_paths_used(
 
     cli.load_duct_env_files()
     assert os.environ.get("DUCT_TEST_DEFAULT_PATH") == "found"
+
+
+def test_bare_variable_expansion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that ${VAR} without default is expanded correctly."""
+    pytest.importorskip("dotenv")
+    from con_duct.cli import load_duct_env_files
+
+    # Create a .env file
+    env_file = tmp_path / "test.env"
+    env_file.write_text("DUCT_TEST_BARE_VAR=found\n")
+
+    # Set up path using bare ${VAR} syntax
+    monkeypatch.setenv("MY_CONFIG_DIR", str(tmp_path))
+    monkeypatch.setenv("DUCT_CONFIG_PATHS", "${MY_CONFIG_DIR}/test.env")
+
+    load_duct_env_files()
+    assert os.environ.get("DUCT_TEST_BARE_VAR") == "found"
