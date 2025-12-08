@@ -32,7 +32,7 @@ def test_load_env_files_basic(temp_env_files: dict[str, Path]) -> None:
     pytest.importorskip("dotenv")
     from con_duct.cli import load_duct_env_files
 
-    config_paths = f"{temp_env_files['system']}:{temp_env_files['user']}"
+    config_paths = f"{temp_env_files['system']}{os.pathsep}{temp_env_files['user']}"
 
     with mock.patch.dict(os.environ, {}, clear=True):
         with mock.patch.dict(os.environ, {"DUCT_CONFIG_PATHS": config_paths}):
@@ -48,10 +48,12 @@ def test_load_env_files_precedence(temp_env_files: dict[str, Path]) -> None:
     pytest.importorskip("dotenv")
     from con_duct.cli import load_duct_env_files
 
-    config_paths = (
-        f"{temp_env_files['system']}:"
-        f"{temp_env_files['user']}:"
-        f"{temp_env_files['project']}"
+    config_paths = os.pathsep.join(
+        [
+            str(temp_env_files["system"]),
+            str(temp_env_files["user"]),
+            str(temp_env_files["project"]),
+        ]
     )
 
     with mock.patch.dict(os.environ, {}, clear=True):

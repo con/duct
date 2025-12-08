@@ -24,7 +24,7 @@ DEFAULT_CONFIG_PATHS_LIST = (
     "${XDG_CONFIG_HOME:-~/.config}/duct/.env",
     ".duct/.env",
 )
-DEFAULT_CONFIG_PATHS = ":".join(DEFAULT_CONFIG_PATHS_LIST)
+DEFAULT_CONFIG_PATHS = os.pathsep.join(DEFAULT_CONFIG_PATHS_LIST)
 
 
 def load_duct_env_files() -> List[tuple[str, str]]:
@@ -65,7 +65,7 @@ def load_duct_env_files() -> List[tuple[str, str]]:
         return os.getenv(var_expr, "")
 
     config_paths_str = re.sub(r"\$\{([^}]+)\}", expand_var, config_paths_str)
-    search_paths = [p.strip() for p in config_paths_str.split(":") if p.strip()]
+    search_paths = [p.strip() for p in config_paths_str.split(os.pathsep) if p.strip()]
 
     # Load in reverse order so later paths override earlier ones (once set, vars are skipped)
     loaded_count = 0
@@ -145,7 +145,8 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
-  DUCT_CONFIG_PATHS: colon-separated paths to .env files (see below)
+  DUCT_CONFIG_PATHS: paths to .env files separated by platform path separator
+    (':' on Unix) (see below)
 
 .env files:
   Environment variables can also be set via .env files. By default, duct
@@ -153,8 +154,9 @@ environment variables:
 
 {_config_paths_list}
 
-  Override the search paths by setting DUCT_CONFIG_PATHS with colon-separated
-  paths (e.g., export DUCT_CONFIG_PATHS="/custom/path.env:~/.myduct.env").
+  Override the search paths by setting DUCT_CONFIG_PATHS with paths separated
+  by the platform path separator (':' on Unix)
+  (e.g., export DUCT_CONFIG_PATHS="/custom/path.env:~/.myduct.env").
 
   Example .env file content:
     # Set default log level
