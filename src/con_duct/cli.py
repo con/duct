@@ -49,7 +49,7 @@ def load_duct_env_files() -> List[tuple[str, str]]:
     except ImportError:
         # python-dotenv not installed, skip .env file loading
         log_buffer.append(
-            ("DEBUG", "python-dotenv not installed, skipping .env file loading")
+            ("INFO", "python-dotenv not installed, skipping .env file loading")
         )
         return log_buffer
 

@@ -155,7 +155,7 @@ def test_without_python_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
 
     log_buffer = load_duct_env_files()
 
-    # Should have a DEBUG message about dotenv not being installed
+    # Should have a message about dotenv not being installed
     messages = [msg for level, msg in log_buffer]
     assert any("python-dotenv not installed" in msg for msg in messages)
 
