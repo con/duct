@@ -228,7 +228,7 @@ options:
   -m MESSAGE, --message MESSAGE
                         Record a descriptive message about the purpose of this
                         execution. You can also provide value via DUCT_MESSAGE
-                        env variable. (default: user env!)
+                        env variable. (default: )
   --mode {new-session,current-session}
                         Session mode: 'new-session' creates a new session for
                         the command (default), 'current-session' tracks the
