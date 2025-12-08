@@ -31,7 +31,7 @@ def reset_logger_state() -> Generator:
     or log_level="NONE", which affects subsequent tests. This fixture ensures
     the logger is reset to default state after each test.
     """
-    import con_duct.__main__ as main_module
+    import con_duct.duct_main as main_module
 
     yield
 

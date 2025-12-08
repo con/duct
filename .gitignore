@@ -13,6 +13,6 @@ venvs/
 # Produced by versioningit
 src/con_duct/_version.py
 
-# AI Stuff
-.local.CLAUDE.md
-.serena/*
+# AI
+.serena/
+.local*

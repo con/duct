@@ -6,7 +6,7 @@ import os
 import subprocess
 from unittest import mock
 import pytest
-from con_duct.__main__ import (
+from con_duct.duct_main import (
     EXECUTION_SUMMARY_FORMAT,
     Averages,
     ProcessStats,
@@ -218,7 +218,7 @@ def test_process_stats_red(
         )
 
 
-@mock.patch("con_duct.__main__.LogPaths")
+@mock.patch("con_duct.duct_main.LogPaths")
 def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
@@ -234,9 +234,9 @@ def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     assert report.system_info.user == os.environ.get("USER")
 
 
-@mock.patch("con_duct.__main__.shutil.which")
-@mock.patch("con_duct.__main__.subprocess.check_output")
-@mock.patch("con_duct.__main__.LogPaths")
+@mock.patch("con_duct.duct_main.shutil.which")
+@mock.patch("con_duct.duct_main.subprocess.check_output")
+@mock.patch("con_duct.duct_main.LogPaths")
 def test_gpu_parsing_green(
     mock_log_paths: mock.MagicMock, mock_sp: mock.MagicMock, _mock_which: mock.MagicMock
 ) -> None:
@@ -262,10 +262,10 @@ def test_gpu_parsing_green(
     ]
 
 
-@mock.patch("con_duct.__main__.lgr")
-@mock.patch("con_duct.__main__.shutil.which")
-@mock.patch("con_duct.__main__.subprocess.check_output")
-@mock.patch("con_duct.__main__.LogPaths")
+@mock.patch("con_duct.duct_main.lgr")
+@mock.patch("con_duct.duct_main.shutil.which")
+@mock.patch("con_duct.duct_main.subprocess.check_output")
+@mock.patch("con_duct.duct_main.LogPaths")
 def test_gpu_call_error(
     mock_log_paths: mock.MagicMock,
     mock_sp: mock.MagicMock,
@@ -282,10 +282,10 @@ def test_gpu_call_error(
     mlgr.warning.assert_called_once()
 
 
-@mock.patch("con_duct.__main__.lgr")
-@mock.patch("con_duct.__main__.shutil.which")
-@mock.patch("con_duct.__main__.subprocess.check_output")
-@mock.patch("con_duct.__main__.LogPaths")
+@mock.patch("con_duct.duct_main.lgr")
+@mock.patch("con_duct.duct_main.shutil.which")
+@mock.patch("con_duct.duct_main.subprocess.check_output")
+@mock.patch("con_duct.duct_main.LogPaths")
 def test_gpu_parse_error(
     mock_log_paths: mock.MagicMock,
     mock_sp: mock.MagicMock,

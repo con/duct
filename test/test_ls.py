@@ -3,8 +3,8 @@ import logging
 from typing import Any, Dict
 from unittest.mock import mock_open, patch
 import pytest
-from con_duct.__main__ import SummaryFormatter, __schema_version__
-from con_duct.suite.ls import (
+from con_duct.duct_main import SummaryFormatter, __schema_version__
+from con_duct.ls import (
     _flatten_dict,
     _restrict_row,
     ensure_compliant_schema,

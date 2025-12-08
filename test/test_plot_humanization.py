@@ -3,7 +3,7 @@
 from typing import Any, List, Tuple
 from unittest.mock import Mock
 import pytest
-from con_duct.suite import plot
+from con_duct import plot
 
 
 @pytest.mark.parametrize(
