@@ -412,3 +412,22 @@ def test_env_log_level_flows_to_argparse(
     args = cli._create_common_parser().parse_args([])
 
     assert args.log_level == "DEBUG"
+
+
+def test_whitespace_in_config_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that paths with spaces are handled correctly."""
+    pytest.importorskip("dotenv")
+    from con_duct.cli import load_duct_env_files
+
+    # Create a directory with spaces in the name
+    spaced_dir = tmp_path / "path with spaces"
+    spaced_dir.mkdir()
+    env_file = spaced_dir / "test.env"
+    env_file.write_text("DUCT_TEST_SPACES=found\n")
+
+    monkeypatch.setenv("DUCT_CONFIG_PATHS", str(env_file))
+
+    load_duct_env_files()
+    assert os.environ.get("DUCT_TEST_SPACES") == "found"
