@@ -246,7 +246,7 @@ def _create_plot_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         add_help=False,  # help provided by child
     )
-    parser.add_argument("file_path", help="duct-produced usage.json file.")
+    parser.add_argument("file_path", help="duct-produced usage file.")
     parser.add_argument(
         "-o",
         "--output",

@@ -4,6 +4,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
+from con_duct.json_utils import is_info_file, load_info_file, load_usage_file
 
 lgr = logging.getLogger(__name__)
 
@@ -78,21 +79,17 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
 
     # Handle info.json files by determining the path to usage file
     file_path = Path(args.file_path)
-    if file_path.name.endswith("info.json"):
+    if is_info_file(str(file_path)):
         try:
-            with open(file_path, "r") as info_file:
-                info_data = json.load(info_file)
-                rel_usage_path = Path(info_data["output_paths"]["usage"])
-                file_path = file_path.with_name(rel_usage_path.name)
+            info_data = load_info_file(str(file_path))
+            rel_usage_path = Path(info_data["output_paths"]["usage"])
+            file_path = file_path.with_name(rel_usage_path.name)
         except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
             lgr.error("Error reading info file %s: %s", args.file_path, e)
             return 1
 
-    data = []
     try:
-        with open(file_path, "r") as file:
-            for line in file:
-                data.append(json.loads(line))
+        data = load_usage_file(str(file_path))
     except FileNotFoundError:
         lgr.error("File %s was not found.", file_path)
         return 1

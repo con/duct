@@ -7,6 +7,7 @@ import re
 from types import ModuleType
 from typing import Any, Dict, List, Optional
 from con_duct.duct_main import DUCT_OUTPUT_PREFIX, SummaryFormatter, __schema_version__
+from con_duct.json_utils import is_info_file
 from con_duct.utils import parse_version
 
 try:
@@ -226,7 +227,7 @@ def ls(args: argparse.Namespace) -> int:
     formatter = SummaryFormatter(
         enable_colors=False if args.format == "pyout" else args.colors
     )
-    info_files = [path for path in args.paths if path.endswith("info.json")]
+    info_files = [path for path in args.paths if is_info_file(path)]
     run_data_raw = load_duct_runs(info_files, args.eval_filter)
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
