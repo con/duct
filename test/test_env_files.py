@@ -282,6 +282,27 @@ def test_malformed_env_file_handling(
     assert any(level == "WARNING" for level, _ in log_buffer)
 
 
+def test_invalid_utf8_env_file_handling(
+    tmp_path: Path, clean_env: pytest.MonkeyPatch
+) -> None:
+    """Test that .env files with invalid UTF-8 are handled gracefully."""
+    pytest.importorskip("dotenv")
+
+    # Create a .env file with invalid UTF-8 bytes
+    env_file = tmp_path / "bad_encoding.env"
+    env_file.write_bytes(b"DUCT_MESSAGE=hello\xff\xfeworld\n")
+
+    clean_env.setenv("DUCT_CONFIG_PATHS", str(env_file))
+
+    # Should not raise an exception
+    log_buffer = cli.load_duct_env_files()
+
+    # Should have a WARNING message about malformed file
+    messages = [msg for level, msg in log_buffer]
+    assert any("Skipping malformed .env file" in msg for msg in messages)
+    assert any("utf-8" in msg.lower() or "unicode" in msg.lower() for msg in messages)
+
+
 def test_default_config_paths_used(
     tmp_path: Path, clean_env: pytest.MonkeyPatch
 ) -> None:
