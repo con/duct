@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+from pathlib import Path
 import re
 import sys
 import textwrap
@@ -70,8 +71,8 @@ def load_duct_env_files() -> List[tuple[str, str]]:
     # Load in reverse order so later paths override earlier ones (once set, vars are skipped)
     loaded_count = 0
     for path in reversed(search_paths):
-        expanded_path = os.path.expanduser(path)
-        if os.path.exists(expanded_path):
+        expanded_path = Path(path).expanduser()
+        if expanded_path.exists():
             log_buffer.append(("INFO", f"Loading .env file: {expanded_path}"))
             try:
                 load_dotenv(expanded_path, override=False)

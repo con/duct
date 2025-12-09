@@ -32,6 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Types: Use strict typing with annotations; `from __future__ import annotations`
 - Naming: Classes (PascalCase), functions/variables (snake_case), constants (UPPER_SNAKE_CASE)
 - Error handling: Use explicit try/except with informative messages; log exceptions
+- prefer `Pathlib` over `os.path`
 - Documentation: Use indented docstrings with complete parameter descriptions
 
 When making changes, follow existing patterns in surrounding code.
