@@ -3,7 +3,9 @@
 from typing import Any, List, Tuple
 from unittest.mock import Mock
 import pytest
-from con_duct import plot
+
+pytest.importorskip("matplotlib")
+from con_duct import plot  # noqa: E402
 
 
 @pytest.mark.parametrize(
