@@ -44,3 +44,16 @@ def temp_output_dir(tmp_path: Path) -> str:
     # Append path separator so that value is recognized as a directory when
     # passed to `output_prefix`
     return str(tmp_path) + os.sep
+
+
+@pytest.fixture
+def clean_env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
+    """Provide a clean environment for testing .env file loading.
+
+    Clears all DUCT_* and TEST_* environment variables to avoid test pollution.
+    Returns the monkeypatch instance for setting new env vars in tests.
+    """
+    for key in list(os.environ.keys()):
+        if key.startswith("DUCT_") or key.startswith("TEST_"):
+            monkeypatch.delenv(key, raising=False)
+    return monkeypatch

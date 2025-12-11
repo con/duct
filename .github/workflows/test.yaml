@@ -45,6 +45,9 @@ jobs:
           - python-version: '3.10'
             toxenv: typing
             os: ubuntu-latest
+          - python-version: '3.10'
+            toxenv: minimal
+            os: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

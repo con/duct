@@ -46,7 +46,7 @@ class ResourceConsumer:
     def consume_cpu(self, cores: int, duration_seconds: int, intensity: float = 1.0):
         """Consume CPU by spinning threads"""
         print(
-            f"Starting CPU consumption: {cores} cores at {intensity*100}% for {duration_seconds}s..."
+            f"Starting CPU consumption: {cores} cores at {intensity * 100}% for {duration_seconds}s..."
         )
 
         def cpu_burn(duration, intensity):

@@ -8,7 +8,6 @@ from typing import Any, Optional
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 import pytest
-import yaml
 from con_duct import cli, plot, pprint_json
 from con_duct.duct_main import SummaryFormatter
 from con_duct.ls import MINIMUM_SCHEMA_VERSION, ls
@@ -270,6 +269,16 @@ class TestPPrintHumanization(unittest.TestCase):
         assert call_args["wall_clock_time"] == "2m 30.8s"
 
 
+def _matplotlib_available() -> bool:
+    try:
+        import matplotlib  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+@pytest.mark.skipif(not _matplotlib_available(), reason="matplotlib not installed")
 class TestPlotMatplotlib:
 
     @patch("matplotlib.pyplot.savefig")
@@ -630,13 +639,15 @@ class TestLS(unittest.TestCase):
 
     def test_ls_yaml_output(self) -> None:
         """Test YAML output format."""
+        yaml = pytest.importorskip("yaml")
         result = self._run_ls(["file1_info.json"], "yaml")
         parsed = yaml.safe_load(result)
         assert len(parsed) == 1
         assert "prefix" in parsed[0]
 
     def test_ls_pyout_output(self) -> None:
-        """Test YAML output format."""
+        """Test pyout output format."""
+        pytest.importorskip("pyout")
         result = self._run_ls(["file1_info.json"], "pyout")
         # pyout header
         assert "PREFIX" in result
