@@ -1,11 +1,13 @@
-"""Tests for plot axis humanization features."""
+"""Tests for plot command."""
 
+import argparse
+import os
 from typing import Any, List, Tuple
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock, mock_open, patch
 import pytest
 
 pytest.importorskip("matplotlib")
-from con_duct import plot  # noqa: E402
+from con_duct import cli, plot  # noqa: E402
 
 
 @pytest.mark.parametrize(
@@ -70,3 +72,178 @@ def test_formatter_output(
     formatter.axis.get_view_interval.return_value = axis_range
     result = formatter(value, 0)
     assert result == expected
+
+
+class TestPlotMatplotlib:
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_sanity(self, mock_plot_save: MagicMock) -> None:
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+        )
+        assert cli.execute(args) == 0
+        mock_plot_save.assert_called_once_with("outfile.png")
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_file_not_found(self, mock_plot_save: MagicMock) -> None:
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage_not_to_be_found.json",
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+        )
+        assert cli.execute(args) == 1
+        mock_plot_save.assert_not_called()
+
+    @patch("matplotlib.pyplot.savefig")
+    @patch("builtins.open", new_callable=mock_open, read_data='{"invalid": "json"')
+    def test_matplotlib_plot_invalid_json(
+        self, _mock_open: MagicMock, mock_plot_save: MagicMock
+    ) -> None:
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+        )
+        assert cli.execute(args) == 1
+        mock_plot_save.assert_not_called()
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_info_json(self, mock_plot_save: MagicMock) -> None:
+        """When user passes info.json, usage.json is retrieved and used"""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/info.json",
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+        )
+        assert cli.execute(args) == 0
+        mock_plot_save.assert_called_once_with("outfile.png")
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_info_json_absolute_path(
+        self, mock_plot_save: MagicMock, monkeypatch: Any, tmp_path: Any
+    ) -> None:
+        """Test that absolute path to info.json correctly resolves usage.json path
+        when cwd is not the original execution wd.
+        """
+        abs_info_path = os.path.abspath("test/data/mriqc-example/info.json")
+
+        # change into a pytest-managed temporary directory
+        monkeypatch.chdir(tmp_path)
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path=abs_info_path,
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+        )
+        assert cli.execute(args) == 0
+        mock_plot_save.assert_called_once_with("outfile.png")
+
+    @patch("matplotlib.pyplot.savefig")
+    @patch(
+        "builtins.open", new_callable=mock_open, read_data='{"missing": "timestamp"}'
+    )
+    def test_matplotlib_plot_malformed_usage_file(
+        self, _mock_open: MagicMock, mock_plot_save: MagicMock
+    ) -> None:
+        """Test that malformed usage.json files are handled gracefully"""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/malformed_usage.json",
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+        )
+        assert cli.execute(args) == 1
+        mock_plot_save.assert_not_called()
+
+    @patch(
+        "matplotlib.get_backend",
+        side_effect=AttributeError("get_backend not available"),
+    )
+    @patch.dict("matplotlib.rcParams", {"backend": "Agg"})
+    def test_matplotlib_plot_non_interactive_backend(
+        self,
+        _mock_get_backend: MagicMock,
+    ) -> None:
+        """Test that plotting without output in non-interactive backend returns error."""
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,  # No output file specified
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+        )
+        result = cli.execute(args)
+        assert result == 1
+
+    @patch("matplotlib.get_backend", return_value="Agg")
+    def test_matplotlib_plot_non_interactive_backend_with_get_backend(
+        self,
+        _mock_get_backend: MagicMock,
+    ) -> None:
+        """Test that plotting without output in non-interactive backend returns error using get_backend."""
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,  # No output file specified
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+        )
+        result = cli.execute(args)
+        assert result == 1
+
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="tkagg")
+    def test_matplotlib_plot_interactive_backend_with_get_backend(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+    ) -> None:
+        """Test that plotting without output in interactive backend calls plt.show() successfully."""
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,  # No output file specified
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+        )
+        result = cli.execute(args)
+        assert result == 0
+        mock_show.assert_called_once()
+
+    @patch(
+        "builtins.__import__", side_effect=ImportError("No module named 'matplotlib'")
+    )
+    def test_matplotlib_plot_missing_dependency(self, _mock_import: MagicMock) -> None:
+        """Test that plotting with missing matplotlib shows helpful error."""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+        )
+
+        result = cli.execute(args)
+        assert result == 1
