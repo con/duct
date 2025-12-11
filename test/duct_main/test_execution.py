@@ -44,7 +44,7 @@ def test_sample_greater_than_report_interval() -> None:
         )
 
 
-TEST_SCRIPT_DIR = Path(__file__).with_name("data")
+TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
 
 expected_files = [
     SUFFIXES["stdout"],
