@@ -13,7 +13,38 @@ from utils import assert_files, run_duct_command
 from con_duct import duct_main
 from con_duct.duct_main import SUFFIXES, Outputs
 
-TEST_SCRIPT_DIR = Path(__file__).with_name("data")
+
+def test_sample_less_than_report_interval(temp_output_dir: str) -> None:
+    run_duct_command(
+        ["echo", "test"],
+        sample_interval=0.01,
+        report_interval=0.1,
+        output_prefix=temp_output_dir,
+    )
+
+
+def test_sample_equal_to_report_interval(temp_output_dir: str) -> None:
+    run_duct_command(
+        ["echo", "test"],
+        sample_interval=0.1,
+        report_interval=0.1,
+        output_prefix=temp_output_dir,
+    )
+
+
+def test_sample_greater_than_report_interval() -> None:
+    with pytest.raises(
+        ValueError,
+        match="--report-interval must be greater than or equal to --sample-interval",
+    ):
+        run_duct_command(
+            ["echo", "test"],
+            sample_interval=1.0,
+            report_interval=0.1,
+        )
+
+
+TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
 
 expected_files = [
     SUFFIXES["stdout"],

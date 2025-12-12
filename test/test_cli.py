@@ -1,9 +1,74 @@
+import argparse
 import os
 import re
 import subprocess
+from typing import Any
+import unittest
 from unittest import mock
+from unittest.mock import MagicMock, patch
 import pytest
+from con_duct import cli
 from con_duct.cli import _create_run_parser
+
+
+class TestSuiteHelpers(unittest.TestCase):
+
+    def test_execute_returns_int(self) -> None:
+        def return_non_int(*_args: Any) -> str:
+            return "NOPE"
+
+        args = argparse.Namespace(
+            command="invalid",
+            file_path="dummy.json",
+            func=return_non_int,
+            log_level="INFO",
+        )
+        with pytest.raises(TypeError):
+            cli.execute(args)
+
+    @patch("con_duct.cli.argparse.ArgumentParser")
+    def test_parser_mock_sanity(self, mock_parser: MagicMock) -> None:
+        mock_args = MagicMock
+        mock_args.command = None
+        mock_parser.parse_args.return_value = mock_args
+        argv = ["/path/to/con-duct", "plot", "--help"]
+        cli.main(argv)
+        mock_parser.return_value.print_help.assert_called_once()
+
+    @patch("con_duct.cli.sys.exit", new_callable=MagicMock)
+    @patch("con_duct.cli.sys.stderr", new_callable=MagicMock)
+    @patch("con_duct.cli.sys.stdout", new_callable=MagicMock)
+    def test_parser_sanity_green(
+        self, mock_stdout: MagicMock, mock_stderr: MagicMock, mock_exit: MagicMock
+    ) -> None:
+        argv = ["--help"]
+        cli.main(argv)
+        # [0][1][0]: [first call][positional args set(0 is self)][first positional]
+        out = mock_stdout.write.mock_calls[0][1][0]
+        assert "usage: con-duct <command> [options]" in out
+        mock_stderr.write.assert_not_called()
+        mock_exit.assert_called_once_with(0)
+
+    @patch("con_duct.cli.sys.exit", new_callable=MagicMock)
+    @patch("con_duct.cli.sys.stderr", new_callable=MagicMock)
+    @patch("con_duct.cli.sys.stdout", new_callable=MagicMock)
+    def test_parser_sanity_red(
+        self, mock_stdout: MagicMock, mock_stderr: MagicMock, mock_exit: MagicMock
+    ) -> None:
+        argv = ["--fakehelp"]
+        cli.main(argv)
+        # [0][1][0]: [first call][positional args set(0 is self)][first positional]
+        out = mock_stdout.write.mock_calls[0][1][0]
+        assert "usage: con-duct <command> [options]" in out
+        mock_stderr.write.ssert_not_called()
+        # First call
+        assert (
+            "usage: con-duct <command> [options]"
+            in mock_stderr.write.mock_calls[0][1][0]
+        )
+        # second call
+        assert "--fakehelp" in mock_stderr.write.mock_calls[1][1][0]
+        mock_exit.assert_called_once_with(2)
 
 
 def test_duct_help() -> None:

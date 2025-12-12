@@ -6,7 +6,7 @@ import time
 import pytest
 from con_duct.duct_main import SUFFIXES
 
-TEST_SCRIPT_DIR = Path(__file__).with_name("data")
+TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
 
 
 def test_sanity(temp_output_dir: str) -> None:
