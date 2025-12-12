@@ -194,7 +194,8 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                 return 1
         else:
             # matplotlib < 3.9: Cannot check backend interactivity, just try plt.show()
-            lgr.warning(
+            # mypy thinks this is unreachable but import fails on old matplotlib
+            lgr.warning(  # type: ignore[unreachable]
                 "Using matplotlib < 3.9 which lacks backend registry. "
                 "Cannot verify if your backend supports interactive display. "
                 "If plot does not display, use --output to save to a file instead."

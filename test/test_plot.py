@@ -181,6 +181,10 @@ class TestPlotMatplotlib:
         _mock_get_backend: MagicMock,
     ) -> None:
         """Test that plotting without output in non-interactive backend returns error."""
+        import matplotlib.backends
+
+        if not hasattr(matplotlib.backends, "backend_registry"):
+            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
 
         args = argparse.Namespace(
             command="plot",
@@ -199,6 +203,10 @@ class TestPlotMatplotlib:
         _mock_get_backend: MagicMock,
     ) -> None:
         """Test that plotting without output in non-interactive backend returns error using get_backend."""
+        import matplotlib.backends
+
+        if not hasattr(matplotlib.backends, "backend_registry"):
+            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
 
         args = argparse.Namespace(
             command="plot",
@@ -247,3 +255,30 @@ class TestPlotMatplotlib:
 
         result = cli.execute(args)
         assert result == 1
+
+    @patch("matplotlib.pyplot.show")
+    def test_matplotlib_plot_no_backend_registry(
+        self,
+        mock_show: MagicMock,
+        monkeypatch: Any,
+        caplog: Any,
+    ) -> None:
+        """Test fallback when backend_registry unavailable (matplotlib < 3.9)."""
+        import matplotlib.backends
+
+        # Only delete if present (already absent on matplotlib < 3.9)
+        if hasattr(matplotlib.backends, "backend_registry"):
+            monkeypatch.delattr(matplotlib.backends, "backend_registry")
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+        )
+        result = cli.execute(args)
+        assert result == 0
+        mock_show.assert_called_once()
+        assert "matplotlib < 3.9" in caplog.text
