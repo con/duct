@@ -69,10 +69,17 @@ class HumanizedAxisFormatter:
 def matplotlib_plot(args: argparse.Namespace) -> int:
     try:
         import matplotlib
+
+        # Use non-interactive backend when saving to file to avoid tkinter issues
+        if args.output is not None:
+            matplotlib.use("Agg")
+
         import matplotlib.pyplot as plt
         import numpy as np
-    except ImportError as e:
-        lgr.error("con-duct plot missing required dependency: %s", e)
+    except (ImportError, AttributeError) as e:
+        lgr.error(
+            "con-duct plot failed to initialize (missing matplotlib/numpy?): %s", e
+        )
         return 1
 
     # Try to import backend registry (added in 3.9)
