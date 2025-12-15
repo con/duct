@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 import sys
+from unittest.mock import patch
 import pytest
 from con_duct import cli
 
@@ -238,26 +239,25 @@ def test_permission_denied_handling(
     tmp_path: Path, clean_env: pytest.MonkeyPatch
 ) -> None:
     """Test that permission denied errors are handled gracefully."""
-    pytest.importorskip("dotenv")
+    dotenv = pytest.importorskip("dotenv")
 
-    # Create an unreadable .env file
+    # Create a .env file that exists (so it passes the exists() check)
     env_file = tmp_path / "unreadable.env"
     env_file.write_text("DUCT_LOG_LEVEL=DEBUG\n")
-    env_file.chmod(0o000)
 
-    try:
-        clean_env.setenv("DUCT_CONFIG_PATHS", str(env_file))
+    clean_env.setenv("DUCT_CONFIG_PATHS", str(env_file))
 
+    # Mock load_dotenv to raise PermissionError (works even as root)
+    with patch.object(
+        dotenv, "load_dotenv", side_effect=PermissionError("Permission denied")
+    ):
         # Should not raise an exception
         log_buffer = cli.load_duct_env_files()
 
-        # Should have a WARNING message about permission denied
-        messages = [msg for level, msg in log_buffer]
-        assert any("Cannot read .env file" in msg for msg in messages)
-        assert any("Permission denied" in msg for msg in messages)
-    finally:
-        # Clean up: restore permissions so pytest can delete the file
-        env_file.chmod(0o644)
+    # Should have a WARNING message about permission denied
+    messages = [msg for level, msg in log_buffer]
+    assert any("Cannot read .env file" in msg for msg in messages)
+    assert any("Permission denied" in msg for msg in messages)
 
 
 def test_malformed_env_file_handling(
