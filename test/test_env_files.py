@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 import sys
+from unittest.mock import patch
 import pytest
 from con_duct import cli
 
@@ -239,7 +240,6 @@ def test_permission_denied_handling(
 ) -> None:
     """Test that permission denied errors are handled gracefully."""
     dotenv = pytest.importorskip("dotenv")
-    from unittest.mock import patch
 
     # Create a .env file that exists (so it passes the exists() check)
     env_file = tmp_path / "unreadable.env"
