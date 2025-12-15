@@ -234,6 +234,7 @@ def test_early_logging_respects_level(
     assert all(r.levelno >= logging.INFO for r in caplog.records)
 
 
+@pytest.mark.skipif(os.getuid() == 0, reason="root bypasses file permissions")
 def test_permission_denied_handling(
     tmp_path: Path, clean_env: pytest.MonkeyPatch
 ) -> None:
