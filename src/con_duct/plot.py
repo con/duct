@@ -76,9 +76,14 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
 
         import matplotlib.pyplot as plt
         import numpy as np
-    except (ImportError, AttributeError) as e:
+    except ImportError as e:
+        lgr.error("con-duct plot failed: missing dependency: %s", e)
+        return 1
+    except AttributeError as e:
         lgr.error(
-            "con-duct plot failed to initialize (missing matplotlib/numpy?): %s", e
+            "con-duct plot failed to initialize display backend: %s. "
+            "Try using --output to save the plot to a file instead.",
+            e,
         )
         return 1
 
@@ -89,6 +94,13 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     except (ImportError, AttributeError):
         backend_registry = None  # type: ignore[assignment]
         BackendFilter = None  # type: ignore[assignment,misc]
+        # Warn early if we won't be able to verify backend compatibility
+        if args.output is None:
+            lgr.warning(
+                "Using matplotlib < 3.9 which lacks backend registry. "
+                "Cannot verify if your backend supports interactive display. "
+                "If plotting fails, use --output to save to a file instead."
+            )
 
     # Handle info.json files by determining the path to usage file
     file_path = Path(args.file_path)
@@ -202,11 +214,6 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         else:
             # matplotlib < 3.9: Cannot check backend interactivity, just try plt.show()
             # mypy thinks this is unreachable but import fails on old matplotlib
-            lgr.warning(  # type: ignore[unreachable]
-                "Using matplotlib < 3.9 which lacks backend registry. "
-                "Cannot verify if your backend supports interactive display. "
-                "If plot does not display, use --output to save to a file instead."
-            )
-            plt.show()
+            plt.show()  # type: ignore[unreachable]
 
     return 0

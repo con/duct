@@ -66,7 +66,9 @@ def load_duct_env_files() -> List[tuple[str, str]]:
         return os.getenv(var_expr, "")
 
     config_paths_str = re.sub(r"\$\{([^}]+)\}", expand_var, config_paths_str)
-    search_paths = [val for p in config_paths_str.split(os.pathsep) if (val := p.strip())]
+    search_paths = [
+        val for p in config_paths_str.split(os.pathsep) if (val := p.strip())
+    ]
 
     # Load in reverse order so later paths override earlier ones (once set, vars are skipped)
     loaded_count = 0
@@ -391,7 +393,8 @@ def _create_plot_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-o",
         "--output",
-        help="Output path for the image file. If not specified, plot will be shown and not saved.",
+        help="Output path for the image file. If not specified, plot will be shown "
+        "interactively (requires a display). Use this option in headless/server environments.",
         default=None,
     )
     parser.add_argument(
