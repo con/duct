@@ -1,3 +1,36 @@
+# v0.18.0 (Mon Dec 15 2025)
+
+#### 🚀 Enhancement
+
+- Add matplotlib backwards compatibility to 3.5 [#322](https://github.com/con/duct/pull/322) ([@asmacdo](https://github.com/asmacdo))
+- Add dotenv config [#333](https://github.com/con/duct/pull/333) ([@asmacdo](https://github.com/asmacdo))
+- Use jsonl suffix [#345](https://github.com/con/duct/pull/345) ([@asmacdo](https://github.com/asmacdo))
+- Modernize python [#346](https://github.com/con/duct/pull/346) ([@asmacdo](https://github.com/asmacdo))
+- Combine clis [#327](https://github.com/con/duct/pull/327) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- Skip test_permission_denied_handling when running as root [#349](https://github.com/con/duct/pull/349) ([@Copilot](https://github.com/Copilot) [@actions-user](https://github.com/actions-user) [@asmacdo](https://github.com/asmacdo))
+- Reorganize tests [#329](https://github.com/con/duct/pull/329) ([@asmacdo](https://github.com/asmacdo))
+- Add installation instructions for remote forks [#337](https://github.com/con/duct/pull/337) ([@CodyCBakerPhD](https://github.com/CodyCBakerPhD))
+- remove rpds pin for non-pypy [#334](https://github.com/con/duct/pull/334) ([@asmacdo](https://github.com/asmacdo))
+- Add demo and reference plot example in README [#310](https://github.com/con/duct/pull/310) ([@asmacdo](https://github.com/asmacdo))
+- pin rpds-py so pypy 3.10 tests pass [#331](https://github.com/con/duct/pull/331) ([@asmacdo](https://github.com/asmacdo))
+- Revert mergify integration (PRs #270 and #271) [#328](https://github.com/con/duct/pull/328) ([@asmacdo](https://github.com/asmacdo))
+- test: Make tests invoke at least with INFO level so we see what is wrong [#321](https://github.com/con/duct/pull/321) ([@yarikoptic](https://github.com/yarikoptic))
+- fix: plot usage with info.json abs path [#301](https://github.com/con/duct/pull/301) ([@asmacdo](https://github.com/asmacdo))
+- Add CLAUDE.md for reusable base prompt for claude code [#307](https://github.com/con/duct/pull/307) ([@yarikoptic](https://github.com/yarikoptic) [@actions-user](https://github.com/actions-user))
+
+#### Authors: 5
+
+- [@actions-user](https://github.com/actions-user)
+- [@Copilot](https://github.com/Copilot)
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Cody Baker ([@CodyCBakerPhD](https://github.com/CodyCBakerPhD))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.17.0 (Thu Sep 18 2025)
 
 #### 🚀 Enhancement
