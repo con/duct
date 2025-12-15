@@ -66,7 +66,9 @@ def load_duct_env_files() -> List[tuple[str, str]]:
         return os.getenv(var_expr, "")
 
     config_paths_str = re.sub(r"\$\{([^}]+)\}", expand_var, config_paths_str)
-    search_paths = [val for p in config_paths_str.split(os.pathsep) if (val := p.strip())]
+    search_paths = [
+        val for p in config_paths_str.split(os.pathsep) if (val := p.strip())
+    ]
 
     # Load in reverse order so later paths override earlier ones (once set, vars are skipped)
     loaded_count = 0
