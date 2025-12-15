@@ -393,7 +393,8 @@ def _create_plot_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-o",
         "--output",
-        help="Output path for the image file. If not specified, plot will be shown and not saved.",
+        help="Output path for the image file. If not specified, plot will be shown "
+        "interactively (requires a display). Use this option in headless/server environments.",
         default=None,
     )
     parser.add_argument(
