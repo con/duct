@@ -456,6 +456,11 @@ def _create_ls_parser() -> argparse.ArgumentParser:
         "Example: --eval-filter \"filter_this=='yes'\" filters entries where 'filter_this' is 'yes'. "
         "You can use 're' for regex operations (e.g., --eval-filter \"re.search('2025.02.09.*', prefix)\").",
     )
+    parser.add_argument(
+        "--reverse",
+        action="store_true",
+        help="List entries in reverse order (most recent first).",
+    )
     return parser
 
 
