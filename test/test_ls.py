@@ -221,6 +221,7 @@ class TestLS(unittest.TestCase):
                 eval_filter=None,
                 format=fmt,
                 func=ls,
+                reverse=False,
             )
         buf = StringIO()
         with contextlib.redirect_stdout(buf):
@@ -252,6 +253,7 @@ class TestLS(unittest.TestCase):
             eval_filter="filter_this=='yes'",
             format="summaries",
             func=ls,
+            reverse=False,
         )
         result = self._run_ls(paths, "summaries", args)
 
@@ -361,3 +363,28 @@ class TestLS(unittest.TestCase):
         # pyout header
         assert "PREFIX" in result
         assert os.path.join(self.temp_dir.name, "file1_") in result
+
+    def test_ls_reverse(self) -> None:
+        """Test --reverse flag lists entries in reverse order."""
+        paths = ["file1_info.json", "file2_info.json"]
+
+        # Get normal order
+        result_normal = self._run_ls(paths, "json")
+        parsed_normal = json.loads(result_normal)
+        prefixes_normal = [row["prefix"] for row in parsed_normal]
+
+        # Get reversed order
+        args = argparse.Namespace(
+            paths=[os.path.join(self.temp_dir.name, path) for path in paths],
+            colors=False,
+            fields=["prefix", "schema_version"],
+            eval_filter=None,
+            format="json",
+            func=ls,
+            reverse=True,
+        )
+        result_reversed = self._run_ls(paths, "json", args)
+        parsed_reversed = json.loads(result_reversed)
+        prefixes_reversed = [row["prefix"] for row in parsed_reversed]
+
+        assert prefixes_reversed == list(reversed(prefixes_normal))

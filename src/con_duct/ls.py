@@ -231,6 +231,9 @@ def ls(args: argparse.Namespace) -> int:
     run_data_raw = load_duct_runs(info_files, args.eval_filter)
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
+    if args.reverse:
+        output_rows = list(reversed(output_rows))
+
     if args.format == "summaries":
         for row in output_rows:
             for col, value in row.items():
