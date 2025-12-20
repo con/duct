@@ -1,5 +1,6 @@
 import argparse
 import os
+import platform
 import re
 import subprocess
 from typing import Any
@@ -9,6 +10,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from con_duct import cli
 from con_duct.cli import _create_run_parser
+
+SYSTEM = platform.system()
 
 
 class TestSuiteHelpers(unittest.TestCase):
@@ -97,6 +100,7 @@ def test_con_duct_version() -> None:
     assert re.match(r"con-duct \d+\.\d+\.\d+", output_str)
 
 
+@pytest.mark.skipif(SYSTEM != "Linux", reason="Test specific to Linux behavior")
 def test_cmd_help() -> None:
     out = subprocess.check_output(["duct", "ps", "--help"])
     assert "ps [options]" in str(out)
@@ -131,7 +135,8 @@ def test_duct_missing_cmd() -> None:
         assert "error: the following arguments are required: command" in str(e.stdout)
 
 
-def test_abreviation_disabled() -> None:
+@pytest.mark.skipif(SYSTEM != "Linux", reason="Test specific to Linux behavior")
+def test_abbreviation_disabled() -> None:
     """
     If abbreviation is enabled, options passed to command (not duct) are still
     filtered through the argparse and causes problems.

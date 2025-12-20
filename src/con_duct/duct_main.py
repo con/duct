@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+import collections
 from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
@@ -10,6 +11,7 @@ import json
 import logging
 import math
 import os
+import platform
 import re
 import shutil
 import signal
@@ -20,11 +22,22 @@ import sys
 import threading
 import time
 from types import FrameType
-from typing import IO, Any, Optional, TextIO
+from typing import IO, Any, Callable, Optional, TextIO, Union
+import warnings
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
 
+is_mac_intel = sys.platform == "darwin" and os.uname().machine == "x86_64"
+if is_mac_intel and not os.getenv("DUCT_IGNORE_INTEL_WARNING"):
+    message = (
+        "Detected system macOS running on intel architecture - "
+        "duct may experience issues with sampling and signal handling.\n\n"
+        "Set the environment variable `DUCT_IGNORE_INTEL_WARNING` to suppress this warning.\n"
+    )
+    warnings.warn(message=message, stacklevel=2)
+SYSTEM = platform.system()
+SKIPEMPTY_DEFAULT = True if SYSTEM == "Darwin" else False
 
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
@@ -281,7 +294,15 @@ class Sample:
         self.stats[pid] = stats
         self.timestamp = max(self.timestamp, stats.timestamp)
 
-    def aggregate(self: Sample, other: Sample) -> Sample:
+    def aggregate(
+        self: Sample, other: Sample, skipempty: bool = SKIPEMPTY_DEFAULT
+    ) -> Sample:
+        if skipempty and not other.stats and other.averages.num_samples == 0:
+            lgr.debug(
+                f"Other sample ({other=}) is empty during aggregation - returning the base sample."
+            )
+            return self
+
         output = Sample()
         for pid in self.stats.keys() | other.stats.keys():
             if (mine := self.stats.get(pid)) is not None:
@@ -319,6 +340,128 @@ class Sample:
             "averages": asdict(self.averages) if self.averages.num_samples >= 1 else {},
         }
         return d
+
+
+def _get_sample_linux(session_id: int) -> Sample:
+    sample = Sample()
+
+    ps_command = [
+        "ps",
+        "-w",
+        "-s",
+        str(session_id),
+        "-o",
+        "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
+    ]
+    output = subprocess.check_output(ps_command, text=True)
+
+    for line in output.splitlines()[1:]:
+        if not line:
+            continue
+
+        pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(maxsplit=7)
+
+        sample.add_pid(
+            pid=int(pid),
+            stats=ProcessStats(
+                pcpu=float(pcpu),
+                pmem=float(pmem),
+                rss=int(rss_kib) * 1024,
+                vsz=int(vsz_kib) * 1024,
+                timestamp=datetime.now().astimezone().isoformat(),
+                etime=etime,
+                stat=Counter([stat]),
+                cmd=cmd,
+            ),
+        )
+    sample.averages = Averages.from_sample(sample=sample)
+    return sample
+
+
+def _try_to_get_sid(pid: int) -> int:
+    """
+    It is possible that the `pid` returned by the top `ps` call no longer exists at time of `getsid` request.
+    """
+    try:
+        return os.getsid(pid)
+    except Exception as exc:
+        lgr.debug(f"Error fetching session ID for PID {pid}: {str(exc)}")
+        return -1
+
+
+def _get_ps_lines_mac() -> list[str]:
+    ps_command = [
+        "ps",
+        "-ax",
+        "-o",
+        "pid,pcpu,pmem,rss,vsz,etime,stat,args",
+    ]
+    output = subprocess.check_output(ps_command, text=True)
+
+    lines = [line for line in output.splitlines()[1:] if line]
+    return lines
+
+
+def _add_sample_from_line_mac(
+    line: str, pid_to_matching_sid: dict[int, int], sample: Sample
+) -> Union[Sample, None]:
+    pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
+
+    if pid_to_matching_sid.get(int(pid), None) is None:
+        return None
+
+    sample.add_pid(
+        pid=int(pid),
+        stats=ProcessStats(
+            pcpu=float(pcpu),
+            pmem=float(pmem),
+            rss=int(rss_kb) * 1024,
+            vsz=int(vsz_kb) * 1024,
+            timestamp=datetime.now().astimezone().isoformat(),
+            etime=etime,
+            stat=Counter([stat]),
+            cmd=cmd,
+        ),
+    )
+    return sample
+
+
+def _get_sample_mac(session_id: int) -> Sample:
+    sample = Sample()
+
+    lines = _get_ps_lines_mac()
+    pid_to_matching_sid = {
+        pid: sid
+        for line in lines
+        if (sid := _try_to_get_sid(pid=(pid := int(line.split(maxsplit=1)[0]))))
+        == session_id
+    }
+
+    if not pid_to_matching_sid:
+        lgr.debug(f"No processes found for session ID {session_id}. ")
+
+    collections.deque(
+        (
+            _add_sample_from_line_mac(
+                line=line, pid_to_matching_sid=pid_to_matching_sid, sample=sample
+            )
+            for line in lines
+        ),
+        maxlen=0,
+    )
+
+    try:
+        sample.averages = Averages.from_sample(sample=sample)
+    except AssertionError:
+        lgr.debug(f"Failed to compute averages for sample: {sample}")
+    return sample
+
+
+_get_sample_per_system = {
+    "Linux": _get_sample_linux,
+    "Darwin": _get_sample_mac,
+}
+_get_sample: Callable[[int], Sample] = _get_sample_per_system[SYSTEM]  # type: ignore[assignment]
 
 
 class Report:
@@ -431,51 +574,24 @@ class Report:
 
     def collect_sample(self) -> Optional[Sample]:
         assert self.session_id is not None
-        sample = Sample()
         try:
-            output = subprocess.check_output(
-                [
-                    "ps",
-                    "-w",
-                    "-s",
-                    str(self.session_id),
-                    "-o",
-                    "pid,pcpu,pmem,rss,vsz,etime,stat,cmd",
-                ],
-                text=True,
-            )
-            for line in output.splitlines()[1:]:
-                if line:
-                    pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(
-                        maxsplit=7,
-                    )
-                    sample.add_pid(
-                        int(pid),
-                        ProcessStats(
-                            pcpu=float(pcpu),
-                            pmem=float(pmem),
-                            rss=int(rss_kib) * 1024,
-                            vsz=int(vsz_kib) * 1024,
-                            timestamp=datetime.now().astimezone().isoformat(),
-                            etime=etime,
-                            stat=Counter([stat]),
-                            cmd=cmd,
-                        ),
-                    )
+            sample = _get_sample(self.session_id)
+            return sample
         except subprocess.CalledProcessError as exc:  # when session_id has no processes
             lgr.debug("Error collecting sample: %s", str(exc))
             return None
 
-        sample.averages = Averages.from_sample(sample)
-        return sample
-
-    def update_from_sample(self, sample: Sample) -> None:
-        self.full_run_stats = self.full_run_stats.aggregate(sample)
+    def update_from_sample(
+        self, sample: Sample, skipempty: bool = SKIPEMPTY_DEFAULT
+    ) -> None:
+        self.full_run_stats = self.full_run_stats.aggregate(sample, skipempty=skipempty)
         if self.current_sample is None:
-            self.current_sample = Sample().aggregate(sample)
+            self.current_sample = Sample().aggregate(sample, skipempty=skipempty)
         else:
             assert self.current_sample.averages is not None
-            self.current_sample = self.current_sample.aggregate(sample)
+            self.current_sample = self.current_sample.aggregate(
+                sample, skipempty=skipempty
+            )
         assert self.current_sample is not None
 
     def write_subreport(self) -> None:
@@ -698,6 +814,7 @@ def monitor_process(
     report_interval: float,
     sample_interval: float,
     stop_event: threading.Event,
+    skipempty: bool = SKIPEMPTY_DEFAULT,
 ) -> None:
     lgr.debug(
         "Starting monitoring of the process %s on sample interval %f for report interval %f",
@@ -724,7 +841,7 @@ def monitor_process(
                 break
             # process is still running, but we could not collect sample
             continue
-        report.update_from_sample(sample)
+        report.update_from_sample(sample, skipempty=skipempty)
         if (
             report.start_time
             and report.elapsed_time >= (report.number - 1) * report_interval
@@ -872,6 +989,7 @@ def execute(
     colors: bool,
     mode: SessionMode,
     message: str = "",
+    skipempty: bool = SKIPEMPTY_DEFAULT,
 ) -> int:
     """A wrapper to execute a command, monitor and log the process details.
 
@@ -955,6 +1073,7 @@ def execute(
             report_interval,
             sample_interval,
             stop_event,
+            skipempty,
         ]
         monitoring_thread = threading.Thread(
             target=monitor_process, args=monitoring_args
