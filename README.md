@@ -72,7 +72,7 @@ usage: con-duct run [-h] [-l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}] [-q]
                     [--fail-time FAIL_TIME] [-c {all,none,stdout,stderr}]
                     [-o {all,none,stdout,stderr}]
                     [-t {all,system-summary,processes-samples}] [-m MESSAGE]
-                    [--mode {new-session,current-session}]
+                    [--mode {new-session,current-session}] [--skipempty]
                     command [command_args ...] ...
 
 duct is a lightweight wrapper that collects execution data for an arbitrary
