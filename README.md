@@ -235,6 +235,9 @@ options:
                         current session instead of starting a new one. Useful
                         for tracking slurm jobs or other commands that should
                         run in the current session. (default: new-session)
+  --skipempty           Skip sample aggregation if samples fail to be
+                        collected. Default is True for macOS and False Linux.
+                        (default: False)
 
 ```
 <!-- END HELP -->
