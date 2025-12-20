@@ -437,7 +437,7 @@ def _get_sample_mac(session_id: int) -> Sample:
     }
 
     if not pid_to_matching_sid:
-        lgr.debug(f"No processes found for session ID {session_id}. ")
+        lgr.debug(f"No processes found for session ID {session_id}.")
 
     deque(
         (
