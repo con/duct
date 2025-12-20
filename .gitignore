@@ -9,6 +9,7 @@ coverage.*
 build/
 dist/
 venvs/
+.DS_Store
 
 # Produced by versioningit
 src/con_duct/_version.py
