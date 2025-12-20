@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import collections
-from collections import Counter
+from collections import Counter, deque
 from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -440,7 +439,7 @@ def _get_sample_mac(session_id: int) -> Sample:
     if not pid_to_matching_sid:
         lgr.debug(f"No processes found for session ID {session_id}. ")
 
-    collections.deque(
+    deque(
         (
             _add_sample_from_line_mac(
                 line=line, pid_to_matching_sid=pid_to_matching_sid, sample=sample
