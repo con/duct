@@ -169,9 +169,7 @@ def test_logging_levels(temp_output_dir: str) -> None:
     assert "Exit Code:" in result.stderr
 
     # Test --quiet flag - should suppress logging
-    # skip_flag = ""
-    # if SYSTEM == "Darwin":
-    #     skip_flag = " --skipempty"
+
 
     result_quiet = subprocess.run(
         f"con-duct run --quiet --clobber -p {duct_prefix} sleep 0.1",

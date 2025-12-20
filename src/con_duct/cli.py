@@ -372,7 +372,7 @@ def _create_run_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "Skip sample aggregation if samples fail to be collected. "
-            "Default is True for macOS and False Linux."
+            "Default is True for macOS and False for Linux."
         ),
         default=SKIPEMPTY_DEFAULT,
     )
