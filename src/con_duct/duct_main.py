@@ -401,7 +401,7 @@ def _get_ps_lines_mac() -> list[str]:
     return lines
 
 
-def _add_sample_from_line_mac(
+def _add_pid_to_sample_from_line_mac(
     line: str, pid_to_matching_sid: dict[int, int], sample: Sample
 ) -> Union[Sample, None]:
     pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
@@ -441,7 +441,7 @@ def _get_sample_mac(session_id: int) -> Sample:
 
     deque(
         (
-            _add_sample_from_line_mac(
+            _add_pid_to_sample_from_line_mac(
                 line=line, pid_to_matching_sid=pid_to_matching_sid, sample=sample
             )
             for line in lines
