@@ -36,13 +36,12 @@ When installing from a remote fork (such as from primary maintainer @asmacdo), i
 
 This confuses the `versioningit` tool, which is used by `pip` to set package versions based on these tags, which can cause `pip install` to fail with various errors.
 
-To resolve this, manually link the upstream and pull all tags:
+To resolve this, manually link the upstream and pull all tags::
 
-```bash
-git remote add upstream https://github.com/con/duct
-git fetch upstream
-```
+    git remote add upstream https://github.com/con/duct
+    git fetch upstream
 
+    
 
 Testing
 -------
