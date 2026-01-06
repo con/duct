@@ -836,7 +836,7 @@ def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
             os.remove(file_path)
 
 
-class ProcessSignalHandler:
+class SigIntHandler:
     def __init__(self, pid: int) -> None:
         self.pid: int = pid
         self.sigcount: int = 0
@@ -931,7 +931,7 @@ def execute(
         lgr.error("%s: command not found", command)
         return 127  # seems what zsh and bash return then
 
-    handler = ProcessSignalHandler(process.pid)
+    handler = SigIntHandler(process.pid)
     signal.signal(signal.SIGINT, handler.handle_signal)
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
