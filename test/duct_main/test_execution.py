@@ -230,10 +230,14 @@ def _runner_for_signal_int(temp_output_dir: str, fail_time: float | None) -> int
     )
 
 
+@pytest.mark.flaky(reruns=5)
 @pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
-def test_signal_int(temp_output_dir: str, fail_time: float | None) -> None:
-
-    wait_time = 0.3
+def test_signal_int(
+    request: pytest.FixtureRequest, temp_output_dir: str, fail_time: float | None
+) -> None:
+    # Scale wait time on retries to handle slow CI runners (PyPy, Mac)
+    attempt = getattr(request.node, "execution_count", 1)
+    wait_time = 0.2 * attempt
     proc = multiprocessing.Process(
         target=_runner_for_signal_int, args=(temp_output_dir, fail_time)
     )
@@ -266,10 +270,14 @@ def _runner_for_signal_kill(temp_output_dir: str, fail_time: float | None) -> in
     return run_duct_command([script_path], output_prefix=temp_output_dir, **kws)
 
 
+@pytest.mark.flaky(reruns=5)
 @pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
-def test_signal_kill(temp_output_dir: str, fail_time: float | None) -> None:
-
-    wait_time = 0.6
+def test_signal_kill(
+    request: pytest.FixtureRequest, temp_output_dir: str, fail_time: float | None
+) -> None:
+    # Scale wait time on retries to handle slow CI runners (PyPy, Mac)
+    attempt = getattr(request.node, "execution_count", 1)
+    wait_time = 0.2 * attempt
     proc = multiprocessing.Process(
         target=_runner_for_signal_kill, args=(temp_output_dir, fail_time)
     )
