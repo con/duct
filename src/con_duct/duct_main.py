@@ -393,7 +393,7 @@ def _try_to_get_sid(pid: int) -> int:
     """
     try:
         return os.getsid(pid)
-    except Exception as exc:
+    except ProcessLookupError as exc:
         lgr.debug(f"Error fetching session ID for PID {pid}: {str(exc)}")
         return -1
 
@@ -447,6 +447,9 @@ def _get_sample_mac(session_id: int) -> Optional[Sample]:
         lgr.debug(f"No processes found for session ID {session_id}.")
         return None
 
+    # collections.dequeue with maxlen=0 is used to approximate the
+    # performance of list comprehension (superior to basic for-loop)
+    # and also does not store `None` (or other) return values
     deque(
         (
             _add_pid_to_sample_from_line_mac(  # type: ignore[func-returns-value]
