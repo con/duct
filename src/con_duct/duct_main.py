@@ -31,7 +31,9 @@ _true_set = {"yes", "true", "t", "y", "1"}
 _false_set = {"no", "false", "f", "n", "0"}
 
 
-def _str2bool(value: str | bool) -> bool | None:
+def _str2bool(value: str | bool | None) -> bool | None:
+    if value is None:
+        return False
     if isinstance(value, bool):
         return value
 
