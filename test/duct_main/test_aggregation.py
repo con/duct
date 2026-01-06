@@ -367,7 +367,7 @@ def test_aggregation_sample_no_pids(mock_log_paths: mock.MagicMock) -> None:
     # When there are no pids, finalization should be triggered because the exe is finished,
     # so a Sample with no PIDs should never be passed to update_from_sample.
     with pytest.raises(AssertionError):
-        report.update_from_sample(sample0, skipempty=False)
+        report.update_from_sample(sample0)
 
 
 @mock.patch("con_duct.duct_main.LogPaths")

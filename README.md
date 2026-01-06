@@ -72,7 +72,7 @@ usage: con-duct run [-h] [-l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}] [-q]
                     [--fail-time FAIL_TIME] [-c {all,none,stdout,stderr}]
                     [-o {all,none,stdout,stderr}]
                     [-t {all,system-summary,processes-samples}] [-m MESSAGE]
-                    [--mode {new-session,current-session}] [--skipempty]
+                    [--mode {new-session,current-session}]
                     command [command_args ...] ...
 
 duct is a lightweight wrapper that collects execution data for an arbitrary
@@ -235,9 +235,6 @@ options:
                         current session instead of starting a new one. Useful
                         for tracking slurm jobs or other commands that should
                         run in the current session. (default: new-session)
-  --skipempty           Skip sample aggregation if samples fail to be
-                        collected. Default is True for macOS and False for
-                        Linux. (default: False)
 
 ```
 <!-- END HELP -->

@@ -10,7 +10,6 @@ from con_duct import __version__
 from con_duct.duct_main import (
     DUCT_OUTPUT_PREFIX,
     EXECUTION_SUMMARY_FORMAT,
-    SKIPEMPTY_DEFAULT,
     Outputs,
     RecordTypes,
     SessionMode,
@@ -366,15 +365,6 @@ def _create_run_parser() -> argparse.ArgumentParser:
         help="Session mode: 'new-session' creates a new session for the command (default), "
         "'current-session' tracks the current session instead of starting a new one. "
         "Useful for tracking slurm jobs or other commands that should run in the current session.",
-    )
-    parser.add_argument(
-        "--skipempty",
-        action="store_true",
-        help=(
-            "Skip sample aggregation if samples fail to be collected. "
-            "Default is True for macOS and False for Linux."
-        ),
-        default=SKIPEMPTY_DEFAULT,
     )
     return parser
 
