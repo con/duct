@@ -931,8 +931,7 @@ def execute(
         lgr.error("%s: command not found", command)
         return 127  # seems what zsh and bash return then
 
-    handler = SigIntHandler(process.pid)
-    signal.signal(signal.SIGINT, handler)
+    signal.signal(signal.SIGINT, SigIntHandler(process.pid))
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
