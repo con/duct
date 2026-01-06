@@ -837,7 +837,17 @@ def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
 
 
 class SigIntHandler:
+    """
+    Handler of SIGINT signals received by the process running duct.
+    """
+
     def __init__(self, pid: int) -> None:
+        """
+        Parameters
+        ----------
+        pid : int
+            The PID of the process monitored by duct
+        """
         self.pid: int = pid
         self.sigcount: int = 0
 
