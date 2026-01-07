@@ -1,3 +1,30 @@
+# v0.19.0 (Wed Jan 07 2026)
+
+#### 🚀 Enhancement
+
+- Added Mac (M-series) support [#351](https://github.com/con/duct/pull/351) (codycbakerphd@gmail.com [@CodyCBakerPhD](https://github.com/CodyCBakerPhD) [@asmacdo](https://github.com/asmacdo))
+- Add --reverse option to con-duct ls command [#308](https://github.com/con/duct/pull/308) ([@asmacdo](https://github.com/asmacdo) [@yarikoptic](https://github.com/yarikoptic))
+
+#### 🐛 Bug Fix
+
+- Fix formatting for upstream linking instructions [#360](https://github.com/con/duct/pull/360) ([@CodyCBakerPhD](https://github.com/CodyCBakerPhD))
+- filter pyparsing deprecation warnings instead of pinning [#355](https://github.com/con/duct/pull/355) ([@asmacdo](https://github.com/asmacdo))
+- pin pyparsing for oldestdeps environment [#353](https://github.com/con/duct/pull/353) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🏠 Internal
+
+- Improve handler of SIGINT signals [#357](https://github.com/con/duct/pull/357) ([@candleindark](https://github.com/candleindark))
+
+#### Authors: 5
+
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Cody Baker ([@CodyCBakerPhD](https://github.com/CodyCBakerPhD))
+- CodyCBakerPhD (codycbakerphd@gmail.com)
+- Isaac To ([@candleindark](https://github.com/candleindark))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.18.0 (Mon Dec 15 2025)
 
 #### 🚀 Enhancement
