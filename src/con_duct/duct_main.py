@@ -50,7 +50,7 @@ def _str2bool(val: str) -> bool:
 
 
 is_mac_intel = sys.platform == "darwin" and os.uname().machine == "x86_64"
-if is_mac_intel and not _str2bool(val=os.getenv("DUCT_IGNORE_INTEL_WARNING")):
+if is_mac_intel and not _str2bool(val=os.getenv("DUCT_IGNORE_INTEL_WARNING", "0")):
     message = (
         "Detected system macOS running on intel architecture - "
         "duct may experience issues with sampling and signal handling.\n\n"
