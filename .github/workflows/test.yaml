@@ -27,7 +27,7 @@ jobs:
       matrix:
         os:
           # - macos-12
-          - macos-latest
+          - macos-latest  # arm64
           # - windows-latest
           - ubuntu-latest
         python-version:
