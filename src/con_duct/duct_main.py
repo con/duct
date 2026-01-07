@@ -27,27 +27,30 @@ import warnings
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
 
-_true_set = {"yes", "true", "t", "y", "1"}
-_false_set = {"no", "false", "f", "n", "0"}
+_true_expressions = ("y", "yes", "t", "true", "on", "1")
+_false_expressions = ("n", "no", "f", "false", "off", "0")
 
 
-def _str2bool(value: str | bool | None) -> bool | None:
-    if value is None:
-        return False
-    if isinstance(value, bool):
-        return value
+# This is a copy of `setuptools._distutils.util.strtobool` with valid truth expressions
+#   defined externally
+def _str2bool(val: str) -> bool:
+    """Convert a string representation of truth to true (1) or false (0).
 
-    val_lower = value.lower()
-    if val_lower in _true_set:
+    True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
+    are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
+    'val' is anything else.
+    """
+    val = val.lower()
+    if val in _true_expressions:
         return True
-    elif val_lower in _false_set:
+    elif val in _false_expressions:
         return False
     else:
-        raise ValueError(f"Cannot interpret '{value}' as boolean.")
+        raise ValueError(f"invalid truth value {val!r}")
 
 
 is_mac_intel = sys.platform == "darwin" and os.uname().machine == "x86_64"
-if is_mac_intel and not _str2bool(value=os.getenv("DUCT_IGNORE_INTEL_WARNING")):
+if is_mac_intel and not _str2bool(val=os.getenv("DUCT_IGNORE_INTEL_WARNING")):
     message = (
         "Detected system macOS running on intel architecture - "
         "duct may experience issues with sampling and signal handling.\n\n"
