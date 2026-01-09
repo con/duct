@@ -22,28 +22,9 @@ import threading
 import time
 from types import FrameType
 from typing import IO, Any, Callable, Optional, TextIO
-import warnings
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
-
-_true_set = {"yes", "true", "t", "y", "1"}
-_false_set = {"no", "false", "f", "n", "0"}
-
-
-def _str2bool(value: str | bool | None) -> bool | None:
-    if value is None:
-        return False
-    if isinstance(value, bool):
-        return value
-
-    val_lower = value.lower()
-    if val_lower in _true_set:
-        return True
-    elif val_lower in _false_set:
-        return False
-    else:
-        raise ValueError(f"Cannot interpret '{value}' as boolean.")
 
 SYSTEM = platform.system()
 
