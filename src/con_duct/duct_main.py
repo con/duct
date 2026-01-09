@@ -25,7 +25,7 @@ from typing import IO, Any, Callable, Optional, TextIO
 import warnings
 
 __version__ = version("con-duct")
-__schema_version__ = "0.2.2"
+__schema_version__ = "0.3.0"
 
 _true_set = {"yes", "true", "t", "y", "1"}
 _false_set = {"no", "false", "f", "n", "0"}
@@ -129,6 +129,56 @@ class SessionMode(str, Enum):
 
     def __str__(self) -> str:
         return self.value
+
+
+class Instruments(str, Enum):
+    """Instruments to enable for monitoring."""
+
+    CPU = "cpu"
+    MEM = "mem"
+    GPU = "gpu"
+
+    def __str__(self) -> str:
+        return self.value
+
+    @classmethod
+    def parse_list(cls, value: str) -> set[Instruments]:
+        """Parse comma-separated instrument list.
+
+        Args:
+            value: Comma-separated string like "cpu,mem,gpu" or "all"
+
+        Returns:
+            Set of Instruments enum values
+
+        Raises:
+            ValueError: If invalid instrument specified
+        """
+        if value.lower() == "all":
+            return {cls.CPU, cls.MEM, cls.GPU}
+
+        instruments: set[Instruments] = set()
+        for item in value.lower().split(","):
+            item = item.strip()
+            if not item:
+                continue
+            try:
+                instruments.add(cls(item))
+            except ValueError:
+                valid = ", ".join(i.value for i in cls)
+                raise ValueError(
+                    f"Invalid instrument '{item}'. Valid options: {valid}, all"
+                )
+        return instruments
+
+
+def instruments_from_str(value: str) -> set[Instruments]:
+    """Type converter for argparse."""
+    return Instruments.parse_list(value)
+
+
+# Default timeout for nvidia-smi calls
+GPU_SAMPLE_TIMEOUT = 5.0
 
 
 @dataclass
@@ -290,6 +340,167 @@ class Averages:
 
 
 @dataclass
+class GpuStats:
+    """Statistics for a single GPU device."""
+
+    index: int
+    utilization_gpu: float  # GPU utilization percentage (0-100)
+    utilization_memory: float  # Memory utilization percentage (0-100)
+    memory_used: int  # Memory used in bytes
+    memory_total: int  # Total memory in bytes
+    timestamp: str
+
+    def aggregate(self, other: GpuStats) -> GpuStats:
+        """Aggregate with another sample, keeping peak values."""
+        return GpuStats(
+            index=self.index,
+            utilization_gpu=max(self.utilization_gpu, other.utilization_gpu),
+            utilization_memory=max(self.utilization_memory, other.utilization_memory),
+            memory_used=max(self.memory_used, other.memory_used),
+            memory_total=max(self.memory_total, other.memory_total),
+            timestamp=max(self.timestamp, other.timestamp),
+        )
+
+    def for_json(self) -> dict[str, Any]:
+        return asdict(self)
+
+    def __post_init__(self) -> None:
+        assert_num(
+            self.utilization_gpu,
+            self.utilization_memory,
+            self.memory_used,
+            self.memory_total,
+        )
+
+
+@dataclass
+class GpuAverages:
+    """Running averages for GPU metrics."""
+
+    utilization_gpu: Optional[float] = None
+    utilization_memory: Optional[float] = None
+    memory_used: Optional[float] = None
+    num_samples: int = 0
+
+    def update(self, sample: GpuSample) -> None:
+        """Update running averages with new sample."""
+        if not self.num_samples:
+            self.num_samples = 1
+            self.utilization_gpu = sample.total_utilization_gpu
+            self.utilization_memory = sample.total_utilization_memory
+            self.memory_used = float(sample.total_memory_used or 0)
+        else:
+            self.num_samples += 1
+            n = self.num_samples
+            if (
+                sample.total_utilization_gpu is not None
+                and self.utilization_gpu is not None
+            ):
+                self.utilization_gpu += (
+                    sample.total_utilization_gpu - self.utilization_gpu
+                ) / n
+            if (
+                sample.total_utilization_memory is not None
+                and self.utilization_memory is not None
+            ):
+                self.utilization_memory += (
+                    sample.total_utilization_memory - self.utilization_memory
+                ) / n
+            if sample.total_memory_used is not None and self.memory_used is not None:
+                self.memory_used += (sample.total_memory_used - self.memory_used) / n
+
+
+@dataclass
+class GpuSample:
+    """Sample of GPU statistics across all GPUs."""
+
+    stats: dict[int, GpuStats] = field(default_factory=dict)
+    averages: GpuAverages = field(default_factory=GpuAverages)
+    total_utilization_gpu: Optional[float] = None  # Sum across all GPUs
+    total_utilization_memory: Optional[float] = None
+    total_memory_used: Optional[int] = None
+    total_memory_total: Optional[int] = None
+    timestamp: str = ""
+
+    def add_gpu(self, gpu_index: int, stats: GpuStats) -> None:
+        """Add stats for a GPU device."""
+        assert gpu_index not in self.stats
+        self.total_utilization_gpu = (
+            self.total_utilization_gpu or 0.0
+        ) + stats.utilization_gpu
+        self.total_utilization_memory = (
+            self.total_utilization_memory or 0.0
+        ) + stats.utilization_memory
+        self.total_memory_used = (self.total_memory_used or 0) + stats.memory_used
+        self.total_memory_total = (self.total_memory_total or 0) + stats.memory_total
+
+        self.stats[gpu_index] = stats
+        self.timestamp = max(self.timestamp, stats.timestamp)
+
+    def aggregate(self, other: GpuSample) -> GpuSample:
+        """Aggregate with another sample, keeping peak values."""
+        output = GpuSample()
+        for gpu_idx in self.stats.keys() | other.stats.keys():
+            if (mine := self.stats.get(gpu_idx)) is not None:
+                if (theirs := other.stats.get(gpu_idx)) is not None:
+                    output.add_gpu(gpu_idx, mine.aggregate(theirs))
+                else:
+                    output.add_gpu(gpu_idx, mine)
+            else:
+                output.add_gpu(gpu_idx, other.stats[gpu_idx])
+
+        output.total_utilization_gpu = max(
+            self.total_utilization_gpu or 0.0,
+            other.total_utilization_gpu or 0.0,
+        )
+        output.total_utilization_memory = max(
+            self.total_utilization_memory or 0.0,
+            other.total_utilization_memory or 0.0,
+        )
+        output.total_memory_used = max(
+            self.total_memory_used or 0,
+            other.total_memory_used or 0,
+        )
+        output.total_memory_total = max(
+            self.total_memory_total or 0,
+            other.total_memory_total or 0,
+        )
+        output.averages = self.averages
+        output.averages.update(other)
+        return output
+
+    @classmethod
+    def from_stats(cls, stats: dict[int, GpuStats]) -> GpuSample:
+        """Create a GpuSample from a dict of GpuStats."""
+        sample = cls()
+        for gpu_idx, gpu_stats in stats.items():
+            sample.add_gpu(gpu_idx, gpu_stats)
+        sample.averages = GpuAverages(
+            utilization_gpu=sample.total_utilization_gpu,
+            utilization_memory=sample.total_utilization_memory,
+            memory_used=float(sample.total_memory_used or 0),
+            num_samples=1,
+        )
+        return sample
+
+    def for_json(self) -> dict[str, Any]:
+        return {
+            "timestamp": self.timestamp,
+            "num_samples": self.averages.num_samples,
+            "gpus": {str(idx): stats.for_json() for idx, stats in self.stats.items()},
+            "totals": {
+                "utilization_gpu": self.total_utilization_gpu,
+                "utilization_memory": self.total_utilization_memory,
+                "memory_used": self.total_memory_used,
+                "memory_total": self.total_memory_total,
+            },
+            "averages": (
+                asdict(self.averages) if self.averages.num_samples >= 1 else {}
+            ),
+        }
+
+
+@dataclass
 class Sample:
     stats: dict[int, ProcessStats] = field(default_factory=dict)
     averages: Averages = field(default_factory=Averages)
@@ -298,6 +509,7 @@ class Sample:
     total_pmem: Optional[float] = None
     total_pcpu: Optional[float] = None
     timestamp: str = ""  # TS of last sample collected
+    gpu_sample: Optional[GpuSample] = None  # Optional GPU metrics
 
     def add_pid(self, pid: int, stats: ProcessStats) -> None:
         # We do not calculate averages when we add a pid because we require all pids first
@@ -331,10 +543,19 @@ class Sample:
         output.total_vsz = max(self.total_vsz or 0, other.total_vsz)
         output.averages = self.averages
         output.averages.update(other)
+
+        # Aggregate GPU samples if present
+        if self.gpu_sample is not None and other.gpu_sample is not None:
+            output.gpu_sample = self.gpu_sample.aggregate(other.gpu_sample)
+        elif other.gpu_sample is not None:
+            output.gpu_sample = other.gpu_sample
+        elif self.gpu_sample is not None:
+            output.gpu_sample = self.gpu_sample
+
         return output
 
     def for_json(self) -> dict[str, Any]:
-        d = {
+        d: dict[str, Any] = {
             "timestamp": self.timestamp,
             "num_samples": self.averages.num_samples,
             "processes": {
@@ -348,6 +569,9 @@ class Sample:
             },
             "averages": asdict(self.averages) if self.averages.num_samples >= 1 else {},
         }
+        # Include GPU data if present
+        if self.gpu_sample is not None:
+            d["gpu"] = self.gpu_sample.for_json()
         return d
 
 
@@ -471,6 +695,73 @@ _get_sample_per_system = {
 _get_sample: Callable[[int], Optional[Sample]] = _get_sample_per_system[SYSTEM]  # type: ignore[assignment]
 
 
+def _get_gpu_sample(timeout: float = GPU_SAMPLE_TIMEOUT) -> Optional[GpuSample]:
+    """Collect GPU utilization metrics via nvidia-smi.
+
+    Args:
+        timeout: Maximum seconds to wait for nvidia-smi response
+
+    Returns:
+        GpuSample with stats for all GPUs, or None if unavailable/failed
+    """
+    if shutil.which("nvidia-smi") is None:
+        lgr.debug("nvidia-smi not found, skipping GPU sample")
+        return None
+
+    nvidia_smi_command = [
+        "nvidia-smi",
+        "--query-gpu=index,utilization.gpu,utilization.memory,memory.used,memory.total",
+        "--format=csv,noheader,nounits",
+    ]
+
+    try:
+        output = subprocess.check_output(
+            nvidia_smi_command,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        lgr.warning("nvidia-smi timed out after %.1f seconds", timeout)
+        return None
+    except subprocess.CalledProcessError as exc:
+        lgr.debug("nvidia-smi failed: %s", exc)
+        return None
+    except FileNotFoundError:
+        lgr.debug("nvidia-smi not found")
+        return None
+
+    stats: dict[int, GpuStats] = {}
+    timestamp = datetime.now().astimezone().isoformat()
+
+    for line in output.strip().splitlines():
+        if not line.strip():
+            continue
+        try:
+            parts = [p.strip() for p in line.split(",")]
+            if len(parts) != 5:
+                lgr.debug("Unexpected nvidia-smi output format: %s", line)
+                continue
+
+            index, util_gpu, util_mem, mem_used, mem_total = parts
+
+            stats[int(index)] = GpuStats(
+                index=int(index),
+                utilization_gpu=float(util_gpu),
+                utilization_memory=float(util_mem),
+                memory_used=int(mem_used) * 1024 * 1024,  # MiB to bytes
+                memory_total=int(mem_total) * 1024 * 1024,  # MiB to bytes
+                timestamp=timestamp,
+            )
+        except (ValueError, IndexError) as exc:
+            lgr.debug("Error parsing nvidia-smi line '%s': %s", line, exc)
+            continue
+
+    if not stats:
+        return None
+
+    return GpuSample.from_stats(stats)
+
+
 class Report:
     """Top level report"""
 
@@ -485,6 +776,7 @@ class Report:
         clobber: bool = False,
         process: subprocess.Popen | None = None,
         message: str = "",
+        instruments: set[Instruments] | None = None,
     ) -> None:
         self._command = command
         self.arguments = arguments
@@ -493,6 +785,7 @@ class Report:
         self.clobber = clobber
         self.colors = colors
         self.message = message
+        self.instruments = instruments or {Instruments.CPU, Instruments.MEM}
         # Defaults to be set later
         self.start_time: float | None = None
         self.process = process
@@ -507,6 +800,9 @@ class Report:
         self.run_time_seconds: str | None = None
         self.usage_file: TextIO | None = None
         self.working_directory: str = working_directory
+        # GPU run stats (when GPU monitoring is enabled)
+        self.full_gpu_stats: Optional[GpuSample] = None
+        self.current_gpu_sample: Optional[GpuSample] = None
 
     def __del__(self) -> None:
         safe_close_files([self.usage_file])
@@ -597,6 +893,19 @@ class Report:
             self.current_sample = self.current_sample.aggregate(sample)
         assert self.current_sample is not None
 
+        # Track GPU stats separately for execution summary
+        if sample.gpu_sample is not None:
+            if self.full_gpu_stats is None:
+                self.full_gpu_stats = sample.gpu_sample
+            else:
+                self.full_gpu_stats = self.full_gpu_stats.aggregate(sample.gpu_sample)
+            if self.current_gpu_sample is None:
+                self.current_gpu_sample = sample.gpu_sample
+            else:
+                self.current_gpu_sample = self.current_gpu_sample.aggregate(
+                    sample.gpu_sample
+                )
+
     def write_subreport(self) -> None:
         assert self.current_sample is not None
         if self.usage_file is None:
@@ -611,7 +920,7 @@ class Report:
         if self.process and self.process.returncode < 0:
             self.process.returncode = 128 + abs(self.process.returncode)
         # prepare the base, but enrich if we did get process running
-        return {
+        summary: dict[str, Any] = {
             "exit_code": self.process.returncode if self.process else None,
             "command": self.command,
             "logs_prefix": self.log_paths.prefix if self.log_paths else "",
@@ -630,6 +939,27 @@ class Report:
             "end_time": self.end_time,
             "working_directory": self.working_directory,
         }
+
+        # Add GPU summary if GPU monitoring was enabled and we have data
+        if Instruments.GPU in self.instruments and self.full_gpu_stats is not None:
+            summary.update(
+                {
+                    "peak_gpu_utilization": self.full_gpu_stats.total_utilization_gpu,
+                    "average_gpu_utilization": (
+                        self.full_gpu_stats.averages.utilization_gpu
+                        if self.full_gpu_stats.averages
+                        else None
+                    ),
+                    "peak_gpu_memory_used": self.full_gpu_stats.total_memory_used,
+                    "average_gpu_memory_used": (
+                        self.full_gpu_stats.averages.memory_used
+                        if self.full_gpu_stats.averages
+                        else None
+                    ),
+                }
+            )
+
+        return summary
 
     def dump_json(self) -> str:
         return json.dumps(
@@ -817,6 +1147,9 @@ def monitor_process(
     report_interval: float,
     sample_interval: float,
     stop_event: threading.Event,
+    instruments: set[Instruments] | None = None,
+    gpu_sample_interval: float | None = None,
+    gpu_timeout: float = GPU_SAMPLE_TIMEOUT,
 ) -> None:
     lgr.debug(
         "Starting monitoring of the process %s on sample interval %f for report interval %f",
@@ -824,13 +1157,43 @@ def monitor_process(
         sample_interval,
         report_interval,
     )
+
+    # Default instruments to CPU and MEM
+    if instruments is None:
+        instruments = {Instruments.CPU, Instruments.MEM}
+
+    # GPU sampling state
+    gpu_enabled = Instruments.GPU in instruments
+    gpu_interval = gpu_sample_interval if gpu_sample_interval else sample_interval
+    last_gpu_sample_time = 0.0
+
     while True:
         if process.poll() is not None:
             lgr.debug(
                 "Breaking out of the monitor since the passthrough command has finished"
             )
             break
-        sample = report.collect_sample()
+
+        # Collect CPU/mem sample if requested
+        sample: Sample | None = None
+        if Instruments.CPU in instruments or Instruments.MEM in instruments:
+            sample = report.collect_sample()
+        else:
+            # Create empty sample for GPU-only case
+            sample = Sample()
+            sample.timestamp = datetime.now().astimezone().isoformat()
+
+        # Collect GPU sample at its own interval
+        if gpu_enabled:
+            current_time = time.time()
+            if current_time - last_gpu_sample_time >= gpu_interval:
+                gpu_sample = _get_gpu_sample(timeout=gpu_timeout)
+                if gpu_sample is not None:
+                    if sample is None:
+                        sample = Sample()
+                    sample.gpu_sample = gpu_sample
+                    last_gpu_sample_time = current_time
+
         # Report averages should be updated prior to sample aggregation
         if (
             sample is None
@@ -843,6 +1206,14 @@ def monitor_process(
                 break
             # process is still running, but we could not collect sample
             continue
+
+        # Skip empty samples (no CPU/mem and no GPU data)
+        if not sample.stats and sample.gpu_sample is None:
+            if stop_event.wait(timeout=sample_interval):
+                lgr.debug("Breaking out because stop event was set")
+                break
+            continue
+
         report.update_from_sample(sample)
         if (
             report.start_time
@@ -850,6 +1221,7 @@ def monitor_process(
         ):
             report.write_subreport()
             report.current_sample = None
+            report.current_gpu_sample = None
             report.number += 1
         if stop_event.wait(timeout=sample_interval):
             lgr.debug("Breaking out because stop event was set")
@@ -1001,11 +1373,25 @@ def execute(
     colors: bool,
     mode: SessionMode,
     message: str = "",
+    instruments: set[Instruments] | None = None,
+    gpu_sample_interval: float = 0.0,
+    gpu_timeout: float = GPU_SAMPLE_TIMEOUT,
 ) -> int:
     """A wrapper to execute a command, monitor and log the process details.
 
     Returns exit code of the executed process.
     """
+    # Default instruments
+    if instruments is None:
+        instruments = {Instruments.CPU, Instruments.MEM}
+
+    # Warn if GPU monitoring requested but nvidia-smi not available
+    if Instruments.GPU in instruments:
+        if shutil.which("nvidia-smi") is None:
+            lgr.warning(
+                "GPU monitoring requested but nvidia-smi not found. "
+                "GPU metrics will not be collected."
+            )
     if report_interval < sample_interval:
         raise ValueError(
             "--report-interval must be greater than or equal to --sample-interval."
@@ -1038,6 +1424,7 @@ def execute(
         colors,
         clobber,
         message=message,
+        instruments=instruments,
     )
     files_to_close.append(report.usage_file)
 
@@ -1077,15 +1464,20 @@ def execute(
         pass
     stop_event = threading.Event()
     if record_types.has_processes_samples():
-        monitoring_args = [
-            report,
-            process,
-            report_interval,
-            sample_interval,
-            stop_event,
-        ]
+        monitoring_kwargs = {
+            "report": report,
+            "process": process,
+            "report_interval": report_interval,
+            "sample_interval": sample_interval,
+            "stop_event": stop_event,
+            "instruments": instruments,
+            "gpu_sample_interval": (
+                gpu_sample_interval if gpu_sample_interval > 0 else None
+            ),
+            "gpu_timeout": gpu_timeout,
+        }
         monitoring_thread = threading.Thread(
-            target=monitor_process, args=monitoring_args
+            target=monitor_process, kwargs=monitoring_kwargs
         )
         monitoring_thread.start()
     else:

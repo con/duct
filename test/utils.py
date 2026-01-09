@@ -17,6 +17,8 @@ def run_duct_command(cli_args: list[str], **kwargs: Any) -> int:
     from con_duct.duct_main import (
         DUCT_OUTPUT_PREFIX,
         EXECUTION_SUMMARY_FORMAT,
+        GPU_SAMPLE_TIMEOUT,
+        Instruments,
         Outputs,
         RecordTypes,
         SessionMode,
@@ -39,6 +41,9 @@ def run_duct_command(cli_args: list[str], **kwargs: Any) -> int:
         "colors": False,
         "mode": SessionMode.NEW_SESSION,
         "message": "",
+        "instruments": {Instruments.CPU, Instruments.MEM},
+        "gpu_sample_interval": 0.0,
+        "gpu_timeout": GPU_SAMPLE_TIMEOUT,
     }
     defaults.update(kwargs)
 
