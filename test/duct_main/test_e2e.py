@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import os
 from pathlib import Path
 import platform
 import subprocess
@@ -9,21 +10,37 @@ from con_duct.duct_main import SUFFIXES
 
 SYSTEM = platform.system()
 TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
+# Allow overriding the duct executable for testing external builds (e.g., PyInstaller)
+_DUCT_EXECUTABLES = [
+    exe.strip()
+    for exe in os.environ.get("DUCT_TEST_EXECUTABLES", "duct,con-duct run").split(",")
+]
 
 
-def test_sanity(temp_output_dir: str) -> None:
-    command = f"duct -p {temp_output_dir}log_ sleep 0.1"
+@pytest.fixture(params=_DUCT_EXECUTABLES)
+def duct_cmd(request: pytest.FixtureRequest) -> str:
+    """Fixture that parametrizes tests to run with different duct entry points."""
+    return str(request.param)
+
+
+def test_sanity(temp_output_dir: str, duct_cmd: str) -> None:
+    command = f"{duct_cmd} -p {temp_output_dir}log_ sleep 0.1"
     subprocess.check_output(command, shell=True)
 
 
 @pytest.mark.flaky(reruns=3)
 @pytest.mark.parametrize("mode", ["plain", "subshell", "nohup", "setsid"])
 @pytest.mark.parametrize("num_children", [1, 2, 10])
-def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> None:
+def test_spawn_children(
+    temp_output_dir: str, duct_cmd: str, mode: str, num_children: int
+) -> None:
     duct_prefix = f"{temp_output_dir}log_"
     script_path = TEST_SCRIPT_DIR / "spawn_children.sh"
     dur = "0.3"
-    command = f"duct -q --s-i 0.001 --r-i 0.01 -p {duct_prefix} {script_path} {mode} {num_children} {dur}"
+    command = (
+        f"{duct_cmd} -q --s-i 0.001 --r-i 0.01 "
+        f"-p {duct_prefix} {script_path} {mode} {num_children} {dur}"
+    )
     subprocess.check_output(command, shell=True)
 
     with open(f"{duct_prefix}{SUFFIXES['usage']}") as usage_file:
@@ -44,10 +61,10 @@ def test_spawn_children(temp_output_dir: str, mode: str, num_children: int) -> N
 
 
 @pytest.mark.parametrize("session_mode", ["new-session", "current-session"])
-def test_session_modes(temp_output_dir: str, session_mode: str) -> None:
+def test_session_modes(temp_output_dir: str, duct_cmd: str, session_mode: str) -> None:
     """Test that both session modes work correctly and collect appropriate data."""
     duct_prefix = f"{temp_output_dir}log_"
-    command = f"duct -q --s-i 0.01 --r-i 0.05 --mode {session_mode} -p {duct_prefix} sleep 0.3"
+    command = f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode {session_mode} -p {duct_prefix} sleep 0.3"
     subprocess.check_output(command, shell=True)
 
     # Check that log files were created
@@ -79,7 +96,7 @@ def test_session_modes(temp_output_dir: str, session_mode: str) -> None:
     assert "sleep" in info_data["command"]
 
 
-def test_session_mode_behavior_difference(temp_output_dir: str) -> None:
+def test_session_mode_behavior_difference(temp_output_dir: str, duct_cmd: str) -> None:
     """Test that new-session and current-session modes behave differently."""
 
     # Start a unique background process in the current session
@@ -98,13 +115,13 @@ def test_session_mode_behavior_difference(temp_output_dir: str) -> None:
 
         # Run duct with new-session mode - should NOT see background process
         subprocess.check_output(
-            f"duct -q --s-i 0.01 --r-i 0.05 --mode new-session -p {new_session_prefix} sleep 2",
+            f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode new-session -p {new_session_prefix} sleep 2",
             shell=True,
         )
 
         # Run duct with current-session mode - should see background process
         subprocess.check_output(
-            f"duct -q --s-i 0.01 --r-i 0.05 --mode current-session -p {current_session_prefix} sleep 2",
+            f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode current-session -p {current_session_prefix} sleep 2",
             shell=True,
         )
 
@@ -153,13 +170,13 @@ def test_session_mode_behavior_difference(temp_output_dir: str) -> None:
                 background_process.wait()
 
 
-def test_logging_levels(temp_output_dir: str) -> None:
+def test_logging_levels(temp_output_dir: str, duct_cmd: str) -> None:
     """Test that --quiet and --log-level NONE suppress logging output."""
     duct_prefix = f"{temp_output_dir}log_"
 
     # Test normal logging - should see "Summary" in stderr
     result = subprocess.run(
-        f"con-duct run -p {duct_prefix} sleep 0.1",
+        f"{duct_cmd} -p {duct_prefix} sleep 0.1",
         shell=True,
         capture_output=True,
         text=True,
@@ -170,7 +187,7 @@ def test_logging_levels(temp_output_dir: str) -> None:
 
     # Test --quiet flag - should suppress logging
     result_quiet = subprocess.run(
-        f"con-duct run --quiet --clobber -p {duct_prefix} sleep 0.1",
+        f"{duct_cmd} --quiet --clobber -p {duct_prefix} sleep 0.1",
         shell=True,
         capture_output=True,
         text=True,
@@ -183,7 +200,7 @@ def test_logging_levels(temp_output_dir: str) -> None:
 
     # Test --log-level NONE - should suppress logging
     result_none = subprocess.run(
-        f"con-duct run --log-level NONE --clobber -p {duct_prefix} sleep 0.1",
+        f"{duct_cmd} --log-level NONE --clobber -p {duct_prefix} sleep 0.1",
         shell=True,
         capture_output=True,
         text=True,
