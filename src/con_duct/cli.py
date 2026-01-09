@@ -550,3 +550,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     setup_logging(args)
     _replay_early_logs(env_log_buffer)
     sys.exit(execute(args))
+
+
+# To allow users or devs to invoke the `cli.py` directly
+# instead of the entrypoint `con-duct`
+# (used mainly by PyInstaller)
+if __name__ == "__main__":
+    main()
