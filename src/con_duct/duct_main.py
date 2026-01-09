@@ -49,8 +49,24 @@ def _str2bool(val: str) -> bool:
         raise ValueError(f"invalid truth value {val!r}")
 
 
+# Determine whether to ignore Intel macOS warning by checking environment variable
+try:
+    ignore_intel_warning = _str2bool(val=os.getenv("DUCT_IGNORE_INTEL_WARNING", "0"))
+except ValueError:
+    message = "\n".join(
+        [
+            "The value of the environment variable `DUCT_IGNORE_INTEL_WARNING` "
+            "is invalid.",
+            "Please set it to one of the following values or their uppercase variants:",
+            "- True values: " + ", ".join(f"'{v}'" for v in _true_expressions),
+            "- False values: " + ", ".join(f"'{v}'" for v in _false_expressions),
+            "",
+        ]
+    )
+    ignore_intel_warning = False
+
 is_mac_intel = sys.platform == "darwin" and os.uname().machine == "x86_64"
-if is_mac_intel and not _str2bool(val=os.getenv("DUCT_IGNORE_INTEL_WARNING", "0")):
+if is_mac_intel and not ignore_intel_warning:
     message = (
         "Detected system macOS running on intel architecture - "
         "duct may experience issues with sampling and signal handling.\n\n"
