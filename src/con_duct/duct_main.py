@@ -22,38 +22,10 @@ import threading
 import time
 from types import FrameType
 from typing import IO, Any, Callable, Optional, TextIO
-import warnings
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
 
-_true_set = {"yes", "true", "t", "y", "1"}
-_false_set = {"no", "false", "f", "n", "0"}
-
-
-def _str2bool(value: str | bool | None) -> bool | None:
-    if value is None:
-        return False
-    if isinstance(value, bool):
-        return value
-
-    val_lower = value.lower()
-    if val_lower in _true_set:
-        return True
-    elif val_lower in _false_set:
-        return False
-    else:
-        raise ValueError(f"Cannot interpret '{value}' as boolean.")
-
-
-is_mac_intel = sys.platform == "darwin" and os.uname().machine == "x86_64"
-if is_mac_intel and not _str2bool(value=os.getenv("DUCT_IGNORE_INTEL_WARNING")):
-    message = (
-        "Detected system macOS running on intel architecture - "
-        "duct may experience issues with sampling and signal handling.\n\n"
-        "Set the environment variable `DUCT_IGNORE_INTEL_WARNING` to suppress this warning.\n"
-    )
-    warnings.warn(message=message, stacklevel=2)
 SYSTEM = platform.system()
 
 lgr = logging.getLogger("con-duct")
