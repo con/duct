@@ -19,7 +19,7 @@ _DUCT_EXECUTABLES = os.environ.get("DUCT_TEST_EXECUTABLES", "duct,con-duct run")
 @pytest.fixture(params=_DUCT_EXECUTABLES)
 def duct_cmd(request: pytest.FixtureRequest) -> str:
     """Fixture that parametrizes tests to run with different duct entry points."""
-    return request.param
+    return str(request.param)
 
 
 def test_sanity(temp_output_dir: str, duct_cmd: str) -> None:
