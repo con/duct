@@ -11,9 +11,10 @@ from con_duct.duct_main import SUFFIXES
 SYSTEM = platform.system()
 TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
 # Allow overriding the duct executable for testing external builds (e.g., PyInstaller)
-_DUCT_EXECUTABLES = os.environ.get("DUCT_TEST_EXECUTABLES", "duct,con-duct run").split(
-    ","
-)
+_DUCT_EXECUTABLES = [
+    exe.strip()
+    for exe in os.environ.get("DUCT_TEST_EXECUTABLES", "duct,con-duct run").split(",")
+]
 
 
 @pytest.fixture(params=_DUCT_EXECUTABLES)
