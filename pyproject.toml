@@ -5,6 +5,57 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "con-duct"
+description = "Runs a not-so-simple command and collects resource usage metrics"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+  { name = "Austin Macdonald", email = "austin@dartmouth.edu" },
+]
+keywords = [
+  "command-line",
+  "cpu",
+  "memory",
+  "metrics",
+  "output-capture",
+  "provenance",
+  "time",
+  "usage",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: System Administrators",
+  "Topic :: System :: Systems Administration",
+  "Operating System :: Unix",
+  "Operating System :: MacOS",
+]
+
+# Version is managed by versioningit (see [tool.versioningit.*])
+dynamic = ["version"]
+
+[project.urls]
+source = "https://github.com/con/duct/"
+issues = "https://github.com/con/duct/issues"
+
+[project.scripts]
+duct = "con_duct.cli:duct_entrypoint"
+con-duct = "con_duct.cli:main"
+
 
 [tool.versioningit.write]
 file = "src/con_duct/_version.py"
