@@ -45,15 +45,6 @@ def _str2bool(value: str | bool | None) -> bool | None:
     else:
         raise ValueError(f"Cannot interpret '{value}' as boolean.")
 
-
-is_mac_intel = sys.platform == "darwin" and os.uname().machine == "x86_64"
-if is_mac_intel and not _str2bool(value=os.getenv("DUCT_IGNORE_INTEL_WARNING")):
-    message = (
-        "Detected system macOS running on intel architecture - "
-        "duct may experience issues with sampling and signal handling.\n\n"
-        "Set the environment variable `DUCT_IGNORE_INTEL_WARNING` to suppress this warning.\n"
-    )
-    warnings.warn(message=message, stacklevel=2)
 SYSTEM = platform.system()
 
 lgr = logging.getLogger("con-duct")
