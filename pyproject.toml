@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "con-duct"
-description = "Runs a not-so-simple command and collects resource usage metrics"
+description = "A helper to run a command, capture stdout/stderr and details about running"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
 license = "MIT"
