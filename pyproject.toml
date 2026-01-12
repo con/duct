@@ -113,3 +113,17 @@ profile = "black"
 reverse_relative = true
 sort_relative_in_force_sorted_sections = true
 src_paths = ["src"]
+
+[tool.coverage.run]
+branch = true
+parallel = true
+
+[tool.coverage.paths]
+source = [
+    "src",
+    ".tox/**/site-packages",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
