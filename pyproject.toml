@@ -5,11 +5,125 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "con-duct"
+description = "A helper to run a command, capture stdout/stderr and details about running"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+  { name = "Austin Macdonald", email = "austin@dartmouth.edu" },
+]
+keywords = [
+  "command-line",
+  "cpu",
+  "memory",
+  "metrics",
+  "output-capture",
+  "provenance",
+  "time",
+  "usage",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: System Administrators",
+  "Topic :: System :: Systems Administration",
+  "Operating System :: Unix",
+  "Operating System :: MacOS",
+]
+
+# Version is managed by versioningit (see [tool.versioningit.*])
+dynamic = ["version"]
+
+[project.optional-dependencies]
+all = [
+    "matplotlib>=3.5",  # first supported version for Python 3.10
+    "PyYAML>=6.0",  # first version with Python 3.10 wheels
+    "pyout>=0.8",  # 0.7 has jsonschema incompatibility
+    # Pin rpds-py to support PyPy 3.10 - https://github.com/con/duct/issues/330
+    "rpds-py<0.28.0; implementation_name == 'pypy'",
+    "python-dotenv>=0.19",  # first version with Python 3.10 support
+]
+
+[project.urls]
+source = "https://github.com/con/duct/"
+issues = "https://github.com/con/duct/issues"
+
+[project.scripts]
+duct = "con_duct.cli:duct_entrypoint"
+con-duct = "con_duct.cli:main"
+
 
 [tool.versioningit.write]
 file = "src/con_duct/_version.py"
 
 [tool.pytest.ini_options]
-markers = [
-    "flaky: mark a test as being unreliable"
+addopts = "--cov=con_duct --no-cov-on-fail"
+filterwarnings = [
+    "error",
+    # matplotlib 3.5 uses deprecated pyparsing API (enablePackrat -> enable_packrat)
+    "ignore:'enablePackrat' deprecated:DeprecationWarning:matplotlib._mathtext",
 ]
+markers = [
+    "flaky: mark a test as being unreliable",
+]
+norecursedirs = ["test/data"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["py.typed"]
+
+[tool.mypy]
+allow_incomplete_defs = false
+allow_untyped_defs = false
+ignore_missing_imports = false
+# <https://github.com/python/mypy/issues/7773>:
+no_implicit_optional = true
+implicit_reexport = false
+local_partial_types = true
+pretty = true
+show_error_codes = true
+show_traceback = true
+strict_equality = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unreachable = true
+
+[tool.isort]
+atomic = true
+force_sort_within_sections = true
+honor_noqa = true
+lines_between_sections = 0
+profile = "black"
+reverse_relative = true
+sort_relative_in_force_sorted_sections = true
+src_paths = ["src"]
+
+[tool.coverage.run]
+branch = true
+parallel = true
+
+[tool.coverage.paths]
+source = [
+    "src",
+    ".tox/**/site-packages",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
