@@ -245,8 +245,8 @@ options:
                         Comma-separated list of instruments to enable: cpu,
                         mem, gpu, or 'all'. You can also provide value via
                         DUCT_INSTRUMENTS env variable. (default: cpu,mem)
-                        (default: {<Instruments.CPU: 'cpu'>, <Instruments.MEM:
-                        'mem'>})
+                        (default: {<Instruments.MEM: 'mem'>, <Instruments.CPU:
+                        'cpu'>})
   --gpu-sample-interval GPU_SAMPLE_INTERVAL
                         Interval in seconds between GPU status checks. If not
                         specified or 0, uses --sample-interval. Useful when
