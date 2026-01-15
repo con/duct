@@ -1189,8 +1189,7 @@ def monitor_process(
             if current_time - last_gpu_sample_time >= gpu_interval:
                 gpu_sample = _get_gpu_sample(timeout=gpu_timeout)
                 if gpu_sample is not None:
-                    if sample is None:
-                        sample = Sample()
+
                     sample.gpu_sample = gpu_sample
                     last_gpu_sample_time = current_time
 

@@ -10,7 +10,7 @@ def test_info_fields(temp_output_dir: str) -> None:
     """
     Generate the list of fields users can request when viewing info files.
 
-    Fails when schema changes-- commit the new version and bump schema version.
+    Fails when schema changes -- commit the new version and bump schema version.
     GPU fields are optional and only present when GPU monitoring is enabled.
     """
     assert (
