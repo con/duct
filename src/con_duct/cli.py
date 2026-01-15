@@ -10,11 +10,13 @@ from con_duct import __version__
 from con_duct.duct_main import (
     DUCT_OUTPUT_PREFIX,
     EXECUTION_SUMMARY_FORMAT,
+    GPU_SAMPLE_TIMEOUT,
     Outputs,
     RecordTypes,
     SessionMode,
 )
 from con_duct.duct_main import execute as duct_execute
+from con_duct.duct_main import instruments_from_str
 from con_duct.ls import LS_FIELD_CHOICES, ls
 from con_duct.plot import matplotlib_plot
 from con_duct.pprint_json import pprint_json
@@ -146,6 +148,9 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
+  DUCT_INSTRUMENTS: see --instruments (e.g., "cpu,mem,gpu" or "all")
+  DUCT_GPU_SAMPLE_INTERVAL: see --gpu-sample-interval
+  DUCT_GPU_TIMEOUT: see --gpu-timeout
   DUCT_CONFIG_PATHS: paths to .env files separated by platform path separator
     (':' on Unix) (see below)
 
@@ -365,6 +370,30 @@ def _create_run_parser() -> argparse.ArgumentParser:
         help="Session mode: 'new-session' creates a new session for the command (default), "
         "'current-session' tracks the current session instead of starting a new one. "
         "Useful for tracking slurm jobs or other commands that should run in the current session.",
+    )
+    parser.add_argument(
+        "--instruments",
+        type=instruments_from_str,
+        default=instruments_from_str(os.getenv("DUCT_INSTRUMENTS", "cpu,mem")),
+        help="Comma-separated list of instruments to enable: cpu, mem, gpu, or 'all'. "
+        "You can also provide value via DUCT_INSTRUMENTS env variable. "
+        "(default: cpu,mem)",
+    )
+    parser.add_argument(
+        "--gpu-sample-interval",
+        type=float,
+        default=float(os.getenv("DUCT_GPU_SAMPLE_INTERVAL", "0")),
+        help="Interval in seconds between GPU status checks. "
+        "If not specified or 0, uses --sample-interval. "
+        "Useful when nvidia-smi calls are slow. "
+        "You can also provide value via DUCT_GPU_SAMPLE_INTERVAL env variable.",
+    )
+    parser.add_argument(
+        "--gpu-timeout",
+        type=float,
+        default=float(os.getenv("DUCT_GPU_TIMEOUT", str(GPU_SAMPLE_TIMEOUT))),
+        help="Timeout in seconds for nvidia-smi calls. "
+        f"(default: {GPU_SAMPLE_TIMEOUT})",
     )
     return parser
 
