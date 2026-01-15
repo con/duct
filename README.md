@@ -73,6 +73,9 @@ usage: con-duct run [-h] [-l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}] [-q]
                     [-o {all,none,stdout,stderr}]
                     [-t {all,system-summary,processes-samples}] [-m MESSAGE]
                     [--mode {new-session,current-session}]
+                    [--instruments INSTRUMENTS]
+                    [--gpu-sample-interval GPU_SAMPLE_INTERVAL]
+                    [--gpu-timeout GPU_TIMEOUT]
                     command [command_args ...] ...
 
 duct is a lightweight wrapper that collects execution data for an arbitrary
@@ -105,6 +108,9 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
+  DUCT_INSTRUMENTS: see --instruments (e.g., "cpu,mem,gpu" or "all")
+  DUCT_GPU_SAMPLE_INTERVAL: see --gpu-sample-interval
+  DUCT_GPU_TIMEOUT: see --gpu-timeout
   DUCT_CONFIG_PATHS: paths to .env files separated by platform path separator
     (':' on Unix) (see below)
 
@@ -235,6 +241,21 @@ options:
                         current session instead of starting a new one. Useful
                         for tracking slurm jobs or other commands that should
                         run in the current session. (default: new-session)
+  --instruments INSTRUMENTS
+                        Comma-separated list of instruments to enable: cpu,
+                        mem, gpu, or 'all'. You can also provide value via
+                        DUCT_INSTRUMENTS env variable. (default: cpu,mem)
+                        (default: {<Instruments.CPU: 'cpu'>, <Instruments.MEM:
+                        'mem'>})
+  --gpu-sample-interval GPU_SAMPLE_INTERVAL
+                        Interval in seconds between GPU status checks. If not
+                        specified or 0, uses --sample-interval. Useful when
+                        nvidia-smi calls are slow. You can also provide value
+                        via DUCT_GPU_SAMPLE_INTERVAL env variable. (default:
+                        0.0)
+  --gpu-timeout GPU_TIMEOUT
+                        Timeout in seconds for nvidia-smi calls. (default:
+                        5.0) (default: 5.0)
 
 ```
 <!-- END HELP -->
