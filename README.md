@@ -250,6 +250,7 @@ Control duct's verbosity with `--log-level` (or `DUCT_LOG_LEVEL` environment var
 | `WARNING` | You want to see potential issues but not routine info |
 | `INFO` | Normal interactive use (default) |
 | `DEBUG` | Troubleshooting duct behavior or unexpected results |
+| `CRITICAL` | You only want the most severe failures reported |
 
 **INFO (default)** - Shows execution status and summary:
 ```
