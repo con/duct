@@ -882,40 +882,55 @@ class TailPipe:
 class TeeStream:
     """TeeStream uses a PTY to capture output with proper line-buffering.
 
+    PTY data flow:
+        subprocess writes to pty_subprocess_fd (appears as a terminal to child)
+                            ↓
+                    [kernel PTY layer]
+                            ↓
+        duct reads from pty_read_fd → writes to both file and terminal buffer
+
     Unlike TailPipe which reads from a file, TeeStream uses a pseudo-terminal
-    which causes the child process to use line-buffered output by default.
-    This preserves interleaving order when both stdout and stderr are captured.
+    which causes the child process to use line-buffered output by default
+    (because it thinks it's writing to a terminal).
+
+    Note: For true stdout/stderr interleaving, both streams must share the
+    same PTY. With separate TeeStream instances per stream, interleaving
+    is still lost. See #313 for discussion.
     """
 
     def __init__(self, file_path: str, buffer: IO[bytes]) -> None:
         self.file_path = file_path
         self.buffer = buffer
         self.file: IO[bytes] | None = None
-        self.master_fd: int | None = None
-        self.slave_fd: int | None = None
+        self.pty_read_fd: int | None = None  # duct reads from this end
+        self.pty_subprocess_fd: int | None = None  # child process writes to this end
         self.stop_event: threading.Event | None = None
         self.thread: threading.Thread | None = None
 
     def start(self) -> None:
-        self.master_fd, self.slave_fd = os.openpty()
+        # openpty() returns (controller_fd, subprocess_fd)
+        # - controller_fd: duct reads output from here
+        # - subprocess_fd: passed to Popen, child writes here (sees it as a TTY)
+        self.pty_read_fd, self.pty_subprocess_fd = os.openpty()
         self.file = open(self.file_path, "wb")
         self.stop_event = threading.Event()
         self.thread = threading.Thread(target=self._redirect_output, daemon=True)
         self.thread.start()
 
     def fileno(self) -> int:
-        """Return the slave fd for subprocess to write to."""
-        assert self.slave_fd is not None
-        return self.slave_fd
+        """Return the subprocess fd for Popen to pass to the child process."""
+        assert self.pty_subprocess_fd is not None
+        return self.pty_subprocess_fd
 
     def _redirect_output(self) -> None:
-        assert self.master_fd is not None
+        """Read from PTY and write to both terminal buffer and log file."""
+        assert self.pty_read_fd is not None
         assert self.file is not None
         assert self.stop_event is not None
         try:
             while not self.stop_event.is_set():
                 try:
-                    data = os.read(self.master_fd, 1024)
+                    data = os.read(self.pty_read_fd, 1024)
                 except OSError:
                     break
                 if not data:
@@ -933,17 +948,17 @@ class TeeStream:
         assert self.stop_event is not None
         assert self.thread is not None
         self.stop_event.set()
-        # Close slave fd to signal EOF to master
-        if self.slave_fd is not None:
+        # Close subprocess fd to signal EOF to the read end
+        if self.pty_subprocess_fd is not None:
             try:
-                os.close(self.slave_fd)
+                os.close(self.pty_subprocess_fd)
             except OSError:
                 pass
-            self.slave_fd = None
+            self.pty_subprocess_fd = None
         self.thread.join(timeout=1.0)
-        if self.master_fd is not None:
+        if self.pty_read_fd is not None:
             try:
-                os.close(self.master_fd)
+                os.close(self.pty_read_fd)
             except OSError:
                 pass
         if self.file is not None:
