@@ -41,7 +41,7 @@ To resolve this, manually link the upstream and pull all tags::
     git remote add upstream https://github.com/con/duct
     git fetch upstream
 
-    
+
 
 Testing
 -------
