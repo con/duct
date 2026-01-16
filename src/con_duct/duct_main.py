@@ -879,17 +879,88 @@ class TailPipe:
         self.infile.close()
 
 
+class TeeStream:
+    """TeeStream uses a PTY to capture output with proper line-buffering.
+
+    Unlike TailPipe which reads from a file, TeeStream uses a pseudo-terminal
+    which causes the child process to use line-buffered output by default.
+    This preserves interleaving order when both stdout and stderr are captured.
+    """
+
+    def __init__(self, file_path: str, buffer: IO[bytes]) -> None:
+        self.file_path = file_path
+        self.buffer = buffer
+        self.file: IO[bytes] | None = None
+        self.master_fd: int | None = None
+        self.slave_fd: int | None = None
+        self.stop_event: threading.Event | None = None
+        self.thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        self.master_fd, self.slave_fd = os.openpty()
+        self.file = open(self.file_path, "wb")
+        self.stop_event = threading.Event()
+        self.thread = threading.Thread(target=self._redirect_output, daemon=True)
+        self.thread.start()
+
+    def fileno(self) -> int:
+        """Return the slave fd for subprocess to write to."""
+        assert self.slave_fd is not None
+        return self.slave_fd
+
+    def _redirect_output(self) -> None:
+        assert self.master_fd is not None
+        assert self.file is not None
+        assert self.stop_event is not None
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    data = os.read(self.master_fd, 1024)
+                except OSError:
+                    break
+                if not data:
+                    break
+                self.buffer.write(data)
+                self.buffer.flush()
+                self.file.write(data)
+                self.file.flush()
+        finally:
+            self.buffer.flush()
+            if self.file:
+                self.file.flush()
+
+    def close(self) -> None:
+        assert self.stop_event is not None
+        assert self.thread is not None
+        self.stop_event.set()
+        # Close slave fd to signal EOF to master
+        if self.slave_fd is not None:
+            try:
+                os.close(self.slave_fd)
+            except OSError:
+                pass
+            self.slave_fd = None
+        self.thread.join(timeout=1.0)
+        if self.master_fd is not None:
+            try:
+                os.close(self.master_fd)
+            except OSError:
+                pass
+        if self.file is not None:
+            self.file.close()
+
+
 def prepare_outputs(
     capture_outputs: Outputs,
     outputs: Outputs,
     log_paths: LogPaths,
-) -> tuple[TextIO | TailPipe | int | None, TextIO | TailPipe | int | None]:
-    stdout: TextIO | TailPipe | int | None
-    stderr: TextIO | TailPipe | int | None
+) -> tuple[TextIO | TeeStream | int | None, TextIO | TeeStream | int | None]:
+    stdout: TextIO | TeeStream | int | None
+    stderr: TextIO | TeeStream | int | None
 
     if capture_outputs.has_stdout():
         if outputs.has_stdout():
-            stdout = TailPipe(log_paths.stdout, buffer=sys.stdout.buffer)
+            stdout = TeeStream(log_paths.stdout, buffer=sys.stdout.buffer)
             stdout.start()
         else:
             stdout = open(log_paths.stdout, "w")
@@ -900,7 +971,7 @@ def prepare_outputs(
 
     if capture_outputs.has_stderr():
         if outputs.has_stderr():
-            stderr = TailPipe(log_paths.stderr, buffer=sys.stderr.buffer)
+            stderr = TeeStream(log_paths.stderr, buffer=sys.stderr.buffer)
             stderr.start()
         else:
             stderr = open(log_paths.stderr, "w")
@@ -986,16 +1057,9 @@ def execute(
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
     log_paths.prepare_paths(clobber, capture_outputs)
     stdout, stderr = prepare_outputs(capture_outputs, outputs, log_paths)
-    stdout_file: TextIO | IO[bytes] | int | None
-    if isinstance(stdout, TailPipe):
-        stdout_file = open(stdout.file_path, "wb")
-    else:
-        stdout_file = stdout
-    stderr_file: TextIO | IO[bytes] | int | None
-    if isinstance(stderr, TailPipe):
-        stderr_file = open(stderr.file_path, "wb")
-    else:
-        stderr_file = stderr
+    # TeeStream provides fileno() directly (PTY slave fd), no separate file needed
+    stdout_file = stdout
+    stderr_file = stderr
 
     working_directory = os.getcwd()
     full_command = " ".join([str(command)] + command_args)
