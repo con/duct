@@ -32,7 +32,7 @@ Try it out using either `duct` or `con-duct run`:
 
 `duct` is most useful when the report-interval is less than the duration of the script.
 
-## Command Reference
+## Reference
 
 ### con-duct
 
@@ -238,6 +238,46 @@ options:
 
 ```
 <!-- END HELP -->
+
+### Log Levels
+
+Control duct's verbosity with `--log-level` (or `DUCT_LOG_LEVEL` environment variable):
+
+| Level | Use when... |
+|-------|-------------|
+| `NONE` | Running in scripts where you only want the command's output |
+| `ERROR` | You want silence unless something fails |
+| `WARNING` | You want to see potential issues but not routine info |
+| `INFO` | Normal interactive use (default) |
+| `DEBUG` | Troubleshooting duct behavior or unexpected results |
+
+**INFO (default)** - Shows execution status and summary:
+```
+$ duct echo "hello world"
+2026-01-16T12:01:52 [INFO    ] con-duct: duct is executing 'echo hello world'...
+2026-01-16T12:01:52 [INFO    ] con-duct: Log files will be written to .duct/logs/2026.01.16T12.01.52-12345_
+hello world
+2026-01-16T12:01:52 [INFO    ] con-duct: Summary:
+Exit Code: 0
+Command: echo hello world
+...
+```
+
+**NONE** - Silent operation, only shows command output:
+```
+$ duct --log-level NONE echo "hello world"
+hello world
+```
+
+**DEBUG** - Verbose output for troubleshooting:
+```
+$ duct --log-level DEBUG echo "hello world"
+2026-01-16T12:02:02 [DEBUG   ] con-duct: Searching for .env files in: /etc/duct/.env:...
+2026-01-16T12:02:02 [DEBUG   ] con-duct: .env file not found (skipping): .duct/.env
+2026-01-16T12:02:02 [INFO    ] con-duct: duct is executing 'echo hello world'...
+2026-01-16T12:02:02 [DEBUG   ] con-duct: Starting monitoring of the process...
+...
+```
 
 ## FAQs
 
