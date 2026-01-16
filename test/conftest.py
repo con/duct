@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from typing import Generator
 import pytest
+from con_duct.duct_main import SYSTEM
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -57,3 +58,11 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
         if key.startswith("DUCT_") or key.startswith("TEST_"):
             monkeypatch.delenv(key, raising=False)
     return monkeypatch
+
+
+@pytest.fixture
+def sleep_command() -> str:
+    """Return the appropriate sleep command for the current platform."""
+    return (
+        "powershell -command Start-Sleep -Seconds" if SYSTEM == "Windows" else "sleep"
+    )

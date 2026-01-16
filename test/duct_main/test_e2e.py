@@ -2,13 +2,11 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-import platform
 import subprocess
 import time
 import pytest
 from con_duct.duct_main import SUFFIXES
 
-SYSTEM = platform.system()
 TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
 # Allow overriding the duct executable for testing external builds (e.g., PyInstaller)
 _DUCT_EXECUTABLES = [
@@ -23,8 +21,8 @@ def duct_cmd(request: pytest.FixtureRequest) -> str:
     return str(request.param)
 
 
-def test_sanity(temp_output_dir: str, duct_cmd: str) -> None:
-    command = f"{duct_cmd} -p {temp_output_dir}log_ sleep 0.1"
+def test_sanity(temp_output_dir: str, duct_cmd: str, sleep_command: str) -> None:
+    command = f"{duct_cmd} -p {temp_output_dir}log_ {sleep_command} 0.1"
     subprocess.check_output(command, shell=True)
 
 
