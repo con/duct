@@ -359,7 +359,7 @@ def _get_sample_linux(session_id: int) -> Sample:
     return sample
 
 
-def _try_to_get_sid(pid: int) -> int:
+def _try_to_get_sid_mac(pid: int) -> int:
     """
     It is possible that the `pid` returned by the top `ps` call no longer exists at time of `getsid` request.
     """
@@ -405,13 +405,19 @@ def _add_pid_to_sample_from_line_mac(
 
 
 def _get_sample_mac(session_id: int) -> Optional[Sample]:
+    """
+    The following are Mac-specific implementation details, as different from other OS.
+
+    The `ps` command on Mac does not support the `-s` option to filter by session ID.
+    Therefore, we retrieve all processes and filter them manually by checking their session IDs.
+    """
     sample = Sample()
 
     lines = _get_ps_lines_mac()
     pid_to_matching_sid = {
         pid: sid
         for line in lines
-        if (sid := _try_to_get_sid(pid=(pid := int(line.split(maxsplit=1)[0]))))
+        if (sid := _try_to_get_sid_mac(pid=(pid := int(line.split(maxsplit=1)[0]))))
         == session_id
     }
 
@@ -436,9 +442,87 @@ def _get_sample_mac(session_id: int) -> Optional[Sample]:
     return sample
 
 
+def _add_pid_to_sample_from_line_windows(
+    process_info: dict[str, str], sample: Sample
+) -> None:
+    current_time = datetime.now().astimezone()
+    creation_time = datetime.strptime(
+        process_info["ctime"][:21],
+        "%Y%m%d%H%M%S.%f",
+    ).astimezone()
+    etime = current_time - creation_time
+
+    sample.add_pid(
+        pid=process_info["pid"],
+        stats=ProcessStats(
+            pcpu=process_info["pcpu"],
+            pmem=process_info["pmem"],
+            rss=process_info["rss"],
+            vsz=process_info["vsz"],
+            timestamp=current_time.isoformat(),
+            etime=etime.isoformat(),
+            stat=Counter([process_info["stat"]]),
+            cmd=process_info["cmd"],
+        ),
+    )
+
+
+def _get_sample_windows(ppid: int) -> Optional[Sample]:
+    """
+    The following are Windows-specific implementation details, as different from other OS.
+
+    Elapsed time must be calculated on-the-fly from CreationDate, as there is no etime field.
+    Status values are full text (e.g., "running", "sleeping") rather than standardized single-letter codes.
+
+    ParentProcessId must be used in place of session IDs.
+        - There is no analog to session IDs in Windows.
+        - "Session #" is a global ID for Terminal Services sessions.
+        - Child processes are not adopted if the parent ends first, unlike Unix-like systems.
+        - This does, however, currently only support first-order children (not the full tree of descendants).
+    """
+    import psutil
+
+    sample = Sample()
+
+    all_child_info = [
+        {
+            "pcpu": proc_info["cpu_percent"],
+            "pmem": proc_info["memory_percent"],
+            "rss": proc_info["memory_info"].rss,
+            "vsz": proc_info["memory_info"].vms,
+            "ctime": proc_info["create_time"],
+            "stat": proc_info["status"],
+            "cmd": " ".join(proc_info["cmdline"]),
+        }
+        for proc in psutil.process_iter()
+        if proc.ppid() == ppid and (proc_info := proc.as_dict())
+    ]
+
+    if not all_child_info:
+        lgr.debug(f"No processes found with parent ID {ppid}.")
+        return None
+
+    # collections.dequeue with maxlen=0 is used to approximate the
+    # performance of list comprehension (superior to basic for-loop)
+    # and also does not store `None` (or other) return values
+    deque(
+        (
+            _add_pid_to_sample_from_line_windows(  # type: ignore[func-returns-value]
+                process_info=process_info, sample=sample
+            )
+            for process_info in all_child_info
+        ),
+        maxlen=0,
+    )
+
+    sample.averages = Averages.from_sample(sample=sample)
+    return sample
+
+
 _get_sample_per_system = {
     "Linux": _get_sample_linux,
     "Darwin": _get_sample_mac,
+    "Windows": _get_sample_windows,
 }
 _get_sample: Callable[[int], Optional[Sample]] = _get_sample_per_system[SYSTEM]  # type: ignore[assignment]
 
@@ -508,11 +592,23 @@ class Report:
 
     def get_system_info(self) -> None:
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
+        if SYSTEM == "Windows":
+            import getpass
+            import psutil
+
+            cpu_total = os.cpu_count()
+            memory_total = psutil.virtual_memory().total
+            uid = hash(getpass.getuser())
+        else:
+            cpu_total = os.sysconf("SC_NPROCESSORS_CONF")
+            memory_total = os.sysconf("SC_PAGESIZE") * os.sysconf("SC_PHYS_PAGES")
+            uid = os.getuid()
+
         self.system_info = SystemInfo(
-            cpu_total=os.sysconf("SC_NPROCESSORS_CONF"),
-            memory_total=os.sysconf("SC_PAGESIZE") * os.sysconf("SC_PHYS_PAGES"),
+            cpu_total=cpu_total,
+            memory_total=memory_total,
             hostname=socket.gethostname(),
-            uid=os.getuid(),
+            uid=uid,
             user=os.environ.get("USER"),
         )
         # GPU information
@@ -552,13 +648,23 @@ class Report:
                 self.gpus = None
 
     def collect_sample(self) -> Optional[Sample]:
-        assert self.session_id is not None
-        try:
-            sample = _get_sample(self.session_id)
+        if SYSTEM == "Windows":
+            # Windows does not have session IDs
+            # But parent-child relationships are more stable
+            # So use parent PID instead
+            assert self.process is not None
+            sample = _get_sample(ppid=self.process.pid)
             return sample
-        except subprocess.CalledProcessError as exc:  # when session_id has no processes
-            lgr.debug("Error collecting sample: %s", str(exc))
-            return None
+        else:
+            assert self.session_id is not None
+            try:
+                sample = _get_sample(self.session_id)
+                return sample
+            except (
+                subprocess.CalledProcessError
+            ) as exc:  # when session_id has no processes
+                lgr.debug("Error collecting sample: %s", str(exc))
+                return None
 
     def update_from_sample(self, sample: Sample) -> None:
         self.full_run_stats = self.full_run_stats.aggregate(sample)
@@ -1036,10 +1142,12 @@ def execute(
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
-        if mode == SessionMode.NEW_SESSION:
+        if mode == SessionMode.NEW_SESSION and SYSTEM != "Windows":
             report.session_id = os.getsid(
                 process.pid
             )  # Get session ID of the new process
+        elif SYSTEM == "Windows":
+            report.session_id = process.pid  # Use parent PID as session identifier
         else:  # CURRENT_SESSION mode
             report.session_id = os.getsid(
                 os.getpid()

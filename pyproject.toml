@@ -2,6 +2,7 @@
 requires = [
   "setuptools >= 46.4.0",
   "versioningit",
+  "psutil; sys_platform == 'win32'",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -43,6 +44,7 @@ classifiers = [
   "Topic :: System :: Systems Administration",
   "Operating System :: Unix",
   "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
 ]
 
 # Version is managed by versioningit (see [tool.versioningit.*])
@@ -56,6 +58,7 @@ all = [
     # Pin rpds-py to support PyPy 3.10 - https://github.com/con/duct/issues/330
     "rpds-py<0.28.0; implementation_name == 'pypy'",
     "python-dotenv>=0.19",  # first version with Python 3.10 support
+    ""
 ]
 
 [project.urls]
