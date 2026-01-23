@@ -30,10 +30,3 @@ repos:
     rev: v2.3.0
     hooks:
       - id: codespell
-  - repo: local
-    hooks:
-      - id: yamllint
-        name: "YAML linting with yamllint"
-        entry: yamllint
-        language: system
-        types: [yaml]

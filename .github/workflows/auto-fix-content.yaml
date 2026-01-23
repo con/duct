@@ -3,7 +3,6 @@ name: Auto-fix content changes
 
 on:
   pull_request:
-    branches: [main]
 
 jobs:
   auto-fix:
