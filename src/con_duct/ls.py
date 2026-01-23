@@ -6,9 +6,9 @@ import logging
 import re
 from types import ModuleType
 from typing import Any, Dict, List, Optional
+from con_duct._utils import parse_version
 from con_duct.duct_main import DUCT_OUTPUT_PREFIX, SummaryFormatter, __schema_version__
 from con_duct.json_utils import is_info_file
-from con_duct.utils import parse_version
 
 try:
     import pyout  # type: ignore

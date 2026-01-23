@@ -1,3 +1,13 @@
+"""Utility functions for con-duct."""
+
+from typing import Any
+
+
+def assert_num(*values: Any) -> None:
+    for value in values:
+        assert isinstance(value, (float, int))
+
+
 def parse_version(version_str: str) -> tuple[int, int, int]:
     x_y_z = version_str.split(".")
     if len(x_y_z) != 3:

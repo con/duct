@@ -1,7 +1,7 @@
 """Tests for utility functions in duct_main.py"""
 
 import pytest
-from con_duct.duct_main import assert_num
+from con_duct._utils import assert_num
 
 
 @pytest.mark.parametrize("input_value", [0, 1, 2, -1, 100, 0.001, -1.68])

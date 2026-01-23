@@ -12,7 +12,7 @@ import pytest
 from utils import assert_files, run_duct_command
 from con_duct import duct_main
 from con_duct._constants import SUFFIXES
-from con_duct.duct_main import Outputs
+from con_duct._models import Outputs
 
 
 def test_sample_less_than_report_interval(temp_output_dir: str) -> None:

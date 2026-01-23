@@ -1,5 +1,5 @@
 import pytest
-from con_duct.utils import parse_version
+from con_duct._utils import parse_version
 
 
 @pytest.mark.parametrize(
