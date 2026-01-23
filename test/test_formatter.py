@@ -2,7 +2,7 @@ import os
 from unittest import mock
 import pytest
 from con_duct._formatter import SummaryFormatter
-from con_duct.duct_main import Report
+from con_duct._tracker import Report
 
 GREEN_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.GREEN
 RED_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.RED
