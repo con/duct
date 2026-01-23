@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 from utils import run_duct_command
-from con_duct.duct_main import SUFFIXES
+from con_duct._constants import SUFFIXES
 from con_duct.ls import LS_FIELD_CHOICES, _flatten_dict
 
 
