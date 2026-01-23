@@ -1,7 +1,5 @@
 """Constants used throughout con-duct."""
 
-from __future__ import annotations
-
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {
     "stdout": "stdout",
