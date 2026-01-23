@@ -7,13 +7,8 @@ import sys
 import textwrap
 from typing import List, Optional
 from con_duct import __version__
-from con_duct.duct_main import (
-    DUCT_OUTPUT_PREFIX,
-    EXECUTION_SUMMARY_FORMAT,
-    Outputs,
-    RecordTypes,
-    SessionMode,
-)
+from con_duct._models import Outputs, RecordTypes, SessionMode
+from con_duct.duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
 from con_duct.duct_main import execute as duct_execute
 from con_duct.ls import LS_FIELD_CHOICES, ls
 from con_duct.plot import matplotlib_plot

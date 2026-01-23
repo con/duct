@@ -2,7 +2,8 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, call, patch
 from utils import MockStream
-from con_duct.duct_main import LogPaths, Outputs, prepare_outputs
+from con_duct._models import LogPaths, Outputs
+from con_duct.duct_main import prepare_outputs
 
 
 @patch("builtins.open", new_callable=MagicMock)

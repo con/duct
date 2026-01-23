@@ -6,13 +6,8 @@ import os
 import subprocess
 from unittest import mock
 import pytest
-from con_duct.duct_main import (
-    EXECUTION_SUMMARY_FORMAT,
-    Averages,
-    ProcessStats,
-    Report,
-    Sample,
-)
+from con_duct._models import Averages, ProcessStats, Sample
+from con_duct.duct_main import EXECUTION_SUMMARY_FORMAT, Report
 
 stat0 = ProcessStats(
     pcpu=0.0,
