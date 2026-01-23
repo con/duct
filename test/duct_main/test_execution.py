@@ -11,7 +11,7 @@ from time import sleep, time
 import pytest
 from utils import assert_files, run_duct_command
 from con_duct import duct_main
-from con_duct.duct_main import SUFFIXES, Outputs
+from con_duct.duct_main import SUFFIXES, SYSTEM, Outputs
 
 
 def test_sample_less_than_report_interval(temp_output_dir: str) -> None:
@@ -59,18 +59,25 @@ def assert_expected_files(temp_output_dir: str, exists: bool = True) -> None:
 
 
 def test_sanity_green(temp_output_dir: str) -> None:
+    echo_command = ["echo", "hello", "world"]
+
     t0 = time()
-    expected_exit_code = 0
-    assert (
-        run_duct_command(
-            ["echo", "hello", "world"],
-            sample_interval=4.0,
-            report_interval=60.0,
-            output_prefix=temp_output_dir,
-        )
-        == expected_exit_code
+    test_exit_code = run_duct_command(
+        echo_command,
+        sample_interval=4.0,
+        report_interval=60.0,
+        output_prefix=temp_output_dir,
     )
-    assert time() - t0 < 0.4  # we should not wait for a sample or report interval
+    etime = time() - t0
+
+    expected_exit_code = 0
+    assert test_exit_code == expected_exit_code
+
+    expected_etime_threshold_in_seconds = 0.4
+    assert (
+        etime < expected_etime_threshold_in_seconds
+    )  # we should not wait for a sample or report interval
+
     assert_expected_files(temp_output_dir)
 
 

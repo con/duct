@@ -471,10 +471,10 @@ def _get_sample_windows(ppid: int) -> Optional[Sample]:
     """
     The following are Windows-specific implementation details, as different from other OS.
 
-    Elapsed time must be calculated on-the-fly from CreationDate, as there is no etime field.
+    Elapsed time must be calculated on-the-fly from process creation datetime, as there is no etime field.
     Status values are full text (e.g., "running", "sleeping") rather than standardized single-letter codes.
 
-    ParentProcessId must be used in place of session IDs.
+    Parent PID must be used in place of session IDs.
         - There is no analog to session IDs in Windows.
         - "Session #" is a global ID for Terminal Services sessions.
         - Child processes are not adopted if the parent ends first, unlike Unix-like systems.
@@ -497,7 +497,6 @@ def _get_sample_windows(ppid: int) -> Optional[Sample]:
         for proc in psutil.process_iter()
         if proc.ppid() == ppid and (proc_info := proc.as_dict())
     ]
-
     if not all_child_info:
         lgr.debug(f"No processes found with parent ID {ppid}.")
         return None
