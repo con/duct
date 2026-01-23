@@ -163,7 +163,7 @@ environment variables:
     DUCT_REPORT_INTERVAL=120.0
 
     # Set default output location
-    DUCT_OUTPUT_PREFIX=~/duct-logs/{{datetime_filesafe}}-{{pid}}_
+    DUCT_OUTPUT_PREFIX=~/duct-logs/{{datetime}}-{{pid}}_
 
     # Add execution notes (multiline)
     DUCT_MESSAGE="Experiment run for paper revision
@@ -267,7 +267,7 @@ def _create_run_parser() -> argparse.ArgumentParser:
         default=DUCT_OUTPUT_PREFIX,
         help="File string format to be used as a prefix for the files -- the captured "
         "stdout and stderr and the resource usage logs. The understood variables are "
-        "{datetime}, {datetime_filesafe}, and {pid}. "
+        "{datetime} and {pid}. "
         "Leading directories will be created if they do not exist. "
         "You can also provide value via DUCT_OUTPUT_PREFIX env variable. ",
     )

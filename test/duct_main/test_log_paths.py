@@ -7,8 +7,8 @@ import pytest
 from con_duct._models import LogPaths, Outputs
 
 
-def test_log_paths_filesafe_datetime_prefix() -> None:
-    log_paths = LogPaths.create("start_{datetime_filesafe}")
+def test_log_paths_datetime_prefix() -> None:
+    log_paths = LogPaths.create("start_{datetime}")
     pattern = r"^start_\d{4}\.\d{2}\.\d{2}T\d{2}\.\d{2}\.\d{2}.*"
     for path in asdict(log_paths).values():
         assert re.match(pattern, path) is not None
