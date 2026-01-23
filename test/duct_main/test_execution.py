@@ -14,31 +14,35 @@ from con_duct import duct_main
 from con_duct.duct_main import SUFFIXES, SYSTEM, Outputs
 
 
-def test_sample_less_than_report_interval(temp_output_dir: str) -> None:
+def test_sample_less_than_report_interval(
+    temp_output_dir: str, echo_command: list[str]
+) -> None:
     run_duct_command(
-        ["echo", "test"],
+        echo_command + ["test"],
         sample_interval=0.01,
         report_interval=0.1,
         output_prefix=temp_output_dir,
     )
 
 
-def test_sample_equal_to_report_interval(temp_output_dir: str) -> None:
+def test_sample_equal_to_report_interval(
+    temp_output_dir: str, echo_command: list[str]
+) -> None:
     run_duct_command(
-        ["echo", "test"],
+        echo_command + ["test"],
         sample_interval=0.1,
         report_interval=0.1,
         output_prefix=temp_output_dir,
     )
 
 
-def test_sample_greater_than_report_interval() -> None:
+def test_sample_greater_than_report_interval(echo_command: list[str]) -> None:
     with pytest.raises(
         ValueError,
         match="--report-interval must be greater than or equal to --sample-interval",
     ):
         run_duct_command(
-            ["echo", "test"],
+            echo_command + ["test"],
             sample_interval=1.0,
             report_interval=0.1,
         )
@@ -58,12 +62,10 @@ def assert_expected_files(temp_output_dir: str, exists: bool = True) -> None:
     assert_files(temp_output_dir, expected_files, exists=exists)
 
 
-def test_sanity_green(temp_output_dir: str) -> None:
-    echo_command = ["echo", "hello", "world"]
-
+def test_sanity_green(temp_output_dir: str, echo_command: list[str]) -> None:
     t0 = time()
     test_exit_code = run_duct_command(
-        echo_command,
+        echo_command + ["hello", "world"],
         sample_interval=4.0,
         report_interval=60.0,
         output_prefix=temp_output_dir,
@@ -73,7 +75,9 @@ def test_sanity_green(temp_output_dir: str) -> None:
     expected_exit_code = 0
     assert test_exit_code == expected_exit_code
 
-    expected_etime_threshold_in_seconds = 0.4
+    expected_etime_threshold_in_seconds = (
+        0.4 if SYSTEM != "Windows" else 3
+    )  # Windows has much more overhead
     assert (
         etime < expected_etime_threshold_in_seconds
     )  # we should not wait for a sample or report interval
@@ -81,16 +85,16 @@ def test_sanity_green(temp_output_dir: str) -> None:
     assert_expected_files(temp_output_dir)
 
 
-def test_execution_summary(temp_output_dir: str) -> None:
-    assert (
-        run_duct_command(
-            ["sleep", "0.1"],
-            sample_interval=0.05,  # small enough to ensure we collect at least 1 sample
-            report_interval=0.1,
-            output_prefix=temp_output_dir,
-        )
-        == 0
+def test_execution_summary(temp_output_dir: str, sleep_command: list[str]) -> None:
+    duration = 0.1 if SYSTEM != "Windows" else 15
+    test_exit_code = run_duct_command(
+        sleep_command + [str(duration)],
+        sample_interval=0.05,  # small enough to ensure we collect at least 1 sample
+        report_interval=0.1,
+        output_prefix=temp_output_dir,
     )
+    assert test_exit_code == 0
+
     with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
         info_dict = json.loads(info.read())
     execution_summary = info_dict["execution_summary"]

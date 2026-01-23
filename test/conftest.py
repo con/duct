@@ -24,6 +24,22 @@ def set_test_config() -> Generator:
             del os.environ[k]
 
 
+@pytest.fixture(scope="session")
+def echo_command() -> list[str]:
+    """System-specific command for echo base."""
+    return ["echo"] if SYSTEM != "Windows" else ["cmd", "/c", "echo"]
+
+
+@pytest.fixture(scope="session")
+def sleep_command() -> list[str]:
+    """System-specific command for sleep base."""
+    return (
+        ["sleep"]
+        if SYSTEM != "Windows"
+        else ["powershell", "-command", "Start-Sleep", "-Seconds"]
+    )
+
+
 @pytest.fixture(autouse=True)
 def reset_logger_state() -> Generator:
     """Automatically reset logger state after each test.
@@ -58,11 +74,3 @@ def clean_env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
         if key.startswith("DUCT_") or key.startswith("TEST_"):
             monkeypatch.delenv(key, raising=False)
     return monkeypatch
-
-
-@pytest.fixture
-def sleep_command() -> str:
-    """Return the appropriate sleep command for the current platform."""
-    return (
-        "powershell -command Start-Sleep -Seconds" if SYSTEM == "Windows" else "sleep"
-    )
