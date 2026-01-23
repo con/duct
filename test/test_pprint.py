@@ -3,7 +3,7 @@ from typing import Any
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 from con_duct import cli, pprint_json
-from con_duct.duct_main import SummaryFormatter
+from con_duct._formatter import SummaryFormatter
 
 
 class TestPPrint:
