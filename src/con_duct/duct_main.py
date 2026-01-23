@@ -22,6 +22,7 @@ import threading
 import time
 from types import FrameType
 from typing import IO, Any, Callable, Optional, TextIO
+from con_duct._constants import ENV_PREFIXES, SUFFIXES
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
@@ -29,19 +30,10 @@ __schema_version__ = "0.2.2"
 SYSTEM = platform.system()
 
 lgr = logging.getLogger("con-duct")
-DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
 DUCT_OUTPUT_PREFIX = os.getenv(
     "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
 )
-ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
-SUFFIXES = {
-    "stdout": "stdout",
-    "stderr": "stderr",
-    "usage": "usage.jsonl",
-    "usage_legacy": "usage.json",
-    "info": "info.json",
-}
 EXECUTION_SUMMARY_FORMAT = (
     "Summary:\n"
     "Exit Code: {exit_code!E}\n"

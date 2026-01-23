@@ -3,7 +3,7 @@
 from __future__ import annotations
 import json
 from typing import Any
-from con_duct.duct_main import SUFFIXES
+from con_duct._constants import SUFFIXES
 
 # Suffixes that use JSON Lines format
 JSONL_SUFFIXES = (SUFFIXES["usage"], SUFFIXES["usage_legacy"])

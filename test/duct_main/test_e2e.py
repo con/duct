@@ -6,7 +6,7 @@ import platform
 import subprocess
 import time
 import pytest
-from con_duct.duct_main import SUFFIXES
+from con_duct._constants import SUFFIXES
 
 SYSTEM = platform.system()
 TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
