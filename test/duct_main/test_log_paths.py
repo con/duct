@@ -4,7 +4,7 @@ import os
 import re
 from unittest.mock import MagicMock, call, patch
 import pytest
-from con_duct.duct_main import LogPaths, Outputs
+from con_duct._models import LogPaths, Outputs
 
 
 def test_log_paths_filesafe_datetime_prefix() -> None:

@@ -4,7 +4,8 @@ import os
 from typing import cast
 from unittest import mock
 import pytest
-from con_duct.duct_main import EXECUTION_SUMMARY_FORMAT, ProcessStats, Report, Sample
+from con_duct._models import ProcessStats, Sample
+from con_duct.duct_main import EXECUTION_SUMMARY_FORMAT, Report
 
 stat0 = ProcessStats(
     pcpu=0.0,
