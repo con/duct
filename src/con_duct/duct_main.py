@@ -17,7 +17,6 @@ import subprocess
 import sys
 import threading
 import time
-from types import FrameType
 from typing import IO, Any, Callable, Optional, TextIO
 from con_duct._constants import ENV_PREFIXES
 from con_duct._formatter import SummaryFormatter
@@ -31,6 +30,7 @@ from con_duct._models import (
     SessionMode,
     SystemInfo,
 )
+from con_duct._signals import SigIntHandler
 
 __version__ = version("con-duct")
 __schema_version__ = "0.2.2"
@@ -505,37 +505,6 @@ def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
             if assert_empty:
                 assert os.stat(file_path).st_size == 0
             os.remove(file_path)
-
-
-class SigIntHandler:
-    """
-    Handler of SIGINT signals received by the process running duct.
-    """
-
-    def __init__(self, pid: int) -> None:
-        """
-        Parameters
-        ----------
-        pid : int
-            The PID of the process monitored by duct
-        """
-        self.pid: int = pid
-        self.sigcount: int = 0
-
-    def __call__(self, _sig: int, _frame: Optional[FrameType]) -> None:
-        self.sigcount += 1
-        if self.sigcount == 1:
-            lgr.info("Received SIGINT, passing to command")
-            os.kill(self.pid, signal.SIGINT)
-        elif self.sigcount == 2:
-            lgr.info("Received second SIGINT, again passing to command")
-            os.kill(self.pid, signal.SIGINT)
-        elif self.sigcount == 3:
-            lgr.warning("Received third SIGINT, forcefully killing command process")
-            os.kill(self.pid, signal.SIGKILL)
-        elif self.sigcount >= 4:
-            lgr.critical("Exiting duct, skipping cleanup")
-            os._exit(1)
 
 
 def execute(
