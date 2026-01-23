@@ -37,6 +37,11 @@ VALUE_TRANSFORMATION_MAP: Dict[str, str] = {
     "peak_vsz": "{value!S}",
     "start_time": "{value:.2f!N}",
     "wall_clock_time": "{value:.3f} sec",
+    # GPU fields (added in schema 0.3.0)
+    "peak_gpu_utilization": "{value:.2f!N}%",
+    "average_gpu_utilization": "{value:.2f!N}%",
+    "peak_gpu_memory_used": "{value!S}",
+    "average_gpu_memory_used": "{value!S}",
 }
 
 NON_TRANSFORMED_FIELDS: List[str] = [
@@ -63,6 +68,13 @@ NON_TRANSFORMED_FIELDS: List[str] = [
 LS_FIELD_CHOICES: List[str] = (
     list(VALUE_TRANSFORMATION_MAP.keys()) + NON_TRANSFORMED_FIELDS
 )
+# GPU fields are only present when GPU monitoring was enabled during execution
+OPTIONAL_GPU_FIELDS: List[str] = [
+    "peak_gpu_utilization",
+    "average_gpu_utilization",
+    "peak_gpu_memory_used",
+    "average_gpu_memory_used",
+]
 MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
@@ -116,6 +128,8 @@ def ensure_compliant_schema(info_dict: dict) -> None:
     # message field added in 0.2.2
     if parse_version(info_dict["schema_version"]) < parse_version("0.2.2"):
         info_dict["message"] = ""
+    # GPU fields added in 0.3.0 (optional, only present if GPU monitoring was enabled)
+    # No default values needed - they simply won't be present in older schemas
 
 
 def process_run_data(
