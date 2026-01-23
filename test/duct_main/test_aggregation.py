@@ -5,7 +5,8 @@ from typing import cast
 from unittest import mock
 import pytest
 from con_duct._models import ProcessStats, Sample
-from con_duct.duct_main import EXECUTION_SUMMARY_FORMAT, Report
+from con_duct._tracker import Report
+from con_duct.duct_main import EXECUTION_SUMMARY_FORMAT
 
 stat0 = ProcessStats(
     pcpu=0.0,
