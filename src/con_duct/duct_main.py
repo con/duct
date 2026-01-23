@@ -28,6 +28,9 @@ __schema_version__ = "0.2.2"
 
 SYSTEM = platform.system()
 
+if SYSTEM == "Windows":
+    import psutil  # Perform globally at time of import to avoid repeated imports later
+
 lgr = logging.getLogger("con-duct")
 DEFAULT_LOG_LEVEL = os.environ.get("DUCT_LOG_LEVEL", "INFO").upper()
 
@@ -480,8 +483,6 @@ def _get_sample_windows(ppid: int) -> Optional[Sample]:
         - Child processes are not adopted if the parent ends first, unlike Unix-like systems.
         - This does, however, currently only support first-order children (not the full tree of descendants).
     """
-    import psutil
-
     sample = Sample()
 
     all_child_info = [
@@ -497,8 +498,23 @@ def _get_sample_windows(ppid: int) -> Optional[Sample]:
         for proc in psutil.process_iter()
         if proc.ppid() == ppid and (proc_info := proc.as_dict())
     ]
+    all_info = [
+        {
+            "pcpu": proc_info["cpu_percent"],
+            "pmem": proc_info["memory_percent"],
+            "rss": proc_info["memory_info"].rss,
+            "vsz": proc_info["memory_info"].vms,
+            "ctime": proc_info["create_time"],
+            "stat": proc_info["status"],
+            "cmd": " ".join(proc_info["cmdline"]),
+        }
+        for proc in psutil.process_iter()
+        if "sleep" in proc.cmdline() and (proc_info := proc.as_dict())
+    ]
     if not all_child_info:
         lgr.debug(f"No processes found with parent ID {ppid}.")
+        lgr.debug(f"{all_info=}")
+        time.sleep(15)
         return None
 
     # collections.dequeue with maxlen=0 is used to approximate the
@@ -593,7 +609,6 @@ class Report:
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
         if SYSTEM == "Windows":
             import getpass
-            import psutil
 
             cpu_total = os.cpu_count()
             memory_total = psutil.virtual_memory().total

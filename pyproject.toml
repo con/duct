@@ -58,7 +58,6 @@ all = [
     # Pin rpds-py to support PyPy 3.10 - https://github.com/con/duct/issues/330
     "rpds-py<0.28.0; implementation_name == 'pypy'",
     "python-dotenv>=0.19",  # first version with Python 3.10 support
-    ""
 ]
 
 [project.urls]
