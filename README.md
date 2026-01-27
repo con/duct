@@ -246,3 +246,5 @@ options:
 By default, [git-annex](https://git-annex.branchable.com/) treats all dotfiles, and files under directories starting with a `.` as "small" regardless of `annex.largefiles` setting [[ref: an issue describing the logic](https://git-annex.branchable.com/bugs/add__58___inconsistently_treats_files_in_dotdirs_as_dotfiles/?updated#comment-efc1f2aa8f46e88a8be9837a56cfa6f7)].
 It is necessary to set `annex.dotfiles` variable to `true` to make git-annex treat them as regular files and thus subject to `annex.largefiles` setting [[ref: git-annex config](https://git-annex.branchable.com/git-annex-config/)].
 Could be done the repository (not just specific clone, but any instance since records in `git-annex` branch) wide using `git annex config --set annex.dotfiles true`.
+efficieny typo
+efficieny typo
