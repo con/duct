@@ -111,7 +111,7 @@ def _get_sample_mac(session_id: int) -> Optional[Sample]:
         lgr.debug(f"No processes found for session ID {session_id}.")
         return None
 
-    # collections.dequeue with maxlen=0 is used to approximate the
+    # collections.deque with maxlen=0 is used to approximate the
     # performance of list comprehension (superior to basic for-loop)
     # and also does not store `None` (or other) return values
     deque(
