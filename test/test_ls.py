@@ -9,7 +9,8 @@ from typing import Any, Dict, Optional
 import unittest
 from unittest.mock import mock_open, patch
 import pytest
-from con_duct.duct_main import SummaryFormatter, __schema_version__
+from con_duct._constants import __schema_version__
+from con_duct._formatter import SummaryFormatter
 from con_duct.ls import (
     MINIMUM_SCHEMA_VERSION,
     _flatten_dict,

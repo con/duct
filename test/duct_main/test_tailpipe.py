@@ -5,7 +5,7 @@ import tempfile
 from unittest.mock import patch
 import pytest
 from utils import MockStream
-from con_duct.duct_main import TailPipe
+from con_duct._output import TailPipe
 
 # 10^7 line fixture is about 70MB
 FIXTURE_LIST = [f"ten_{i}" for i in range(1, 8)]

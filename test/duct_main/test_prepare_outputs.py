@@ -2,14 +2,15 @@ from __future__ import annotations
 import subprocess
 from unittest.mock import MagicMock, call, patch
 from utils import MockStream
-from con_duct.duct_main import LogPaths, Outputs, prepare_outputs
+from con_duct._models import LogPaths, Outputs
+from con_duct._output import prepare_outputs
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_none_output_none(
     _mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -27,10 +28,10 @@ def test_prepare_outputs_capture_none_output_none(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_none_output_stdout(
     _mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -48,10 +49,10 @@ def test_prepare_outputs_capture_none_output_stdout(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_none_output_stderr(
     _mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -69,10 +70,10 @@ def test_prepare_outputs_capture_none_output_stderr(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_none_output_all(
     _mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -90,10 +91,10 @@ def test_prepare_outputs_capture_none_output_all(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_stdout_output_none(
     _mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -111,10 +112,10 @@ def test_prepare_outputs_capture_stdout_output_none(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_stdout_output_stdout(
     mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -134,10 +135,10 @@ def test_prepare_outputs_capture_stdout_output_stdout(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_stdout_output_stderr(
     _mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -155,10 +156,10 @@ def test_prepare_outputs_capture_stdout_output_stderr(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_stdout_output_all(
     mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -178,10 +179,10 @@ def test_prepare_outputs_capture_stdout_output_all(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_stderr_output_none(
     _mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -199,10 +200,10 @@ def test_prepare_outputs_capture_stderr_output_none(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_stderr_output_stdout(
     _mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -220,10 +221,10 @@ def test_prepare_outputs_capture_stderr_output_stdout(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_stderr_output_stderr(
     _mock_stdout: MockStream,
     mock_stderr: MockStream,
@@ -243,10 +244,10 @@ def test_prepare_outputs_capture_stderr_output_stderr(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_stderr_output_all(
     _mock_stdout: MockStream,
     mock_stderr: MockStream,
@@ -266,10 +267,10 @@ def test_prepare_outputs_capture_stderr_output_all(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_all_output_none(
     _mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -289,10 +290,10 @@ def test_prepare_outputs_capture_all_output_none(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_all_output_stdout(
     mock_stdout: MockStream,
     _mock_stderr: MockStream,
@@ -310,10 +311,10 @@ def test_prepare_outputs_capture_all_output_stdout(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_all_output_stderr(
     _mock_stdout: MockStream,
     mock_stderr: MockStream,
@@ -333,10 +334,10 @@ def test_prepare_outputs_capture_all_output_stderr(
 
 
 @patch("builtins.open", new_callable=MagicMock)
-@patch("con_duct.duct_main.TailPipe")
-@patch("con_duct.duct_main.LogPaths")
-@patch("con_duct.duct_main.sys.stderr", new_callable=MockStream)
-@patch("con_duct.duct_main.sys.stdout", new_callable=MockStream)
+@patch("con_duct._output.TailPipe")
+@patch("con_duct._output.LogPaths")
+@patch("con_duct._output.sys.stderr", new_callable=MockStream)
+@patch("con_duct._output.sys.stdout", new_callable=MockStream)
 def test_prepare_outputs_capture_all_output_all(
     mock_stdout: MockStream,
     mock_stderr: MockStream,

@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import pytest
-from con_duct.duct_main import SUFFIXES
+from con_duct._constants import SUFFIXES
 from con_duct.json_utils import (
     JSONL_SUFFIXES,
     is_info_file,

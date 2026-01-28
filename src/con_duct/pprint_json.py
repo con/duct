@@ -3,7 +3,7 @@ import json
 import logging
 from pprint import pprint
 from typing import Any
-from con_duct.duct_main import SummaryFormatter
+from con_duct._formatter import SummaryFormatter
 from con_duct.json_utils import is_jsonl_file, load_info_file, load_usage_file
 
 lgr = logging.getLogger(__name__)
