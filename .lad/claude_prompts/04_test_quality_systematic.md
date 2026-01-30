@@ -12,7 +12,7 @@ You are Claude performing systematic test quality analysis and remediation with 
 <command> 2>&1 | tee full_output.txt | grep -iE "(warning|error|failed|exception|fatal|critical)" | tail -n 30; echo "--- FINAL OUTPUT ---"; tail -n 100 full_output.txt
 ```
 
-**Research Software Quality Standards**: 
+**Research Software Quality Standards**:
 - Scientific reproducibility maintained across test fixes
 - Test effectiveness prioritized over coverage metrics
 - Research impact assessment for all test failures
@@ -84,7 +84,7 @@ python -c "
 import re
 with open('all_failures.txt') as f:
     failures = f.readlines()
-    
+
 # Group by failure types
 import_failures = [f for f in failures if 'import' in f.lower() or 'modulenotfound' in f.lower()]
 api_failures = [f for f in failures if 'attribute' in f.lower() or 'missing' in f.lower()]
@@ -121,7 +121,7 @@ For each SKIPPED test, validate against multiple standards:
 - Research impact if fixed: [Scientific validity / Workflow / Performance / Cosmetic]
 
 **Enterprise Standard (85-95% pass rate expectation)**:
-- Justified: [Y/N] + Reasoning  
+- Justified: [Y/N] + Reasoning
 - Business impact if fixed: [Critical / High / Medium / Low]
 
 **IEEE Testing Standard (Industry best practices)**:
@@ -149,7 +149,7 @@ echo "# Test Quality Improvement Plan - $(date)" > notes/test_analysis/improveme
 
 **Priority Matrix (Enhanced for Solo Programmer)**:
 - **P1-CRITICAL**: Scientific validity + High impact/Low effort fixes
-- **P2-HIGH**: System reliability + Quick wins enabling other fixes  
+- **P2-HIGH**: System reliability + Quick wins enabling other fixes
 - **P3-MEDIUM**: Performance + Moderate effort with clear value
 - **P4-LOW**: Cosmetic + High effort/Low value (defer or remove)
 
@@ -179,7 +179,7 @@ echo "# Test Quality Improvement Plan - $(date)" > notes/test_analysis/improveme
 # Initialize test quality improvement TodoWrite
 TodoWrite tasks:
 1. Infrastructure fixes (P1-CRITICAL): Import/dependency issues
-2. API compatibility fixes (P1-P2): Method signature updates  
+2. API compatibility fixes (P1-P2): Method signature updates
 3. Test design improvements (P2-P3): Brittle test redesign
 4. Coverage gap filling (P3): Integration point testing
 5. Configuration standardization (P4): Settings/path cleanup
@@ -205,7 +205,7 @@ echo "# Test Fix Decision Analysis - {{fix_category}}" > notes/test_decisions/{{
 # Targeted validation
 pytest tests/{{affected_category}}/ -v --tb=short 2>&1 | tail -n 20
 
-# Integration validation  
+# Integration validation
 python -c "import {{affected_module}}; print('Import successful')"
 
 # Regression prevention
@@ -235,7 +235,7 @@ done
 **TEST QUALITY IMPROVEMENT CYCLE COMPLETE**
 
 **Progress Summary**:
-- Fixed: {{number}} test failures 
+- Fixed: {{number}} test failures
 - Success rate improvement: {{baseline}}% → {{current}}%
 - Priority fixes completed: {{P1_count}} P1, {{P2_count}} P2, {{P3_count}} P3
 
@@ -246,7 +246,7 @@ done
 
 **Remaining Issues**:
 - {{count}} P1-CRITICAL remaining
-- {{count}} P2-HIGH remaining  
+- {{count}} P2-HIGH remaining
 - {{count}} P3-MEDIUM remaining
 - {{count}} justified skips (validated against industry standards)
 
@@ -276,7 +276,7 @@ done
 
 **Success Criteria Thresholds** (Configurable based on context):
 - **Research Software**: >90% success for critical systems, >70% overall
-- **Enterprise Standard**: >95% success for critical systems, >85% overall  
+- **Enterprise Standard**: >95% success for critical systems, >85% overall
 - **Solo Programmer**: >100% critical systems, >80% overall (realistic for resource constraints)
 
 ### Coverage Integration Framework
@@ -315,7 +315,7 @@ grep -n "missing coverage" coverage_{{module}}.txt
 ```bash
 # Save comprehensive session state
 echo "# Test Quality Session State - $(date)" > notes/session_state.md
-echo "## TodoWrite Progress:" >> notes/session_state.md  
+echo "## TodoWrite Progress:" >> notes/session_state.md
 # [TodoWrite state documentation]
 
 echo "## Current PDCA Cycle:" >> notes/session_state.md
@@ -364,7 +364,7 @@ echo "## Context for Resumption:" >> notes/session_state.md
 
 **Research Software Compliance**:
 - [ ] Scientific validity tests: 100% success
-- [ ] Computational accuracy tests: 100% success  
+- [ ] Computational accuracy tests: 100% success
 - [ ] Research workflow tests: >95% success
 - [ ] Overall test collection: >90% success
 
