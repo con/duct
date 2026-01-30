@@ -10,7 +10,7 @@ import sys
 from time import sleep, time
 import pytest
 from utils import assert_files, run_duct_command
-from con_duct import duct_main
+from con_duct import _duct_main
 from con_duct._constants import SUFFIXES
 from con_duct._models import Outputs
 
@@ -310,7 +310,7 @@ def test_signal_kill(
 def test_duct_as_executable(temp_output_dir: str) -> None:
     ps_command = [
         sys.executable,
-        duct_main.__file__,
+        _duct_main.__file__,
         "-p",
         temp_output_dir,
         "-q",

@@ -1,8 +1,4 @@
-from importlib.metadata import version
-from .duct_main import execute
-
-__version__ = version("con-duct")
-
+from ._duct_main import __version__, execute
 
 __all__ = [
     "execute",

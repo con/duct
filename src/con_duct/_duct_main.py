@@ -1,4 +1,5 @@
 from __future__ import annotations
+from importlib.metadata import version
 import logging
 import os
 import signal
@@ -9,7 +10,9 @@ from typing import IO, TextIO
 from con_duct._models import LogPaths, Outputs, RecordTypes, SessionMode
 from con_duct._output import TailPipe, prepare_outputs, remove_files, safe_close_files
 from con_duct._signals import SigIntHandler
-from con_duct._tracker import Report, __version__, monitor_process
+from con_duct._tracker import Report, monitor_process
+
+__version__ = version("con-duct")
 
 lgr = logging.getLogger("con-duct")
 
