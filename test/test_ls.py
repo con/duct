@@ -198,6 +198,11 @@ class TestLS(unittest.TestCase):
                 "execution_summary": {},
                 "prefix": "default_file1",
             },
+            "custom/prefix_abc123_info.json": {
+                "schema_version": MINIMUM_SCHEMA_VERSION,
+                "execution_summary": {},
+                "prefix": "custom_prefix_file",
+            },
         }
         for filename, content in self.files.items():
             full_path = os.path.join(self.temp_dir.name, filename)
@@ -223,6 +228,7 @@ class TestLS(unittest.TestCase):
                 format=fmt,
                 func=ls,
                 reverse=False,
+                output_prefix=".duct/logs/{datetime_filesafe}-{pid}_",
             )
         buf = StringIO()
         with contextlib.redirect_stdout(buf):
@@ -255,6 +261,7 @@ class TestLS(unittest.TestCase):
             format="summaries",
             func=ls,
             reverse=False,
+            output_prefix=".duct/logs/{datetime_filesafe}-{pid}_",
         )
         result = self._run_ls(paths, "summaries", args)
 
@@ -285,6 +292,28 @@ class TestLS(unittest.TestCase):
         assert "file2" not in result
         assert "file3" not in result
         assert "not_matching.json" not in result
+
+    def test_ls_custom_output_prefix(self) -> None:
+        """Test --output-prefix finds files matching the custom prefix."""
+        args = argparse.Namespace(
+            paths=[],
+            colors=False,
+            fields=["prefix", "schema_version"],
+            eval_filter=None,
+            format="summaries",
+            func=ls,
+            reverse=False,
+            output_prefix="custom/prefix_{id}_",
+        )
+        buf = StringIO()
+        with contextlib.redirect_stdout(buf):
+            exit_code = ls(args)
+            assert exit_code == 0
+        result = buf.getvalue().strip()
+
+        assert "Prefix:" in result
+        assert "custom/prefix_abc123_" in result
+        assert "default_logpath" not in result
 
     def test_ls_multiple_paths(self) -> None:
         """Basic sanity test to ensure ls() runs without crashing."""
@@ -383,6 +412,7 @@ class TestLS(unittest.TestCase):
             format="json",
             func=ls,
             reverse=True,
+            output_prefix=".duct/logs/{datetime_filesafe}-{pid}_",
         )
         result_reversed = self._run_ls(paths, "json", args)
         parsed_reversed = json.loads(result_reversed)
