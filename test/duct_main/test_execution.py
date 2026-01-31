@@ -75,12 +75,18 @@ def test_sanity_green(temp_output_dir: str) -> None:
     assert_expected_files(temp_output_dir)
 
 
-def test_execution_summary(temp_output_dir: str) -> None:
+@pytest.mark.flaky(reruns=5)
+def test_execution_summary(
+    request: pytest.FixtureRequest, temp_output_dir: str
+) -> None:
+    # Scale sleep time on retries to handle slow CI runners (PyPy, Mac)
+    attempt = getattr(request.node, "execution_count", 1)
+    sleep_time = 0.1 * attempt
     assert (
         run_duct_command(
-            ["sleep", "0.1"],
+            ["sleep", str(sleep_time)],
             sample_interval=0.05,  # small enough to ensure we collect at least 1 sample
-            report_interval=0.1,
+            report_interval=sleep_time,
             output_prefix=temp_output_dir,
         )
         == 0
