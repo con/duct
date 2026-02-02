@@ -244,7 +244,7 @@ options:
 Control duct's verbosity with `--log-level` (or `DUCT_LOG_LEVEL` environment variable):
 
 | Level | Use when... |
-|-------|-------------|
+|:-----:|:------------|
 | `NONE` | Running in scripts where you only want the command's output |
 | `ERROR` | You want silence unless something fails |
 | `WARNING` | You want to see potential issues but not routine info |
