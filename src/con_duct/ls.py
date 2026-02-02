@@ -6,8 +6,7 @@ import logging
 import re
 from types import ModuleType
 from typing import Any, Dict, List, Optional
-from con_duct._constants import __schema_version__
-from con_duct._duct_main import DUCT_OUTPUT_PREFIX
+from con_duct._constants import SUFFIXES, __schema_version__
 from con_duct._formatter import SummaryFormatter
 from con_duct._utils import parse_version
 from con_duct.json_utils import is_info_file
@@ -220,7 +219,13 @@ def pyout_ls(run_data_list: List[OrderedDict[str, Any]], enable_colors: bool) ->
 
 def ls(args: argparse.Namespace) -> int:
     if not args.paths:
-        pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*"
+        # The default search prefix contains {datetime}, {pid}, etc.
+        # Strip from the first '{' onward to get a static glob prefix.
+        try:
+            prefix = args.output_prefix[: args.output_prefix.index("{")]
+        except ValueError:
+            prefix = args.output_prefix
+        pattern = f"{prefix}*{SUFFIXES['info']}"
         args.paths = [p for p in glob.glob(pattern)]
 
     if args.format == "auto":

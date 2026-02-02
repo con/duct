@@ -7,12 +7,28 @@ import sys
 import textwrap
 from typing import List, Optional
 from con_duct import __version__
-from con_duct._duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
 from con_duct._duct_main import execute as duct_execute
 from con_duct._models import Outputs, RecordTypes, SessionMode
 from con_duct.ls import LS_FIELD_CHOICES, ls
 from con_duct.plot import matplotlib_plot
 from con_duct.pprint_json import pprint_json
+
+DEFAULT_OUTPUT_PREFIX = ".duct/logs/{datetime}-{pid}_"
+DEFAULT_SUMMARY_FORMAT = (
+    "Summary:\n"
+    "Exit Code: {exit_code!E}\n"
+    "Command: {command}\n"
+    "Log files location: {logs_prefix}\n"
+    "Wall Clock Time: {wall_clock_time:.3f} sec\n"
+    "Memory Peak Usage (RSS): {peak_rss!S}\n"
+    "Memory Average Usage (RSS): {average_rss!S}\n"
+    "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
+    "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
+    "Memory Peak Percentage: {peak_pmem:.2f!N}%\n"
+    "Memory Average Percentage: {average_pmem:.2f!N}%\n"
+    "CPU Peak Usage: {peak_pcpu:.2f!N}%\n"
+    "Average CPU Usage: {average_pcpu:.2f!N}%\n"
+)
 
 # Default .env file search paths (in precedence order)
 DEFAULT_CONFIG_PATHS_LIST = (
@@ -264,7 +280,7 @@ def _create_run_parser() -> argparse.ArgumentParser:
         "-p",
         "--output-prefix",
         type=str,
-        default=DUCT_OUTPUT_PREFIX,
+        default=os.getenv("DUCT_OUTPUT_PREFIX", DEFAULT_OUTPUT_PREFIX),
         help="File string format to be used as a prefix for the files -- the captured "
         "stdout and stderr and the resource usage logs. The understood variables are "
         "{datetime} and {pid}. "
@@ -274,7 +290,7 @@ def _create_run_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--summary-format",
         type=str,
-        default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
+        default=os.getenv("DUCT_SUMMARY_FORMAT", DEFAULT_SUMMARY_FORMAT),
         help="Output template to use when printing the summary following execution. "
         "Accepts custom conversion flags: "
         "!S: Converts filesizes to human readable units, green if measured, red if None. "
@@ -455,6 +471,13 @@ def _create_ls_parser() -> argparse.ArgumentParser:
         "--reverse",
         action="store_true",
         help="List entries in reverse order (most recent first).",
+    )
+    parser.add_argument(
+        "-p",
+        "--output-prefix",
+        default=os.getenv("DUCT_OUTPUT_PREFIX", DEFAULT_OUTPUT_PREFIX),
+        help="Output prefix pattern used to glob for log files when no paths are given. "
+        "Defaults to DUCT_OUTPUT_PREFIX so ls searches where logs are written.",
     )
     return parser
 
