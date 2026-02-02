@@ -14,6 +14,14 @@ def test_log_paths_datetime_prefix() -> None:
         assert re.match(pattern, path) is not None
 
 
+def test_log_paths_deprecated_datetime_filesafe_prefix() -> None:
+    """Ensure deprecated {datetime_filesafe} format field still works."""
+    log_paths = LogPaths.create("start_{datetime_filesafe}")
+    pattern = r"^start_\d{4}\.\d{2}\.\d{2}T\d{2}\.\d{2}\.\d{2}.*"
+    for path in asdict(log_paths).values():
+        assert re.match(pattern, path) is not None
+
+
 def test_log_paths_pid_prefix() -> None:
     prefix = "prefix_{pid}_"
     log_paths = LogPaths.create(prefix, pid=123456)
