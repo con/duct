@@ -14,9 +14,9 @@ def run_duct_command(cli_args: list[str], **kwargs: Any) -> int:
     Returns:
         Exit code from the executed command
     """
+    from con_duct._duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
+    from con_duct._duct_main import execute as duct_execute
     from con_duct._models import Outputs, RecordTypes, SessionMode
-    from con_duct.duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
-    from con_duct.duct_main import execute as duct_execute
 
     command = cli_args[0]
     command_args = cli_args[1:] if len(cli_args) > 1 else []

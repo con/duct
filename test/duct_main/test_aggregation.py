@@ -4,9 +4,9 @@ import os
 from typing import cast
 from unittest import mock
 import pytest
+from con_duct._duct_main import EXECUTION_SUMMARY_FORMAT
 from con_duct._models import ProcessStats, Sample
 from con_duct._tracker import Report
-from con_duct.duct_main import EXECUTION_SUMMARY_FORMAT
 
 stat0 = ProcessStats(
     pcpu=0.0,
@@ -63,7 +63,7 @@ stat_big = ProcessStats(
 )
 
 
-@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct._duct_main.LogPaths")
 def test_aggregation_num_samples_increment(mock_log_paths: mock.MagicMock) -> None:
     ex0 = Sample()
     ex0.add_pid(1, deepcopy(stat1))
@@ -89,7 +89,7 @@ def test_aggregation_num_samples_increment(mock_log_paths: mock.MagicMock) -> No
     assert report.full_run_stats.averages.num_samples == 3
 
 
-@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct._duct_main.LogPaths")
 def test_aggregation_single_sample_sanity(mock_log_paths: mock.MagicMock) -> None:
     ex0 = Sample()
     ex0.add_pid(0, deepcopy(stat0))
@@ -126,7 +126,7 @@ def test_aggregation_single_sample_sanity(mock_log_paths: mock.MagicMock) -> Non
 
 
 @pytest.mark.parametrize("stat", [stat0, stat1, stat2, stat_big])
-@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct._duct_main.LogPaths")
 def test_aggregation_single_stat_multiple_samples_sanity(
     mock_log_paths: mock.MagicMock, stat: ProcessStats
 ) -> None:
@@ -173,7 +173,7 @@ def test_aggregation_single_stat_multiple_samples_sanity(
     assert report.current_sample.averages.pcpu == report.current_sample.total_pcpu
 
 
-@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct._duct_main.LogPaths")
 def test_aggregation_averages(mock_log_paths: mock.MagicMock) -> None:
     sample0 = Sample()
     sample0.add_pid(1, deepcopy(stat0))
@@ -243,7 +243,7 @@ def test_aggregation_averages(mock_log_paths: mock.MagicMock) -> None:
     )
 
 
-@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct._duct_main.LogPaths")
 def test_aggregation_current_ave_diverges_from_total_ave(
     mock_log_paths: mock.MagicMock,
 ) -> None:
@@ -313,7 +313,7 @@ def test_aggregation_current_ave_diverges_from_total_ave(
 
 
 @pytest.mark.parametrize("stat", [stat0, stat1, stat2, stat_big])
-@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct._duct_main.LogPaths")
 def test_aggregation_many_samples(
     mock_log_paths: mock.MagicMock, stat: ProcessStats
 ) -> None:
@@ -358,7 +358,7 @@ def test_aggregation_many_samples(
     assert report.full_run_stats.averages.pcpu == (stat.pcpu * 100 + stat2.pcpu) / 101.0
 
 
-@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct._duct_main.LogPaths")
 def test_aggregation_sample_no_pids(mock_log_paths: mock.MagicMock) -> None:
     sample0 = Sample()
     mock_log_paths.prefix = "mock_prefix"
@@ -372,7 +372,7 @@ def test_aggregation_sample_no_pids(mock_log_paths: mock.MagicMock) -> None:
         report.update_from_sample(sample0)
 
 
-@mock.patch("con_duct.duct_main.LogPaths")
+@mock.patch("con_duct._duct_main.LogPaths")
 def test_aggregation_no_false_peak(mock_log_paths: mock.MagicMock) -> None:
     sample1 = Sample()
     sample2 = Sample()

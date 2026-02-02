@@ -1,4 +1,4 @@
-"""Tests for utility functions in duct_main.py"""
+"""Tests for utility functions in _duct_main.py"""
 
 import pytest
 from con_duct._utils import assert_num
