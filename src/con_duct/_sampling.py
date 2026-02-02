@@ -7,10 +7,21 @@ import logging
 import os
 import platform
 import subprocess
+import sys
 from typing import Callable, Optional
 from con_duct._models import Averages, ProcessStats, Sample
 
 SYSTEM = platform.system()
+
+_SUPPORTED_SYSTEMS = {"Linux", "Darwin"}
+if SYSTEM not in _SUPPORTED_SYSTEMS:
+    sys.tracebacklimit = 0
+    message = (
+        f"`con_duct` does not currently support the detected operating system ({SYSTEM}).\n\n"
+        "If you would like to request support, please open an issue at: "
+        "https://github.com/con/duct/issues/new"
+    )
+    raise NotImplementedError(message)
 
 lgr = logging.getLogger("con-duct")
 
