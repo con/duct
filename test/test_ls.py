@@ -228,7 +228,7 @@ class TestLS(unittest.TestCase):
                 format=fmt,
                 func=ls,
                 reverse=False,
-                output_prefix=".duct/logs/{datetime_filesafe}-{pid}_",
+                output_prefix=".duct/logs/{datetime}-{pid}_",
             )
         buf = StringIO()
         with contextlib.redirect_stdout(buf):
@@ -261,7 +261,7 @@ class TestLS(unittest.TestCase):
             format="summaries",
             func=ls,
             reverse=False,
-            output_prefix=".duct/logs/{datetime_filesafe}-{pid}_",
+            output_prefix=".duct/logs/{datetime}-{pid}_",
         )
         result = self._run_ls(paths, "summaries", args)
 
@@ -412,7 +412,7 @@ class TestLS(unittest.TestCase):
             format="json",
             func=ls,
             reverse=True,
-            output_prefix=".duct/logs/{datetime_filesafe}-{pid}_",
+            output_prefix=".duct/logs/{datetime}-{pid}_",
         )
         result_reversed = self._run_ls(paths, "json", args)
         parsed_reversed = json.loads(result_reversed)

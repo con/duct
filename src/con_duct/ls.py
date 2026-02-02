@@ -219,7 +219,7 @@ def pyout_ls(run_data_list: List[OrderedDict[str, Any]], enable_colors: bool) ->
 
 def ls(args: argparse.Namespace) -> int:
     if not args.paths:
-        # The default search prefix contains {datetime_filesafe}, {pid}, etc.
+        # The default search prefix contains {datetime}, {pid}, etc.
         # Strip from the first '{' onward to get a static glob prefix.
         try:
             prefix = args.output_prefix[: args.output_prefix.index("{")]
