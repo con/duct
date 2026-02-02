@@ -129,7 +129,7 @@ environment variables:
     DUCT_REPORT_INTERVAL=120.0
 
     # Set default output location
-    DUCT_OUTPUT_PREFIX=~/duct-logs/{datetime_filesafe}-{pid}_
+    DUCT_OUTPUT_PREFIX=~/duct-logs/{datetime}-{pid}_
 
     # Add execution notes (multiline)
     DUCT_MESSAGE="Experiment run for paper revision
@@ -173,11 +173,10 @@ options:
                         File string format to be used as a prefix for the
                         files -- the captured stdout and stderr and the
                         resource usage logs. The understood variables are
-                        {datetime}, {datetime_filesafe}, and {pid}. Leading
-                        directories will be created if they do not exist. You
-                        can also provide value via DUCT_OUTPUT_PREFIX env
-                        variable. (default:
-                        .duct/logs/{datetime_filesafe}-{pid}_)
+                        {datetime} and {pid}. Leading directories will be
+                        created if they do not exist. You can also provide
+                        value via DUCT_OUTPUT_PREFIX env variable. (default:
+                        .duct/logs/{datetime}-{pid}_)
   --summary-format SUMMARY_FORMAT
                         Output template to use when printing the summary
                         following execution. Accepts custom conversion flags:

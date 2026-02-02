@@ -16,9 +16,7 @@ __version__ = version("con-duct")
 
 lgr = logging.getLogger("con-duct")
 
-DUCT_OUTPUT_PREFIX = os.getenv(
-    "DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime_filesafe}-{pid}_"
-)
+DUCT_OUTPUT_PREFIX = os.getenv("DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime}-{pid}_")
 EXECUTION_SUMMARY_FORMAT = (
     "Summary:\n"
     "Exit Code: {exit_code!E}\n"
