@@ -32,6 +32,21 @@ Try it out using either `duct` or `con-duct run`:
 
 `duct` is most useful when the report-interval is less than the duration of the script.
 
+## Examples and Demos
+
+### Resource Monitoring Demo
+
+See [demo/README.md](demo/README.md) for a complete example of monitoring resource usage with configurable consumption patterns.
+
+### Telemetry Comparison with Kedro
+
+See [demo/telemetry_comparison_kedro.md](demo/telemetry_comparison_kedro.md) for a detailed comparison of:
+- Kedro's telemetry (anonymous product analytics)
+- con-duct's telemetry (local resource usage tracking)
+- How they complement each other when used together with DataLad
+
+The comparison includes example outputs, JSON structures, and a reproduction script.
+
 ## Command Reference
 
 ### con-duct
