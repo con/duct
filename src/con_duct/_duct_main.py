@@ -16,23 +16,6 @@ __version__ = version("con-duct")
 
 lgr = logging.getLogger("con-duct")
 
-DUCT_OUTPUT_PREFIX = os.getenv("DUCT_OUTPUT_PREFIX", ".duct/logs/{datetime}-{pid}_")
-EXECUTION_SUMMARY_FORMAT = (
-    "Summary:\n"
-    "Exit Code: {exit_code!E}\n"
-    "Command: {command}\n"
-    "Log files location: {logs_prefix}\n"
-    "Wall Clock Time: {wall_clock_time:.3f} sec\n"
-    "Memory Peak Usage (RSS): {peak_rss!S}\n"
-    "Memory Average Usage (RSS): {average_rss!S}\n"
-    "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
-    "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
-    "Memory Peak Percentage: {peak_pmem:.2f!N}%\n"
-    "Memory Average Percentage: {average_pmem:.2f!N}%\n"
-    "CPU Peak Usage: {peak_pcpu:.2f!N}%\n"
-    "Average CPU Usage: {average_pcpu:.2f!N}%\n"
-)
-
 
 def execute(
     command: str,

@@ -6,9 +6,9 @@ import os
 import subprocess
 from unittest import mock
 import pytest
-from con_duct._duct_main import EXECUTION_SUMMARY_FORMAT
 from con_duct._models import Averages, ProcessStats, Sample
 from con_duct._tracker import Report
+from con_duct.cli import DEFAULT_SUMMARY_FORMAT
 
 stat0 = ProcessStats(
     pcpu=0.0,
@@ -219,7 +219,7 @@ def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     report.get_system_info()
     assert report.system_info is not None
@@ -242,7 +242,7 @@ def test_gpu_parsing_green(
     ).encode("utf-8")
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     report.get_system_info()
     assert report.gpus is not None
@@ -271,7 +271,7 @@ def test_gpu_call_error(
     mock_sp.side_effect = subprocess.CalledProcessError(1, "errrr")
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     report.get_system_info()
     assert report.gpus is None
@@ -294,7 +294,7 @@ def test_gpu_parse_error(
     ).encode("utf-8")
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     report.get_system_info()
     assert report.gpus is None

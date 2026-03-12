@@ -4,9 +4,9 @@ import os
 from typing import cast
 from unittest import mock
 import pytest
-from con_duct._duct_main import EXECUTION_SUMMARY_FORMAT
 from con_duct._models import ProcessStats, Sample
 from con_duct._tracker import Report
+from con_duct.cli import DEFAULT_SUMMARY_FORMAT
 
 stat0 = ProcessStats(
     pcpu=0.0,
@@ -70,7 +70,7 @@ def test_aggregation_num_samples_increment(mock_log_paths: mock.MagicMock) -> No
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
@@ -98,7 +98,7 @@ def test_aggregation_single_sample_sanity(mock_log_paths: mock.MagicMock) -> Non
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
@@ -135,7 +135,7 @@ def test_aggregation_single_stat_multiple_samples_sanity(
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
@@ -184,7 +184,7 @@ def test_aggregation_averages(mock_log_paths: mock.MagicMock) -> None:
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
@@ -256,7 +256,7 @@ def test_aggregation_current_ave_diverges_from_total_ave(
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
@@ -323,7 +323,7 @@ def test_aggregation_many_samples(
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     assert report.current_sample is None
     assert report.full_run_stats.averages.num_samples == 0
@@ -364,7 +364,7 @@ def test_aggregation_sample_no_pids(mock_log_paths: mock.MagicMock) -> None:
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     # When there are no pids, finalization should be triggered because the exe is finished,
     # so a Sample with no PIDs should never be passed to update_from_sample.
@@ -379,7 +379,7 @@ def test_aggregation_no_false_peak(mock_log_paths: mock.MagicMock) -> None:
     mock_log_paths.prefix = "mock_prefix"
     cwd = os.getcwd()
     report = Report(
-        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+        "_cmd", [], mock_log_paths, DEFAULT_SUMMARY_FORMAT, cwd, clobber=False
     )
     sample1.add_pid(1, deepcopy(stat100))
     sample1.add_pid(2, deepcopy(stat0))
