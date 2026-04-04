@@ -17,7 +17,9 @@ from utils import run_duct_command
 
 from con_duct._constants import SUFFIXES
 
-TEST_SCRIPT = str(Path(__file__).parent.parent / "data" / "test_script.py")
+TEST_DATA_DIR = Path(__file__).parent.parent / "data"
+TEST_SCRIPT = str(TEST_DATA_DIR / "test_script.py")
+MEMORY_CHILDREN_SCRIPT = str(TEST_DATA_DIR / "memory_children.py")
 
 
 def _read_info(temp_output_dir: str) -> dict:
@@ -231,3 +233,137 @@ def test_multiple_samples_show_consistent_memory(temp_output_dir: str) -> None:
         f"No usage samples showed RSS >= {alloc_mb} MB. "
         f"Sample RSS values: {[s['totals']['rss'] / 1024 / 1024 for s in samples]}"
     )
+
+
+# --- Child/forked process resource validation ---
+
+
+@pytest.mark.flaky(reruns=3)
+def test_child_processes_memory_aggregated(temp_output_dir: str) -> None:
+    """Spawn children that each allocate memory; verify total RSS reflects the sum.
+
+    Uses multiprocessing to fork N children each holding M MB.
+    The total RSS across all processes should be at least N * M MB.
+    """
+    num_children = 3
+    mb_per_child = 20
+    hold_seconds = 3.0
+    total_alloc_bytes = num_children * mb_per_child * 1024 * 1024
+
+    assert (
+        run_duct_command(
+            [
+                sys.executable,
+                MEMORY_CHILDREN_SCRIPT,
+                str(num_children),
+                str(mb_per_child),
+                str(hold_seconds),
+            ],
+            sample_interval=0.1,
+            report_interval=0.5,
+            output_prefix=temp_output_dir,
+        )
+        == 0
+    )
+
+    info = _read_info(temp_output_dir)
+    summary = info["execution_summary"]
+
+    # peak_rss is total across all tracked processes
+    peak_rss = summary["peak_rss"]
+    assert peak_rss >= total_alloc_bytes, (
+        f"peak_rss ({peak_rss / 1024 / 1024:.1f} MB) should be >= "
+        f"total allocation ({num_children} x {mb_per_child} = "
+        f"{num_children * mb_per_child} MB)"
+    )
+
+    # Also check usage.jsonl samples show multiple processes
+    samples = _read_usage(temp_output_dir)
+    max_pids_seen = max(len(s["processes"]) for s in samples)
+    # Should see parent + N children (at least N+1 processes)
+    assert max_pids_seen >= num_children + 1, (
+        f"Expected at least {num_children + 1} processes in samples, "
+        f"but max PIDs in any sample was {max_pids_seen}"
+    )
+
+
+@pytest.mark.flaky(reruns=3)
+def test_child_processes_individually_tracked(temp_output_dir: str) -> None:
+    """Verify per-process stats in usage.jsonl track individual children."""
+    num_children = 2
+    mb_per_child = 25
+    hold_seconds = 3.0
+    child_alloc_bytes = mb_per_child * 1024 * 1024
+
+    assert (
+        run_duct_command(
+            [
+                sys.executable,
+                MEMORY_CHILDREN_SCRIPT,
+                str(num_children),
+                str(mb_per_child),
+                str(hold_seconds),
+            ],
+            sample_interval=0.1,
+            report_interval=0.5,
+            output_prefix=temp_output_dir,
+        )
+        == 0
+    )
+
+    samples = _read_usage(temp_output_dir)
+
+    # Find samples where children are running (multiple processes visible)
+    multi_proc_samples = [s for s in samples if len(s["processes"]) > 1]
+    assert len(multi_proc_samples) >= 1, "No samples captured multiple processes"
+
+    # In at least one sample, individual child processes should show their allocation
+    # (each child holds mb_per_child MB)
+    children_with_expected_rss = set()
+    for sample in multi_proc_samples:
+        for pid, proc in sample["processes"].items():
+            if proc["rss"] >= child_alloc_bytes:
+                children_with_expected_rss.add(pid)
+
+    assert len(children_with_expected_rss) >= num_children, (
+        f"Expected at least {num_children} child processes with RSS >= {mb_per_child} MB, "
+        f"found {len(children_with_expected_rss)}. "
+        f"Per-process RSS values: "
+        f"{[{pid: p['rss'] / 1024 / 1024 for pid, p in s['processes'].items()} for s in multi_proc_samples[:3]]}"
+    )
+
+
+@pytest.mark.flaky(reruns=3)
+def test_total_rss_is_sum_of_processes(temp_output_dir: str) -> None:
+    """Verify that total_rss in each sample equals sum of per-process RSS."""
+    num_children = 2
+    mb_per_child = 15
+    hold_seconds = 2.0
+
+    assert (
+        run_duct_command(
+            [
+                sys.executable,
+                MEMORY_CHILDREN_SCRIPT,
+                str(num_children),
+                str(mb_per_child),
+                str(hold_seconds),
+            ],
+            sample_interval=0.1,
+            report_interval=0.5,
+            output_prefix=temp_output_dir,
+        )
+        == 0
+    )
+
+    samples = _read_usage(temp_output_dir)
+
+    for i, sample in enumerate(samples):
+        per_process_rss_sum = sum(
+            proc["rss"] for proc in sample["processes"].values()
+        )
+        reported_total = sample["totals"]["rss"]
+        assert reported_total == per_process_rss_sum, (
+            f"Sample {i}: total_rss ({reported_total}) != sum of per-process RSS "
+            f"({per_process_rss_sum})"
+        )
