@@ -5,16 +5,14 @@ These tests run programs with known, predictable resource consumption
 fall within expected bounds. This bridges the gap between unit tests
 (which verify aggregation math) and real-world accuracy.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 import json
 import os
-import sys
 from pathlib import Path
-
+import sys
 import pytest
 from utils import run_duct_command
-
 from con_duct._constants import SUFFIXES
 
 TEST_DATA_DIR = Path(__file__).parent.parent / "data"
@@ -102,9 +100,9 @@ def test_wall_clock_time_accurate(temp_output_dir: str) -> None:
     wall_clock = info["execution_summary"]["wall_clock_time"]
 
     # Should be close to the requested duration
-    assert wall_clock >= duration, (
-        f"wall_clock_time ({wall_clock:.2f}s) < requested sleep ({duration}s)"
-    )
+    assert (
+        wall_clock >= duration
+    ), f"wall_clock_time ({wall_clock:.2f}s) < requested sleep ({duration}s)"
     # Allow generous overhead for slow CI environments
     assert wall_clock < duration + 2.0, (
         f"wall_clock_time ({wall_clock:.2f}s) unreasonably high "
@@ -128,12 +126,12 @@ def test_idle_process_low_cpu(temp_output_dir: str) -> None:
     info = _read_info(temp_output_dir)
     summary = info["execution_summary"]
 
-    assert summary["peak_pcpu"] < 5.0, (
-        f"peak_pcpu ({summary['peak_pcpu']}) should be near-zero for sleep"
-    )
-    assert summary["average_pcpu"] < 5.0, (
-        f"average_pcpu ({summary['average_pcpu']}) should be near-zero for sleep"
-    )
+    assert (
+        summary["peak_pcpu"] < 5.0
+    ), f"peak_pcpu ({summary['peak_pcpu']}) should be near-zero for sleep"
+    assert (
+        summary["average_pcpu"] < 5.0
+    ), f"average_pcpu ({summary['average_pcpu']}) should be near-zero for sleep"
 
 
 @pytest.mark.flaky(reruns=3)
@@ -162,9 +160,9 @@ def test_cpu_intensive_detected(temp_output_dir: str) -> None:
     summary = info["execution_summary"]
 
     # A busy-loop should show meaningful CPU usage
-    assert summary["peak_pcpu"] > 10.0, (
-        f"peak_pcpu ({summary['peak_pcpu']}) should be significant for busy-loop"
-    )
+    assert (
+        summary["peak_pcpu"] > 10.0
+    ), f"peak_pcpu ({summary['peak_pcpu']}) should be significant for busy-loop"
 
 
 @pytest.mark.flaky(reruns=3)
@@ -183,9 +181,7 @@ def test_usage_samples_recorded(temp_output_dir: str) -> None:
     samples = _read_usage(temp_output_dir)
 
     # With 1s sleep and 0.3s report interval, expect at least 2 reports
-    assert len(samples) >= 2, (
-        f"Expected at least 2 usage samples, got {len(samples)}"
-    )
+    assert len(samples) >= 2, f"Expected at least 2 usage samples, got {len(samples)}"
 
     for i, sample in enumerate(samples):
         assert "timestamp" in sample, f"Sample {i} missing timestamp"
@@ -226,9 +222,7 @@ def test_multiple_samples_show_consistent_memory(temp_output_dir: str) -> None:
     assert len(samples) >= 2, f"Expected multiple samples, got {len(samples)}"
 
     # At least some samples should show the allocated memory
-    samples_above_threshold = [
-        s for s in samples if s["totals"]["rss"] >= alloc_bytes
-    ]
+    samples_above_threshold = [s for s in samples if s["totals"]["rss"] >= alloc_bytes]
     assert len(samples_above_threshold) >= 1, (
         f"No usage samples showed RSS >= {alloc_mb} MB. "
         f"Sample RSS values: {[s['totals']['rss'] / 1024 / 1024 for s in samples]}"
@@ -359,9 +353,7 @@ def test_total_rss_is_sum_of_processes(temp_output_dir: str) -> None:
     samples = _read_usage(temp_output_dir)
 
     for i, sample in enumerate(samples):
-        per_process_rss_sum = sum(
-            proc["rss"] for proc in sample["processes"].values()
-        )
+        per_process_rss_sum = sum(proc["rss"] for proc in sample["processes"].values())
         reported_total = sample["totals"]["rss"]
         assert reported_total == per_process_rss_sum, (
             f"Sample {i}: total_rss ({reported_total}) != sum of per-process RSS "

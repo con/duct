@@ -6,8 +6,8 @@ Usage: memory_children.py <num_children> <mb_per_child> <hold_seconds>
 Each child allocates mb_per_child MB and holds it for hold_seconds.
 The parent waits for all children to finish.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 import multiprocessing
 import sys
 import time
