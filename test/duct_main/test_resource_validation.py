@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import sys
+from typing import Any
 import pytest
 from utils import run_duct_command
 from con_duct._constants import SUFFIXES
@@ -20,12 +21,12 @@ TEST_SCRIPT = str(TEST_DATA_DIR / "test_script.py")
 MEMORY_CHILDREN_SCRIPT = str(TEST_DATA_DIR / "memory_children.py")
 
 
-def _read_info(temp_output_dir: str) -> dict:
+def _read_info(temp_output_dir: str) -> Any:
     with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as f:
         return json.loads(f.read())
 
 
-def _read_usage(temp_output_dir: str) -> list[dict]:
+def _read_usage(temp_output_dir: str) -> list[Any]:
     lines = []
     with open(os.path.join(temp_output_dir, SUFFIXES["usage"])) as f:
         for line in f:
