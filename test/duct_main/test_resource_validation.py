@@ -319,11 +319,14 @@ def test_child_processes_individually_tracked(temp_output_dir: str) -> None:
             if proc["rss"] >= child_alloc_bytes:
                 children_with_expected_rss.add(pid)
 
+    rss_debug = [
+        {pid: p["rss"] / 1024 / 1024 for pid, p in s["processes"].items()}
+        for s in multi_proc_samples[:3]
+    ]
     assert len(children_with_expected_rss) >= num_children, (
-        f"Expected at least {num_children} child processes with RSS >= {mb_per_child} MB, "
-        f"found {len(children_with_expected_rss)}. "
-        f"Per-process RSS values: "
-        f"{[{pid: p['rss'] / 1024 / 1024 for pid, p in s['processes'].items()} for s in multi_proc_samples[:3]]}"
+        f"Expected at least {num_children} child processes with RSS >= "
+        f"{mb_per_child} MB, found {len(children_with_expected_rss)}. "
+        f"Per-process RSS values: {rss_debug}"
     )
 
 

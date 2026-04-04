@@ -15,7 +15,8 @@ import time
 
 def _allocate_and_hold(mb: int, seconds: float) -> None:
     """Allocate mb megabytes and hold for seconds."""
-    _data = bytearray(mb * 1024 * 1024)
+    data = bytearray(mb * 1024 * 1024)
+    assert data  # prevent optimization
     time.sleep(seconds)
 
 
