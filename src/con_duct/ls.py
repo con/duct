@@ -83,7 +83,7 @@ def compute_files_size(prefix: str) -> int:
             try:
                 total += path.stat().st_size
             except OSError as e:
-                lgr.debug("Could not get size of %s: %s", path_str, e)
+                lgr.warning("Could not get size of %s: %s", path_str, e)
     return total
 
 
