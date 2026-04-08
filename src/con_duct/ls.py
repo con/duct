@@ -72,7 +72,10 @@ MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
 def compute_files_size(prefix: str) -> int:
-    """Compute total size in bytes of all files for a given session prefix."""
+    """Compute total size in bytes of all files for a given session prefix.
+
+    Files that cannot be accessed (e.g. due to permissions) are silently skipped.
+    """
     total = 0
     for path_str in glob.glob(glob.escape(prefix) + "*"):
         path = Path(path_str)

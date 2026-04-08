@@ -169,8 +169,8 @@ def test_compute_files_size_sums_all_files() -> None:
     """Test that compute_files_size sums sizes of all files with the given prefix."""
     with tempfile.TemporaryDirectory() as tmpdir:
         prefix = os.path.join(tmpdir, "run_")
-        # Create files with known sizes
-        for suffix, content in [("stdout", b"hello"), ("stderr", b"world!"), ("info.json", b"{}...")]:
+        # Use arbitrary suffixes; compute_files_size globs all files with the prefix
+        for suffix, content in [("a", b"hello"), ("b", b"world!"), ("c", b"{}...")]:
             with open(f"{prefix}{suffix}", "wb") as f:
                 f.write(content)
         expected = sum(len(c) for c in [b"hello", b"world!", b"{}..."])
