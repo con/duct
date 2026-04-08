@@ -3,6 +3,7 @@ from collections import OrderedDict
 import glob
 import json
 import logging
+from pathlib import Path
 import re
 from types import ModuleType
 from typing import Any, Dict, List, Optional
@@ -32,6 +33,7 @@ VALUE_TRANSFORMATION_MAP: Dict[str, str] = {
     "average_vsz": "{value!S}",
     "end_time": "{value:.2f!N}",
     "exit_code": "{value!E}",
+    "files_size": "{value!S}",
     "memory_total": "{value!S}",
     "peak_pcpu": "{value:.2f!N}%",
     "peak_pmem": "{value:.2f!N}%",
@@ -65,7 +67,21 @@ NON_TRANSFORMED_FIELDS: List[str] = [
 LS_FIELD_CHOICES: List[str] = (
     list(VALUE_TRANSFORMATION_MAP.keys()) + NON_TRANSFORMED_FIELDS
 )
+COMPUTED_FIELDS: List[str] = ["files_size"]
 MINIMUM_SCHEMA_VERSION: str = "0.2.0"
+
+
+def compute_files_size(prefix: str) -> int:
+    """Compute total size in bytes of all files for a given session prefix."""
+    total = 0
+    for path_str in glob.glob(glob.escape(prefix) + "*"):
+        path = Path(path_str)
+        if path.is_file():
+            try:
+                total += path.stat().st_size
+            except OSError:
+                pass
+    return total
 
 
 def load_duct_runs(
@@ -87,6 +103,7 @@ def load_duct_runs(
                     )
                     continue
                 ensure_compliant_schema(this)
+                this["files_size"] = compute_files_size(this["prefix"])
                 if eval_filter is not None and not (
                     eval_results := eval(eval_filter, _flatten_dict(this), dict(re=re))
                 ):

@@ -428,6 +428,7 @@ def _create_ls_parser() -> argparse.ArgumentParser:
             "exit_code",
             "wall_clock_time",
             "peak_rss",
+            "files_size",
         ],
     )
     parser.add_argument(

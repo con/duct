@@ -15,6 +15,7 @@ from con_duct.ls import (
     MINIMUM_SCHEMA_VERSION,
     _flatten_dict,
     _restrict_row,
+    compute_files_size,
     ensure_compliant_schema,
     load_duct_runs,
     ls,
@@ -162,6 +163,49 @@ def test_load_duct_runs_mixed_empty_and_valid_files(
     assert len([r for r in caplog.records if r.levelname == "DEBUG"]) == 1
     assert not any(r for r in caplog.records if r.levelname == "WARNING")
     assert "Skipping empty file" in caplog.text
+
+
+def test_compute_files_size_sums_all_files() -> None:
+    """Test that compute_files_size sums sizes of all files with the given prefix."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prefix = os.path.join(tmpdir, "run_")
+        # Create files with known sizes
+        for suffix, content in [("stdout", b"hello"), ("stderr", b"world!"), ("info.json", b"{}...")]:
+            with open(f"{prefix}{suffix}", "wb") as f:
+                f.write(content)
+        expected = sum(len(c) for c in [b"hello", b"world!", b"{}..."])
+        assert compute_files_size(prefix) == expected
+
+
+def test_compute_files_size_empty_prefix() -> None:
+    """Test that compute_files_size returns 0 when no files match the prefix."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prefix = os.path.join(tmpdir, "nonexistent_")
+        assert compute_files_size(prefix) == 0
+
+
+def test_load_duct_runs_includes_files_size() -> None:
+    """Test that load_duct_runs populates files_size for each run."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prefix = os.path.join(tmpdir, "run_")
+        info_path = f"{prefix}info.json"
+        with open(info_path, "w") as f:
+            json.dump(
+                {
+                    "schema_version": MINIMUM_SCHEMA_VERSION,
+                    "prefix": prefix,
+                    "execution_summary": {},
+                    "message": "",
+                },
+                f,
+            )
+        # Create a sibling file to count toward files_size
+        with open(f"{prefix}stdout", "w") as f:
+            f.write("some output")
+        result = load_duct_runs([info_path])
+        assert len(result) == 1
+        assert "files_size" in result[0]
+        assert result[0]["files_size"] > 0
 
 
 class TestLS(unittest.TestCase):
@@ -389,3 +433,35 @@ class TestLS(unittest.TestCase):
         prefixes_reversed = [row["prefix"] for row in parsed_reversed]
 
         assert prefixes_reversed == list(reversed(prefixes_normal))
+
+    def test_ls_files_size_in_output(self) -> None:
+        """Test that files_size field appears in ls output and is humanized."""
+        args = argparse.Namespace(
+            paths=[os.path.join(self.temp_dir.name, "file1_info.json")],
+            colors=False,
+            fields=["files_size"],
+            eval_filter=None,
+            format="json",
+            func=ls,
+            reverse=False,
+        )
+        result = self._run_ls(["file1_info.json"], "json", args)
+        parsed = json.loads(result)
+        assert len(parsed) == 1
+        assert "files_size" in parsed[0]
+
+    def test_ls_files_size_humanized_in_summaries(self) -> None:
+        """Test that files_size is humanized in summaries output."""
+        args = argparse.Namespace(
+            paths=[os.path.join(self.temp_dir.name, "file1_info.json")],
+            colors=False,
+            fields=["files_size"],
+            eval_filter=None,
+            format="summaries",
+            func=ls,
+            reverse=False,
+        )
+        result = self._run_ls(["file1_info.json"], "summaries", args)
+        assert "Files Size:" in result
+        # Should show humanized size (Bytes or kB etc.) not raw integer
+        assert any(unit in result for unit in ["Byte", "kB", "MB", "GB"])
