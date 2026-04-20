@@ -84,6 +84,11 @@ class TestPPrintHumanization(unittest.TestCase):
         assert result == "1.0 MB"
 
         result = pprint_json._apply_conversion(
+            "memory_total", 1081801371648, field_mapping, formatter
+        )
+        assert result == "1.1 TB"
+
+        result = pprint_json._apply_conversion(
             "wall_clock_time", 3661.5, field_mapping, formatter
         )
         assert result == "1h 1m 1.5s"

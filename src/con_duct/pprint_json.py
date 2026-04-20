@@ -20,6 +20,7 @@ def get_field_conversion_mapping() -> dict[str, str]:
         "average_vsz": "S",
         "peak_pcpu": "P",
         "peak_pmem": "P",
+        "memory_total": "S",
         "peak_rss": "S",
         "peak_vsz": "S",
         "wall_clock_time": "T",
