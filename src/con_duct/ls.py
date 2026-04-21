@@ -33,7 +33,7 @@ VALUE_TRANSFORMATION_MAP: Dict[str, str] = {
     "average_vsz": "{value!S}",
     "end_time": "{value:.2f!N}",
     "exit_code": "{value!E}",
-    "files_size": "{value!S}",
+    "logs_size": "{value!S}",
     "memory_total": "{value!S}",
     "peak_pcpu": "{value:.2f!N}%",
     "peak_pmem": "{value:.2f!N}%",
@@ -67,28 +67,32 @@ NON_TRANSFORMED_FIELDS: List[str] = [
 LS_FIELD_CHOICES: List[str] = (
     list(VALUE_TRANSFORMATION_MAP.keys()) + NON_TRANSFORMED_FIELDS
 )
-COMPUTED_FIELDS: List[str] = ["files_size"]
+COMPUTED_FIELDS: List[str] = ["logs_size"]
 MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
-def compute_files_size(prefix: str) -> int:
+def compute_logs_size(prefix: str) -> int:
     """Compute total size in bytes of all files for a given session prefix.
 
-    Files that cannot be accessed (e.g. due to permissions) are silently skipped.
+    Directories and broken symlinks matching the prefix are excluded.
+    Files that cannot be accessed (e.g. due to permissions) emit a WARNING
+    and are skipped; the sizes of accessible files are still summed.
     """
     total = 0
     for path_str in glob.glob(glob.escape(prefix) + "*"):
         path = Path(path_str)
-        if path.is_file():
-            try:
+        try:
+            if path.is_file():
                 total += path.stat().st_size
-            except OSError as e:
-                lgr.warning("Could not get size of %s: %s", path_str, e)
+        except OSError as e:
+            lgr.warning("Could not get size of %s: %s", path_str, e)
     return total
 
 
 def load_duct_runs(
-    info_files: List[str], eval_filter: Optional[str] = None
+    info_files: List[str],
+    eval_filter: Optional[str] = None,
+    compute_size: bool = False,
 ) -> List[Dict[str, Any]]:
     loaded: List[Dict[str, Any]] = []
     for info_file in info_files:
@@ -106,7 +110,8 @@ def load_duct_runs(
                     )
                     continue
                 ensure_compliant_schema(this)
-                this["files_size"] = compute_files_size(this["prefix"])
+                if compute_size:
+                    this["logs_size"] = compute_logs_size(this["prefix"])
                 if eval_filter is not None and not (
                     eval_results := eval(eval_filter, _flatten_dict(this), dict(re=re))
                 ):
@@ -250,7 +255,10 @@ def ls(args: argparse.Namespace) -> int:
         enable_colors=False if args.format == "pyout" else args.colors
     )
     info_files = [path for path in args.paths if is_info_file(path)]
-    run_data_raw = load_duct_runs(info_files, args.eval_filter)
+    compute_size = "logs_size" in args.fields or (
+        args.eval_filter is not None and "logs_size" in args.eval_filter
+    )
+    run_data_raw = load_duct_runs(info_files, args.eval_filter, compute_size=compute_size)
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
     if args.reverse:
