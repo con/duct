@@ -1,3 +1,45 @@
+# v0.20.0 (Tue Apr 21 2026)
+
+#### 🚀 Enhancement
+
+- Allow direct invocation of cli.py [#366](https://github.com/con/duct/pull/366) ([@CodyCBakerPhD](https://github.com/CodyCBakerPhD))
+- Activate intel runner for mac CI [#364](https://github.com/con/duct/pull/364) ([@CodyCBakerPhD](https://github.com/CodyCBakerPhD))
+
+#### 🐛 Bug Fix
+
+- pp: humanize memory_total under -H [#413](https://github.com/con/duct/pull/413) ([@asmacdo](https://github.com/asmacdo))
+- [pre-commit.ci] pre-commit autoupdate [#400](https://github.com/con/duct/pull/400) ([@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]))
+- Better error rendering on unsupported systems [#392](https://github.com/con/duct/pull/392) ([@CodyCBakerPhD](https://github.com/CodyCBakerPhD) [@asmacdo](https://github.com/asmacdo))
+- feat: replace support of "datetime_filesafe" format field in output file prefix format string with "datetime" [#375](https://github.com/con/duct/pull/375) ([@candleindark](https://github.com/candleindark) [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]) [@asmacdo](https://github.com/asmacdo))
+- test: add rerun backoff to test_execution_summary [#394](https://github.com/con/duct/pull/394) ([@asmacdo](https://github.com/asmacdo))
+- Added basic import structure for library usage [#390](https://github.com/con/duct/pull/390) ([@CodyCBakerPhD](https://github.com/CodyCBakerPhD))
+- Refactor: Break up duct_main.py into smaller modules [#385](https://github.com/con/duct/pull/385) ([@asmacdo](https://github.com/asmacdo))
+- [pre-commit.ci] pre-commit autoupdate [#387](https://github.com/con/duct/pull/387) ([@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]))
+- refactor: extract Report and monitor_process to _tracker.py [#383](https://github.com/con/duct/pull/383) ([@asmacdo](https://github.com/asmacdo))
+- refactor: extract IO utilities to _output.py [#382](https://github.com/con/duct/pull/382) ([@asmacdo](https://github.com/asmacdo))
+- refactor: extract sampling functions to _sampling.py [#381](https://github.com/con/duct/pull/381) ([@asmacdo](https://github.com/asmacdo))
+- refactor: extract SigIntHandler to _signals.py [#380](https://github.com/con/duct/pull/380) ([@asmacdo](https://github.com/asmacdo))
+- refactor: extract SummaryFormatter to _formatter.py [#379](https://github.com/con/duct/pull/379) ([@asmacdo](https://github.com/asmacdo))
+- refactor: extract models and enums to _models.py [#377](https://github.com/con/duct/pull/377) ([@asmacdo](https://github.com/asmacdo))
+- refactor: extract constants to _constants.py [#373](https://github.com/con/duct/pull/373) ([@asmacdo](https://github.com/asmacdo) [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]))
+- ci: run tests on all PRs, remove yamllint [#374](https://github.com/con/duct/pull/374) ([@asmacdo](https://github.com/asmacdo) [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]))
+- Consolidate configurations into `pyproject.toml` [#367](https://github.com/con/duct/pull/367) ([@candleindark](https://github.com/candleindark))
+- Allow e2e tests to use configurable executable [#365](https://github.com/con/duct/pull/365) ([@asmacdo](https://github.com/asmacdo))
+- Increase wait time on rerun for flakey tests [#359](https://github.com/con/duct/pull/359) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🏠 Internal
+
+- [pre-commit.ci] pre-commit autoupdate [#398](https://github.com/con/duct/pull/398) ([@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]))
+
+#### Authors: 4
+
+- [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot])
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Cody Baker ([@CodyCBakerPhD](https://github.com/CodyCBakerPhD))
+- Isaac To ([@candleindark](https://github.com/candleindark))
+
+---
+
 # v0.19.0 (Wed Jan 07 2026)
 
 #### 🚀 Enhancement
