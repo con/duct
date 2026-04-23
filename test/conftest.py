@@ -8,31 +8,59 @@ import pytest
 SAMPLER_MATRIX_RESULTS = Path(__file__).parent.parent / ".sampler_matrix_results.jsonl"
 
 
-def pytest_sessionstart(_session: pytest.Session) -> None:
+def pytest_sessionstart() -> None:
     """Clear stale sampler-matrix results from a previous run."""
     SAMPLER_MATRIX_RESULTS.unlink(missing_ok=True)
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Auto-apply xfail(strict=True) to matrix tests marked expected='fail'.
+
+    Sampler-matrix tests express *known limitations* of a sampler against
+    a workload/property. Rather than making CI red for those known cells,
+    we mark them as expected failures; pytest still runs them (so we
+    notice if a sampler improves) but the overall suite stays green.
+    """
+    for item in items:
+        marker = item.get_closest_marker("sampler_matrix")
+        if marker is None:
+            continue
+        if marker.kwargs.get("expected") == "fail":
+            item.add_marker(
+                pytest.mark.xfail(
+                    strict=True,
+                    reason="expected sampler/workload limitation",
+                )
+            )
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(
     item: pytest.Item, call: pytest.CallInfo[Any]
 ) -> Generator[None, Any, None]:
-    """Record pass/fail of sampler_matrix-marked tests to a JSONL file.
+    """Record each sampler_matrix-marked test's actual outcome to JSONL.
 
-    scripts/gen_sampler_matrix.py reads the JSONL and pivots it into
-    test/sampler_matrix.csv (rows=workload, columns=sampler).
+    The *actual* cell value is derived from the raw assertion outcome
+    (call.excinfo), not from pytest's post-xfail interpretation: we want
+    the CSV to reflect what the sampler actually did, independent of
+    whether that matched our committed expectation.
+
+    scripts/gen_sampler_matrix.py pivots the JSONL into one CSV per
+    sampler (rows=workload, columns=property, cells=pass|fail|n/a).
     """
-    outcome = yield
+    yield
     if call.when != "call":
         return
     marker = item.get_closest_marker("sampler_matrix")
     if marker is None:
         return
-    report = outcome.get_result()
+    actual = "pass" if call.excinfo is None else "fail"
     record = {
-        "workload": marker.kwargs.get("workload"),
         "sampler": marker.kwargs.get("sampler"),
-        "status": "pass" if report.passed else "fail",
+        "workload": marker.kwargs.get("workload"),
+        "property": marker.kwargs.get("property"),
+        "expected": marker.kwargs.get("expected"),
+        "actual": actual,
         "nodeid": item.nodeid,
     }
     with SAMPLER_MATRIX_RESULTS.open("a") as f:

@@ -79,7 +79,7 @@ filterwarnings = [
 ]
 markers = [
     "flaky: mark a test as being unreliable",
-    "sampler_matrix(workload, sampler): sampler-matrix cell; conftest hook records pass/fail for scripts/gen_sampler_matrix.py",
+    "sampler_matrix(sampler, workload, property, expected): sampler-matrix cell; conftest hook records actual pass/fail for scripts/gen_sampler_matrix.py",
 ]
 norecursedirs = ["test/data"]
 

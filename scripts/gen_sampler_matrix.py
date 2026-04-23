@@ -1,19 +1,32 @@
 #!/usr/bin/env python3
-"""Regenerate test/sampler_matrix.csv from sampler-matrix test results.
+"""Regenerate test/sampler_matrix_<sampler>.csv from matrix test results.
 
 The conftest hook in test/conftest.py writes a JSONL file (one record
-per sampler_matrix-marked test, pass/fail) during the pytest run. This
-script reads that JSONL and pivots it into a CSV committed alongside
-the tests: rows=workload, columns=sampler, cells=pass|fail|(not yet
-tested).
+per sampler_matrix-marked test) during the pytest run. Each record:
+
+    {
+      "sampler":  "ps",
+      "workload": "memory_children",
+      "property": "peak_rss_no_overcount",
+      "expected": "fail",
+      "actual":   "fail",
+      "nodeid":   "test/duct_main/test_sampler_matrix.py::..."
+    }
+
+This script pivots the JSONL into one CSV per sampler --
+rows=workload, columns=property, cells=pass|fail|n/a -- and writes
+them into test/. The CSVs are checked in so reviewers can see each
+sampler's capability profile without running tests.
+
+Each cell records the *actual* outcome (what the sampler did),
+independent of whether that matched our committed expectation. The
+commit hash for a given matrix snapshot is the source of truth for
+what we expected at that point; the ``expected`` metadata lives in
+the test marker, not the CSV.
 
 Usage:
     python -m pytest test/              # populate .sampler_matrix_results.jsonl
     python scripts/gen_sampler_matrix.py
-
-The CSV is checked in so reviewers (and the future CI drift check)
-can see which cells are currently passing / failing / untested without
-running tests.
 """
 
 from __future__ import annotations
@@ -24,13 +37,9 @@ import sys
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 JSONL_PATH = REPO_ROOT / ".sampler_matrix_results.jsonl"
-CSV_PATH = REPO_ROOT / "test" / "sampler_matrix.csv"
+CSV_DIR = REPO_ROOT / "test"
 
-# Fixed column order so the committed CSV is stable across runs.
-# Extend here when new samplers are added.
-SAMPLERS: list[str] = ["ps", "cgroup-ps-hybrid"]
-
-UNTESTED = "(not yet tested)"
+UNTESTED = "n/a"
 
 
 def load_records() -> list[dict[str, str]]:
@@ -45,29 +54,44 @@ def load_records() -> list[dict[str, str]]:
     return records
 
 
-def pivot(records: list[dict[str, str]]) -> dict[str, dict[str, str]]:
+def group_by_sampler(
+    records: list[dict[str, str]],
+) -> dict[str, list[dict[str, str]]]:
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for r in records:
+        sampler = r.get("sampler")
+        if not sampler:
+            continue
+        grouped.setdefault(sampler, []).append(r)
+    return grouped
+
+
+def write_csv_for_sampler(sampler: str, records: list[dict[str, str]]) -> Path:
+    # workload -> property -> actual
     by_workload: dict[str, dict[str, str]] = {}
+    properties: set[str] = set()
     for r in records:
         workload = r.get("workload")
-        sampler = r.get("sampler")
-        status = r.get("status")
-        if not (workload and sampler and status):
+        prop = r.get("property")
+        actual = r.get("actual")
+        if not (workload and prop and actual):
             continue
-        # Last write wins if the same cell is reported twice in a run.
-        by_workload.setdefault(workload, {})[sampler] = status
-    return by_workload
+        # Last write wins if the same cell appears twice in one run.
+        by_workload.setdefault(workload, {})[prop] = actual
+        properties.add(prop)
 
-
-def write_csv(by_workload: dict[str, dict[str, str]]) -> None:
-    CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with CSV_PATH.open("w", newline="") as f:
+    sorted_properties = sorted(properties)
+    out_path = CSV_DIR / f"sampler_matrix_{sampler}.csv"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with out_path.open("w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["workload", *SAMPLERS])
+        writer.writerow(["workload", *sorted_properties])
         for workload in sorted(by_workload):
             row = [workload]
-            for sampler in SAMPLERS:
-                row.append(by_workload[workload].get(sampler, UNTESTED))
+            for prop in sorted_properties:
+                row.append(by_workload[workload].get(prop, UNTESTED))
             writer.writerow(row)
+    return out_path
 
 
 def main() -> int:
@@ -77,11 +101,10 @@ def main() -> int:
             f"no matrix results found at {JSONL_PATH}; " "run `pytest test/` first",
             file=sys.stderr,
         )
-        # Still write a header-only CSV so the file exists.
-        write_csv({})
         return 0
-    write_csv(pivot(records))
-    print(f"wrote {CSV_PATH} ({len(records)} records)")
+    for sampler, sampler_records in sorted(group_by_sampler(records).items()):
+        path = write_csv_for_sampler(sampler, sampler_records)
+        print(f"wrote {path} ({len(sampler_records)} records)")
     return 0
 
 
