@@ -8,7 +8,7 @@ import os
 import platform
 import subprocess
 import sys
-from typing import Callable, Optional
+from typing import Optional
 from con_duct._models import Averages, ProcessStats, Sample
 
 SYSTEM = platform.system()
@@ -143,4 +143,10 @@ _get_sample_per_system = {
     "Linux": _get_sample_linux,
     "Darwin": _get_sample_mac,
 }
-_get_sample: Callable[[int], Optional[Sample]] = _get_sample_per_system[SYSTEM]  # type: ignore[assignment]
+
+
+class PsSampler:
+    """Sampler that uses `ps` to collect per-process stats."""
+
+    def sample(self, session_id: int) -> Optional[Sample]:
+        return _get_sample_per_system[SYSTEM](session_id)
