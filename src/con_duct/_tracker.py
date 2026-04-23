@@ -156,7 +156,9 @@ class Report:
         assert self.current_sample is not None
         if self.usage_file is None:
             self.usage_file = open(self.log_paths.usage, "w")
-        self.usage_file.write(json.dumps(self.current_sample.for_json()) + "\n")
+        record = self.current_sample.for_json()
+        record["sampler"] = self.sampler.name
+        self.usage_file.write(json.dumps(record) + "\n")
         self.usage_file.flush()  # Force flush immediately
 
     @property
@@ -201,6 +203,7 @@ class Report:
                 "output_paths": asdict(self.log_paths),
                 "working_directory": self.working_directory,
                 "message": self.message,
+                "sampler": self.sampler.name,
             }
         )
 

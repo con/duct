@@ -148,5 +148,17 @@ _get_sample_per_system = {
 class PsSampler:
     """Sampler that uses `ps` to collect per-process stats."""
 
+    name = "ps"
+
     def sample(self, session_id: int) -> Optional[Sample]:
         return _get_sample_per_system[SYSTEM](session_id)
+
+
+def make_sampler(name: str) -> PsSampler:
+    """Factory: resolve a sampler name (as passed on the CLI) to an instance."""
+    if name == PsSampler.name:
+        return PsSampler()
+    if name == "cgroup-ps-hybrid":
+        # TODO(poc): implement CgroupSampler in a later commit.
+        raise NotImplementedError("sampler 'cgroup-ps-hybrid' is not yet implemented")
+    raise ValueError(f"unknown sampler: {name!r}")

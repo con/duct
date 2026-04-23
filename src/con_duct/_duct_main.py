@@ -9,6 +9,7 @@ import time
 from typing import IO, TextIO
 from con_duct._models import LogPaths, Outputs, RecordTypes, SessionMode
 from con_duct._output import TailPipe, prepare_outputs, remove_files, safe_close_files
+from con_duct._sampling import make_sampler
 from con_duct._signals import SigIntHandler
 from con_duct._tracker import Report, monitor_process
 
@@ -49,6 +50,7 @@ def execute(
     colors: bool,
     mode: SessionMode,
     message: str = "",
+    sampler: str = "ps",
 ) -> int:
     """A wrapper to execute a command, monitor and log the process details.
 
@@ -58,6 +60,8 @@ def execute(
         raise ValueError(
             "--report-interval must be greater than or equal to --sample-interval."
         )
+
+    sampler_instance = make_sampler(sampler)
 
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
     log_paths.prepare_paths(clobber, capture_outputs)
@@ -86,6 +90,7 @@ def execute(
         colors,
         clobber,
         message=message,
+        sampler=sampler_instance,
     )
     files_to_close.append(report.usage_file)
 
