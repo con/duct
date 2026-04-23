@@ -17,7 +17,7 @@ from con_duct._constants import ENV_PREFIXES, __schema_version__
 from con_duct._formatter import SummaryFormatter
 from con_duct._models import LogPaths, Sample, SystemInfo
 from con_duct._output import safe_close_files
-from con_duct._sampling import PsSampler
+from con_duct._sampling import PsSampler, Sampler
 
 __version__ = version("con-duct")
 
@@ -38,7 +38,7 @@ class Report:
         clobber: bool = False,
         process: subprocess.Popen | None = None,
         message: str = "",
-        sampler: Optional[PsSampler] = None,
+        sampler: Optional[Sampler] = None,
     ) -> None:
         self._command = command
         self.arguments = arguments

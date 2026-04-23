@@ -62,6 +62,12 @@ def execute(
         )
 
     sampler_instance = make_sampler(sampler)
+    # TODO(poc): the cgroup sampler reads duct's own cgroup via
+    # /proc/self/cgroup; a new-session spawn would stay in the same
+    # cgroup on Linux, but explicit current-session is cleaner and
+    # keeps the "duct measures the cgroup it lives in" invariant.
+    if sampler == "cgroup-ps-hybrid" and mode == SessionMode.NEW_SESSION:
+        raise ValueError("sampler 'cgroup-ps-hybrid' requires --mode=current-session")
 
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
     log_paths.prepare_paths(clobber, capture_outputs)
