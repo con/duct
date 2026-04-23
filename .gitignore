@@ -17,3 +17,6 @@ src/con_duct/_version.py
 # AI
 .serena/
 .local*
+
+# Sampler-matrix raw results; CSV at test/sampler_matrix.csv is committed
+.sampler_matrix_results.jsonl

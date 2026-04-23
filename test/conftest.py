@@ -1,8 +1,42 @@
+import json
 import logging
 import os
 from pathlib import Path
-from typing import Generator
+from typing import Any, Generator
 import pytest
+
+SAMPLER_MATRIX_RESULTS = Path(__file__).parent.parent / ".sampler_matrix_results.jsonl"
+
+
+def pytest_sessionstart(_session: pytest.Session) -> None:
+    """Clear stale sampler-matrix results from a previous run."""
+    SAMPLER_MATRIX_RESULTS.unlink(missing_ok=True)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(
+    item: pytest.Item, call: pytest.CallInfo[Any]
+) -> Generator[None, Any, None]:
+    """Record pass/fail of sampler_matrix-marked tests to a JSONL file.
+
+    scripts/gen_sampler_matrix.py reads the JSONL and pivots it into
+    test/sampler_matrix.csv (rows=workload, columns=sampler).
+    """
+    outcome = yield
+    if call.when != "call":
+        return
+    marker = item.get_closest_marker("sampler_matrix")
+    if marker is None:
+        return
+    report = outcome.get_result()
+    record = {
+        "workload": marker.kwargs.get("workload"),
+        "sampler": marker.kwargs.get("sampler"),
+        "status": "pass" if report.passed else "fail",
+        "nodeid": item.nodeid,
+    }
+    with SAMPLER_MATRIX_RESULTS.open("a") as f:
+        f.write(json.dumps(record) + "\n")
 
 
 @pytest.fixture(scope="session", autouse=True)
