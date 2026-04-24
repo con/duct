@@ -13,15 +13,34 @@ def pytest_sessionstart() -> None:
     SAMPLER_MATRIX_RESULTS.unlink(missing_ok=True)
 
 
-def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Auto-apply xfail(strict=True) to matrix tests marked expected='fail'.
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--cgroup-matrix",
+        action="store_true",
+        default=False,
+        help="Run opt-in cgroup_matrix tests (systemd-run --user required).",
+    )
 
-    Sampler-matrix tests express *known limitations* of a sampler against
-    a workload/property. Rather than making CI red for those known cells,
-    we mark them as expected failures; pytest still runs them (so we
-    notice if a sampler improves) but the overall suite stays green.
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Two jobs:
+
+    1. Auto-apply xfail(strict=True) to matrix tests marked expected='fail'
+       (known sampler/workload limitations; CI stays green, xpass surfaces
+       improvements).
+    2. Skip cgroup_matrix-marked tests unless --cgroup-matrix was passed.
+       These tests spawn subprocesses in transient systemd scopes, which
+       isn't appropriate for default runs.
     """
+    run_cgroup_matrix = config.getoption("--cgroup-matrix")
+    skip_cgroup_matrix = pytest.mark.skip(
+        reason="opt-in; pass --cgroup-matrix to pytest (or `tox -- --cgroup-matrix`)"
+    )
     for item in items:
+        if "cgroup_matrix" in item.keywords and not run_cgroup_matrix:
+            item.add_marker(skip_cgroup_matrix)
         marker = item.get_closest_marker("sampler_matrix")
         if marker is None:
             continue

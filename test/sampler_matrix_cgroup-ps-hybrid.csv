@@ -1,0 +1,4 @@
+workload,peak_pcpu_reaches_floor,peak_rss_no_overcount,peak_rss_reaches_alloc
+alloc_memory,n/a,n/a,pass
+memory_children,n/a,pass,pass
+steady_cpu,pass,n/a,n/a
