@@ -65,7 +65,8 @@ def pytest_runtest_makereport(
     whether that matched our committed expectation.
 
     scripts/gen_sampler_matrix.py pivots the JSONL into one CSV per
-    sampler (rows=workload, columns=property, cells=pass|fail|n/a).
+    sampler (rows=workload/metric, columns=no_<direction>,
+    cells=pass|fail|n/a).
     """
     yield
     if call.when != "call":
@@ -77,7 +78,8 @@ def pytest_runtest_makereport(
     record = {
         "sampler": marker.kwargs.get("sampler"),
         "workload": marker.kwargs.get("workload"),
-        "property": marker.kwargs.get("property"),
+        "metric": marker.kwargs.get("metric"),
+        "direction": marker.kwargs.get("direction"),
         "expected": marker.kwargs.get("expected"),
         "actual": actual,
         "nodeid": item.nodeid,

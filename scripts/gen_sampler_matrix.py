@@ -5,18 +5,21 @@ The conftest hook in test/conftest.py writes a JSONL file (one record
 per sampler_matrix-marked test) during the pytest run. Each record:
 
     {
-      "sampler":  "ps",
-      "workload": "memory_children",
-      "property": "peak_rss_no_overcount",
-      "expected": "fail",
-      "actual":   "fail",
-      "nodeid":   "test/duct_main/test_sampler_matrix.py::..."
+      "sampler":   "ps",
+      "workload":  "memory_children",
+      "metric":    "rss",
+      "direction": "overreport",
+      "expected":  "fail",
+      "actual":    "fail",
+      "nodeid":    "test/duct_main/test_sampler_matrix.py::..."
     }
 
 This script pivots the JSONL into one CSV per sampler --
-rows=workload, columns=property, cells=pass|fail|n/a -- and writes
-them into test/. The CSVs are checked in so reviewers can see each
-sampler's capability profile without running tests.
+rows=``<workload>/<metric>``, columns=``no_<direction>``,
+cells=pass|fail|n/a -- and writes them into test/. The CSVs are
+checked in so reviewers can see each sampler's capability profile
+(does-not-under-report / does-not-over-report, per workload/metric
+pair) without running tests.
 
 Each cell records the *actual* outcome (what the sampler did),
 independent of whether that matched our committed expectation. The
@@ -67,29 +70,32 @@ def group_by_sampler(
 
 
 def write_csv_for_sampler(sampler: str, records: list[dict[str, str]]) -> Path:
-    # workload -> property -> actual
-    by_workload: dict[str, dict[str, str]] = {}
-    properties: set[str] = set()
+    # row label -> column label -> actual
+    by_row: dict[str, dict[str, str]] = {}
+    columns: set[str] = set()
     for r in records:
         workload = r.get("workload")
-        prop = r.get("property")
+        metric = r.get("metric")
+        direction = r.get("direction")
         actual = r.get("actual")
-        if not (workload and prop and actual):
+        if not (workload and metric and direction and actual):
             continue
+        row_label = f"{workload}/{metric}"
+        col_label = f"no_{direction}"
         # Last write wins if the same cell appears twice in one run.
-        by_workload.setdefault(workload, {})[prop] = actual
-        properties.add(prop)
+        by_row.setdefault(row_label, {})[col_label] = actual
+        columns.add(col_label)
 
-    sorted_properties = sorted(properties)
+    sorted_columns = sorted(columns)
     out_path = CSV_DIR / f"sampler_matrix_{sampler}.csv"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["workload", *sorted_properties])
-        for workload in sorted(by_workload):
-            row = [workload]
-            for prop in sorted_properties:
-                row.append(by_workload[workload].get(prop, UNTESTED))
+        writer.writerow(["workload/metric", *sorted_columns])
+        for row_label in sorted(by_row):
+            row = [row_label]
+            for col in sorted_columns:
+                row.append(by_row[row_label].get(col, UNTESTED))
             writer.writerow(row)
     return out_path
 

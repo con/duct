@@ -79,7 +79,7 @@ filterwarnings = [
 ]
 markers = [
     "flaky: mark a test as being unreliable",
-    "sampler_matrix(sampler, workload, property, expected): sampler-matrix cell; conftest hook records actual pass/fail for scripts/gen_sampler_matrix.py",
+    "sampler_matrix(sampler, workload, metric, direction, expected): sampler-matrix cell; direction is 'overreport' or 'underreport'; conftest hook records actual pass/fail for scripts/gen_sampler_matrix.py",
     "cgroup_matrix: opt-in matrix tests that require systemd-run --user and a writable /sys/fs/cgroup v2; pass --cgroup-matrix to pytest to run",
 ]
 norecursedirs = ["test/data"]
