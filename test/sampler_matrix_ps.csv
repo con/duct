@@ -1,4 +1,6 @@
-workload,peak_pcpu_reaches_floor,peak_rss_no_overcount,peak_rss_reaches_alloc
-alloc_memory,n/a,n/a,pass
-memory_children,n/a,fail,pass
-steady_cpu,pass,n/a,n/a
+workload/metric,no_overreport,no_underreport
+alloc_memory/rss,n/a,pass
+ephemeral_cpu/pcpu,n/a,fail
+memory_children/rss,fail,pass
+spikey_cpu/pcpu,fail,n/a
+steady_cpu/pcpu,n/a,pass
