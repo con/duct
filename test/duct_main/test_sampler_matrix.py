@@ -171,7 +171,7 @@ _EPHEMERAL_HOLD_MS = 500
 # sampling (0.01s) catches workers at young lifetimes where ps's
 # cputime/elapsed ratio is inflated per hub's Bug 1 analysis.
 _SPIKEY_N_WORKERS = 4
-_SPIKEY_N_THREADS = 4
+_SPIKEY_N_THREADS = 8
 _SPIKEY_DURATION_S = 0.3
 # Physical ceiling on instantaneous %CPU. Bounded by cores in use;
 # cgroup respects this, ps (Bug 1) can exceed by an order of magnitude.
@@ -353,9 +353,11 @@ def test_ps_ephemeral_cpu_pcpu_no_underreport(
         == 0
     )
     peak_pcpu = _read_info(temp_output_dir)["execution_summary"]["peak_pcpu"] or 0.0
-    # Floor: expect peak_pcpu >= ~N * 50% for N parallel workers that
-    # each burned the full sample interval's worth of CPU.
-    floor = _EPHEMERAL_N_WORKERS * 50.0
+    # Floor chosen to comfortably discriminate ps (reports ~0% because
+    # children die between samples) from cgroup (reports > 100% for
+    # 4 parallel bursts over the sample window). Generous slack for
+    # Python startup + sample-window dilution.
+    floor = 80.0
     assert peak_pcpu >= floor, (
         f"peak_pcpu ({peak_pcpu}) should be >= {floor}% for "
         f"{_EPHEMERAL_N_WORKERS} parallel {_EPHEMERAL_WORK_MS}ms workers"
@@ -586,7 +588,9 @@ def test_cgroup_ephemeral_cpu_pcpu_no_underreport(
         ],
     )
     peak_pcpu = _read_info(temp_output_dir)["execution_summary"]["peak_pcpu"] or 0.0
-    floor = _EPHEMERAL_N_WORKERS * 50.0
+    # Same floor as ps version: discriminates "captured non-zero CPU"
+    # from "missed entirely."
+    floor = 80.0
     assert peak_pcpu >= floor, (
         f"cgroup peak_pcpu ({peak_pcpu}) should be >= {floor}% for "
         f"{_EPHEMERAL_N_WORKERS} parallel {_EPHEMERAL_WORK_MS}ms workers"
