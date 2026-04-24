@@ -481,3 +481,28 @@ They answer different questions. `total_rss` is the peak
 individual peak, which may have occurred at different moments. For
 sizing and budgeting, `total_rss` is the one you want. See
 [Peak vs. average](#peak-vs-average).
+
+---
+
+## Alternative sampler: `cgroup-ps-hybrid`
+
+Most of this document describes behavior specific to `ps`-based
+sampling. Duct also ships an opt-in alternative,
+`--sampler=cgroup-ps-hybrid` (Linux cgroup v2 only), which reads
+kernel cgroup counters for session totals while keeping `ps` for
+the per-pid breakdown. Three of the `ps` pathologies above go away
+for the session-wide numbers:
+
+- Shared pages counted once (not per forked child).
+- `total_pcpu` is physically bounded by the cores in use.
+- CPU from children that exit between samples is still captured.
+
+Per-pid values (`stats[pid].*`) are still `ps`-sourced. The
+committed capability matrix shows which cells each sampler gets
+right:
+
+- [`test/sampler_matrix_ps.csv`](../test/sampler_matrix_ps.csv)
+- [`test/sampler_matrix_cgroup-ps-hybrid.csv`](../test/sampler_matrix_cgroup-ps-hybrid.csv)
+
+See [`design/multiple-samplers.md`](design/multiple-samplers.md)
+for the full design.
