@@ -1,9 +1,16 @@
 """Ephemeral CPU workload: short-lived parallel children that die fast.
 
-Forks N child processes in parallel, each busy-loops on CPU for
-``work_ms`` milliseconds, then exits. The parent then sleeps for
-``hold_ms`` milliseconds so duct gets at least one sample window
-*after* all children have died.
+Forks N child processes in parallel via ``os.fork()``, each busy-loops
+on CPU for ``work_ms`` milliseconds, then ``os._exit()``s. The parent
+then sleeps for ``hold_ms`` milliseconds so duct gets at least one
+sample window *after* all children have died.
+
+Uses bare ``os.fork`` (not ``multiprocessing.Process``) so child
+lifetime is determined by ``work_ms``, not by interpreter re-init /
+spawn-method overhead. Under ``multiprocessing`` on PyPy or Python
+3.14+ (forkserver default), child startup bloats well past ``work_ms``
+and children get caught by ``ps`` sampling -- defeating the "children
+die between samples" story this workload anchors.
 
 Ground truth: the cgroup used approximately ``N * work_ms`` total CPU
 milliseconds in a span of ``work_ms`` wall milliseconds -- i.e. a
@@ -13,6 +20,9 @@ even if the children have already exited by sample time. A sampler
 that relies on per-pid snapshots at sample time (``ps -s <sid>``)
 sees an empty session and misses the burst.
 
+POSIX-only (``os.fork``); duct's session sampling requires POSIX
+anyway.
+
 Standalone usage (without duct):
 
     python test/data/workloads/ephemeral_cpu.py <num_workers> \\
@@ -20,7 +30,7 @@ Standalone usage (without duct):
 """
 
 from __future__ import annotations
-import multiprocessing
+import os
 import sys
 import time
 
@@ -43,14 +53,15 @@ def main() -> None:
     hold_ms = int(sys.argv[3])
 
     work_s = work_ms / 1000
-    procs = [
-        multiprocessing.Process(target=_busy, args=(work_s,))
-        for _ in range(num_workers)
-    ]
-    for p in procs:
-        p.start()
-    for p in procs:
-        p.join()
+    pids = []
+    for _ in range(num_workers):
+        pid = os.fork()
+        if pid == 0:
+            _busy(work_s)
+            os._exit(0)
+        pids.append(pid)
+    for pid in pids:
+        os.waitpid(pid, 0)
 
     # Keep the parent alive so duct's monitor thread gets at least one
     # sample window after all children have exited. Without this, the
