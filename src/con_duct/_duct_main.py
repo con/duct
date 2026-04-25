@@ -60,7 +60,11 @@ def execute(
         )
 
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
-    log_paths.prepare_paths(clobber, capture_outputs)
+    try:
+        log_paths.prepare_paths(clobber, capture_outputs)
+    except FileExistsError as e:
+        lgr.error("%s", e)
+        return 1
     stdout, stderr = prepare_outputs(capture_outputs, outputs, log_paths)
     stdout_file: TextIO | IO[bytes] | int | None
     if isinstance(stdout, TailPipe):
