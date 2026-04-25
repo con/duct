@@ -14,8 +14,8 @@ The `con-duct` CLI provides multiple subcommands for working with execution data
 
 Also see our [Datalad Blog Post](https://blog.datalad.org/posts/intro-duct-tion/) for a hands on example.
 
-It is inspired and based on [brainlife's smon](https://github.com/brainlife/abcd-spec/blob/master/hooks/smon).
-
+It is inspired and based on [brainlife's smon](https://github.com/brainlife/abcd-spec/blob/master/hooks/smon) for usage stats collection and our [ReproMan](
+https://github.com/ReproNim/reproman) for standard outputs capture.
 
 ## Installation
 
