@@ -14,6 +14,9 @@ The `con-duct` CLI provides multiple subcommands for working with execution data
 
 Also see our [Datalad Blog Post](https://blog.datalad.org/posts/intro-duct-tion/) for a hands on example.
 
+It is inspired and based on [brainlife's smon](https://github.com/brainlife/abcd-spec/blob/master/hooks/smon).
+
+
 ## Installation
 
 Basic installation (includes `con-duct` and `duct` commands):
