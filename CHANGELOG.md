@@ -1,3 +1,22 @@
+# v0.20.1 (Sat Apr 25 2026)
+
+#### 🐛 Bug Fix
+
+- Update README to include duct-gallery reference [#417](https://github.com/con/duct/pull/417) ([@yarikoptic](https://github.com/yarikoptic) [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]))
+- Enhance README with ReproMan usage information [#417](https://github.com/con/duct/pull/417) ([@yarikoptic](https://github.com/yarikoptic))
+
+#### ⚠️ Pushed to `main`
+
+- Update README to include smon reference ([@yarikoptic](https://github.com/yarikoptic))
+- Add forgotten copyright notice for origin in LICENSE ([@yarikoptic](https://github.com/yarikoptic))
+
+#### Authors: 2
+
+- [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot])
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.20.0 (Tue Apr 21 2026)
 
 #### 🚀 Enhancement
