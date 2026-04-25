@@ -13,7 +13,7 @@ The `con-duct` CLI provides multiple subcommands for working with execution data
 - **`ls`**: List previous executions.
 
 Also see our [Datalad Blog Post](https://blog.datalad.org/posts/intro-duct-tion/) for a hands on example, and
-[duct-gallery]https://github.com/con/duct-gallery) for more samples with plots (contribute yours!).
+[duct-gallery](https://github.com/con/duct-gallery) for more samples with plots (contribute yours!).
 
 It is inspired and based on [brainlife's smon](https://github.com/brainlife/abcd-spec/blob/master/hooks/smon) for usage stats collection and our [ReproMan](
 https://github.com/ReproNim/reproman) for standard outputs capture.
