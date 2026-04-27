@@ -40,6 +40,41 @@ def etime_to_etimes(etime: str) -> float:
     return float(days * 86400 + hours * 3600 + minutes * 60 + seconds)
 
 
+def instantaneous_pcpu(
+    prev_pcpu: float,
+    prev_etimes: float,
+    curr_pcpu: float,
+    curr_etimes: float,
+) -> float | None:
+    """Instantaneous %CPU between two ps samples of the same pid.
+
+    Inverts the procps identity ``pcpu = cputime / etime * 100`` to
+    recover cputime at each sample, takes the cputime delta, and
+    divides by the elapsed interval. The ``/100`` and ``*100``
+    cancel, so the result is in the same units as ``pcpu``.
+
+    Linux-only: assumes ``pcpu`` is the cumulative ``cputime/etime``
+    ratio. Invalid on Darwin (decayed EWMA).
+
+    Precision floor: ps reports ``etime`` at 1-second resolution, so
+    at sample intervals near 1s this function is noisy or returns
+    ``None`` frequently (see PROBLEMS.md in the resource-measurement
+    notebook).
+
+    :param prev_pcpu: %CPU from the earlier sample.
+    :param prev_etimes: elapsed seconds at the earlier sample.
+    :param curr_pcpu: %CPU from the later sample.
+    :param curr_etimes: elapsed seconds at the later sample.
+    :returns: instantaneous %CPU over the interval, or ``None`` if
+        the interval is non-positive (etimes did not advance, or
+        regressed -- suspected pid reuse).
+    """
+    interval = curr_etimes - prev_etimes
+    if interval <= 0:
+        return None
+    return (curr_pcpu * curr_etimes - prev_pcpu * prev_etimes) / interval
+
+
 def parse_version(version_str: str) -> tuple[int, int, int]:
     x_y_z = version_str.split(".")
     if len(x_y_z) != 3:
