@@ -10,54 +10,64 @@ from con_duct._tracker import Report
 
 stat0 = ProcessStats(
     pcpu=0.0,
+    pcpu_raw=0.0,
     pmem=0,
     rss=0,
     vsz=0,
     timestamp="2024-06-11T10:09:37-04:00",
     etime="00:00",
+    etimes=0.0,
     cmd="cmd 0",
     stat=Counter(["stat0"]),
 )
 
 stat1 = ProcessStats(
     pcpu=1.0,
+    pcpu_raw=1.0,
     pmem=1.0,
     rss=1,
     vsz=1,
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
+    etimes=2.0,
     cmd="cmd 1",
     stat=Counter(["stat1"]),
 )
 
 stat2 = ProcessStats(
     pcpu=2.0,
+    pcpu_raw=2.0,
     pmem=2.0,
     rss=2,
     vsz=2,
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
+    etimes=2.0,
     cmd="cmd 2",
     stat=Counter(["stat2"]),
 )
 
 stat100 = ProcessStats(
     pcpu=100.0,
+    pcpu_raw=100.0,
     pmem=100.0,
     rss=2,
     vsz=2,
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
+    etimes=2.0,
     cmd="cmd 100",
     stat=Counter(["stat100"]),
 )
 stat_big = ProcessStats(
     pcpu=20000.0,
+    pcpu_raw=20000.0,
     pmem=21234234.0,
     rss=43645634562,
     vsz=2345234523452342,
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
+    etimes=2.0,
     cmd="cmd 2",
     stat=Counter(["statbig"]),
 )

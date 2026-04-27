@@ -66,12 +66,14 @@ class SystemInfo:
 
 @dataclass
 class ProcessStats:
-    pcpu: float  # %CPU
+    pcpu: float  # %CPU (corrected; equals pcpu_raw until calc is wired)
+    pcpu_raw: float  # %CPU as reported by ps; preserved for audit
     pmem: float  # %MEM
     rss: int  # Memory Resident Set Size in Bytes
     vsz: int  # Virtual Memory size in Bytes
     timestamp: str
-    etime: str
+    etime: str  # raw ps etime string; legacy, see etimes
+    etimes: float  # elapsed seconds (parsed from etime)
     stat: Counter
     cmd: str
 
@@ -93,11 +95,13 @@ class ProcessStats:
         new_counter.update(other.stat)
         return ProcessStats(
             pcpu=max(self.pcpu, other.pcpu),
+            pcpu_raw=max(self.pcpu_raw, other.pcpu_raw),
             pmem=max(self.pmem, other.pmem),
             rss=max(self.rss, other.rss),
             vsz=max(self.vsz, other.vsz),
             timestamp=max(self.timestamp, other.timestamp),
             etime=other.etime,  # For the aggregate always take the latest
+            etimes=other.etimes,
             stat=new_counter,
             cmd=cmd,
         )
@@ -111,7 +115,7 @@ class ProcessStats:
         self._validate()
 
     def _validate(self) -> None:
-        assert_num(self.pcpu, self.pmem, self.rss, self.vsz)
+        assert_num(self.pcpu, self.pcpu_raw, self.pmem, self.rss, self.vsz, self.etimes)
 
 
 @dataclass

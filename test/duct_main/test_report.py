@@ -12,33 +12,39 @@ from con_duct._tracker import Report
 
 stat0 = ProcessStats(
     pcpu=0.0,
+    pcpu_raw=0.0,
     pmem=0,
     rss=0,
     vsz=0,
     timestamp="2024-06-11T10:09:37-04:00",
     etime="00:00",
+    etimes=0.0,
     cmd="cmd 1",
     stat=Counter(["stat0"]),
 )
 
 stat1 = ProcessStats(
     pcpu=1.0,
+    pcpu_raw=1.0,
     pmem=0,
     rss=0,
     vsz=0,
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
+    etimes=2.0,
     cmd="cmd 1",
     stat=Counter(["stat1"]),
 )
 
 stat2 = ProcessStats(
     pcpu=1.1,
+    pcpu_raw=1.1,
     pmem=1.1,
     rss=11,
     vsz=11,
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
+    etimes=2.0,
     cmd="cmd 1",
     stat=Counter(["stat2"]),
 )
@@ -178,11 +184,13 @@ def test_process_stats_green(
     # Assert does not raise
     ProcessStats(
         pcpu=pcpu,
+        pcpu_raw=pcpu,
         pmem=pmem,
         rss=rss,
         vsz=vsz,
         timestamp=datetime.now().astimezone().isoformat(),
         etime=etime,
+        etimes=0.0,
         cmd=cmd,
         stat=Counter(["stat0"]),
     )
@@ -204,11 +212,13 @@ def test_process_stats_red(
     with pytest.raises(AssertionError):
         ProcessStats(
             pcpu=pcpu,
+            pcpu_raw=0.0,
             pmem=pmem,
             rss=rss,
             vsz=vsz,
             timestamp=datetime.now().astimezone().isoformat(),
             etime=etime,
+            etimes=0.0,
             cmd=cmd,
             stat=Counter(["stat0"]),
         )

@@ -10,6 +10,7 @@ import subprocess
 import sys
 from typing import Callable, Optional
 from con_duct._models import Averages, ProcessStats, Sample
+from con_duct._utils import etime_to_etimes
 
 SYSTEM = platform.system()
 
@@ -45,15 +46,18 @@ def _get_sample_linux(session_id: int) -> Sample:
 
         pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(maxsplit=7)
 
+        pcpu_value = float(pcpu)
         sample.add_pid(
             pid=int(pid),
             stats=ProcessStats(
-                pcpu=float(pcpu),
+                pcpu=pcpu_value,
+                pcpu_raw=pcpu_value,
                 pmem=float(pmem),
                 rss=int(rss_kib) * 1024,
                 vsz=int(vsz_kib) * 1024,
                 timestamp=datetime.now().astimezone().isoformat(),
                 etime=etime,
+                etimes=etime_to_etimes(etime),
                 stat=Counter([stat]),
                 cmd=cmd,
             ),
@@ -92,15 +96,18 @@ def _add_pid_to_sample_from_line_mac(
     pid, pcpu, pmem, rss_kb, vsz_kb, etime, stat, cmd = line.split(maxsplit=7)
 
     if pid_to_matching_sid.get(int(pid)) is not None:
+        pcpu_value = float(pcpu)
         sample.add_pid(
             pid=int(pid),
             stats=ProcessStats(
-                pcpu=float(pcpu),
+                pcpu=pcpu_value,
+                pcpu_raw=pcpu_value,
                 pmem=float(pmem),
                 rss=int(rss_kb) * 1024,
                 vsz=int(vsz_kb) * 1024,
                 timestamp=datetime.now().astimezone().isoformat(),
                 etime=etime,
+                etimes=etime_to_etimes(etime),
                 stat=Counter([stat]),
                 cmd=cmd,
             ),
