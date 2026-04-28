@@ -45,7 +45,7 @@ def instantaneous_pcpu(
     prev_etimes: float,
     curr_pcpu: float,
     curr_etimes: float,
-) -> float | None:
+) -> float:
     """Instantaneous %CPU between two ps samples of the same pid.
 
     Inverts the procps identity ``pcpu = cputime / etime * 100`` to
@@ -57,21 +57,24 @@ def instantaneous_pcpu(
     ratio. Invalid on Darwin (decayed EWMA).
 
     Precision floor: ps reports ``etime`` at 1-second resolution, so
-    at sample intervals near 1s this function is noisy or returns
-    ``None`` frequently (see PROBLEMS.md in the resource-measurement
+    at sample intervals near 1s this function frequently falls back
+    to ``curr_pcpu`` (see PROBLEMS.md in the resource-measurement
     notebook).
 
     :param prev_pcpu: %CPU from the earlier sample.
     :param prev_etimes: elapsed seconds at the earlier sample.
     :param curr_pcpu: %CPU from the later sample.
     :param curr_etimes: elapsed seconds at the later sample.
-    :returns: instantaneous %CPU over the interval, or ``None`` if
-        the interval is non-positive (etimes did not advance, or
-        regressed -- suspected pid reuse).
+    :returns: instantaneous %CPU over the interval. Falls back to
+        ``curr_pcpu`` when the interval is non-positive (etimes did
+        not advance, or regressed -- suspected pid reuse). The
+        fallback keeps the value honest about "something is here"
+        rather than emitting a silent zero; a sophisticated consumer
+        can detect fallback by comparing against ``pcpu_raw``.
     """
     interval = curr_etimes - prev_etimes
     if interval <= 0:
-        return None
+        return curr_pcpu
     return (curr_pcpu * curr_etimes - prev_pcpu * prev_etimes) / interval
 
 

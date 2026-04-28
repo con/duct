@@ -63,18 +63,22 @@ def test_instantaneous_pcpu_green(
 
 
 @pytest.mark.parametrize(
-    "prev_pcpu,prev_etimes,curr_pcpu,curr_etimes",
+    "prev_pcpu,prev_etimes,curr_pcpu,curr_etimes,expected",
     [
-        # etimes regressed -> suspected pid reuse.
-        (80.0, 100.0, 10.0, 2.0),
-        # Same instant -> interval is zero, no rate definable.
-        (50.0, 100.0, 50.0, 100.0),
+        # etimes regressed -> suspected pid reuse; fall back to curr.
+        (80.0, 100.0, 10.0, 2.0, 10.0),
+        # Same instant -> interval is zero, no rate definable; fall
+        # back to curr.
+        (50.0, 100.0, 50.0, 100.0, 50.0),
     ],
 )
-def test_instantaneous_pcpu_none(
+def test_instantaneous_pcpu_falls_back_to_curr(
     prev_pcpu: float,
     prev_etimes: float,
     curr_pcpu: float,
     curr_etimes: float,
+    expected: float,
 ) -> None:
-    assert instantaneous_pcpu(prev_pcpu, prev_etimes, curr_pcpu, curr_etimes) is None
+    assert (
+        instantaneous_pcpu(prev_pcpu, prev_etimes, curr_pcpu, curr_etimes) == expected
+    )
