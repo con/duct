@@ -36,7 +36,9 @@ def test_spawn_children(
 ) -> None:
     duct_prefix = f"{temp_output_dir}log_"
     script_path = TEST_SCRIPT_DIR / "spawn_children.sh"
-    dur = "0.3"
+    # >=1s outlives ps's etime quantum so the production
+    # DROP_YOUNG_PIDS filter doesn't drop the spawned children.
+    dur = "2"
     command = (
         f"{duct_cmd} -q --s-i 0.001 --r-i 0.01 "
         f"-p {duct_prefix} {script_path} {mode} {num_children} {dur}"
@@ -64,7 +66,9 @@ def test_spawn_children(
 def test_session_modes(temp_output_dir: str, duct_cmd: str, session_mode: str) -> None:
     """Test that both session modes work correctly and collect appropriate data."""
     duct_prefix = f"{temp_output_dir}log_"
-    command = f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode {session_mode} -p {duct_prefix} sleep 0.3"
+    # >=1s outlives ps's etime quantum so the production
+    # DROP_YOUNG_PIDS filter leaves observable samples.
+    command = f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode {session_mode} -p {duct_prefix} sleep 2"
     subprocess.check_output(command, shell=True)
 
     # Check that log files were created
@@ -113,7 +117,9 @@ def test_session_mode_behavior_difference(temp_output_dir: str, duct_cmd: str) -
         new_session_prefix = f"{temp_output_dir}new_"
         current_session_prefix = f"{temp_output_dir}current_"
 
-        # Run duct with new-session mode - should NOT see background process
+        # Run duct with new-session mode - should NOT see background process.
+        # >=1s outlives ps's etime quantum so the production
+        # DROP_YOUNG_PIDS filter leaves observable samples.
         subprocess.check_output(
             f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode new-session -p {new_session_prefix} sleep 2",
             shell=True,

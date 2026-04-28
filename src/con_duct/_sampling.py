@@ -9,6 +9,7 @@ import platform
 import subprocess
 import sys
 from typing import Callable, Optional
+from con_duct._constants import DROP_YOUNG_PIDS
 from con_duct._models import Averages, ProcessStats, Sample
 from con_duct._utils import etime_to_etimes, instantaneous_pcpu
 
@@ -29,7 +30,7 @@ lgr = logging.getLogger("con-duct")
 
 def _get_sample_linux(
     session_id: int, prev: dict[int, tuple[float, float]]
-) -> tuple[Sample, dict[int, tuple[float, float]]]:
+) -> tuple[Optional[Sample], dict[int, tuple[float, float]]]:
     sample = Sample()
     new_prev: dict[int, tuple[float, float]] = {}
 
@@ -48,6 +49,14 @@ def _get_sample_linux(
             continue
 
         pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(maxsplit=7)
+
+        if DROP_YOUNG_PIDS and etime == "00:00":
+            # Pid too young for ps to report a non-zero elapsed
+            # time; skip the whole record (smon's pattern). Loses
+            # rss/vsz/cmd for this sample, but avoids inflating
+            # pcpu_raw via the first-observation fallback for the
+            # con/duct#399 churn case.
+            continue
 
         pid_int = int(pid)
         pcpu_raw_value = float(pcpu)
@@ -78,6 +87,13 @@ def _get_sample_linux(
                 cmd=cmd,
             ),
         )
+    if not sample.stats:
+        # Every pid was filtered (e.g. DROP_YOUNG_PIDS dropped all
+        # the youngest observations) or ps returned no rows. Mirror
+        # _get_sample_mac's no-pids path so the monitor loop skips
+        # this round rather than crashing on Averages.from_sample's
+        # not-None assertions.
+        return None, new_prev
     sample.averages = Averages.from_sample(sample=sample)
     return sample, new_prev
 
