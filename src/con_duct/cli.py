@@ -461,6 +461,12 @@ def _create_ls_parser() -> argparse.ArgumentParser:
 
 def run_command(args: argparse.Namespace) -> int:
     """Execute a command with duct monitoring."""
+    if args.sample_interval < 1.0:
+        lgr.warning(
+            "sample-interval %ss is below ps's 1s etime resolution; "
+            "this can cause phase artifacts (false pcpu spikes) on Linux.",
+            args.sample_interval,
+        )
     kwargs = vars(args).copy()
     # Remove arguments that are not for duct_execute
     for key in ("func", "log_level", "quiet"):
