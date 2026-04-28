@@ -10,7 +10,7 @@ import subprocess
 import sys
 from typing import Callable, Optional
 from con_duct._models import Averages, ProcessStats, Sample
-from con_duct._utils import etime_to_etimes
+from con_duct._utils import etime_to_etimes, instantaneous_pcpu
 
 SYSTEM = platform.system()
 
@@ -27,8 +27,11 @@ if SYSTEM not in _SUPPORTED_SYSTEMS:
 lgr = logging.getLogger("con-duct")
 
 
-def _get_sample_linux(session_id: int) -> Sample:
+def _get_sample_linux(
+    session_id: int, prev: dict[int, tuple[float, float]]
+) -> tuple[Sample, dict[int, tuple[float, float]]]:
     sample = Sample()
+    new_prev: dict[int, tuple[float, float]] = {}
 
     ps_command = [
         "ps",
@@ -46,24 +49,37 @@ def _get_sample_linux(session_id: int) -> Sample:
 
         pid, pcpu, pmem, rss_kib, vsz_kib, etime, stat, cmd = line.split(maxsplit=7)
 
-        pcpu_value = float(pcpu)
+        pid_int = int(pid)
+        pcpu_raw_value = float(pcpu)
+        etimes_value = etime_to_etimes(etime)
+        prev_entry = prev.get(pid_int)
+        if prev_entry is not None:
+            prev_pcpu_raw, prev_etimes = prev_entry
+            pcpu_value = instantaneous_pcpu(
+                prev_pcpu_raw, prev_etimes, pcpu_raw_value, etimes_value
+            )
+        else:
+            # First observation of this pid; no prior state to delta against.
+            pcpu_value = pcpu_raw_value
+        new_prev[pid_int] = (pcpu_raw_value, etimes_value)
+
         sample.add_pid(
-            pid=int(pid),
+            pid=pid_int,
             stats=ProcessStats(
                 pcpu=pcpu_value,
-                pcpu_raw=pcpu_value,
+                pcpu_raw=pcpu_raw_value,
                 pmem=float(pmem),
                 rss=int(rss_kib) * 1024,
                 vsz=int(vsz_kib) * 1024,
                 timestamp=datetime.now().astimezone().isoformat(),
                 etime=etime,
-                etimes=etime_to_etimes(etime),
+                etimes=etimes_value,
                 stat=Counter([stat]),
                 cmd=cmd,
             ),
         )
     sample.averages = Averages.from_sample(sample=sample)
-    return sample
+    return sample, new_prev
 
 
 def _try_to_get_sid(pid: int) -> int:
@@ -114,7 +130,12 @@ def _add_pid_to_sample_from_line_mac(
         )
 
 
-def _get_sample_mac(session_id: int) -> Optional[Sample]:
+def _get_sample_mac(
+    session_id: int, prev: dict[int, tuple[float, float]]
+) -> tuple[Optional[Sample], dict[int, tuple[float, float]]]:
+    # Darwin's ps reports a 5/8-decayed EWMA, not a cumulative ratio,
+    # so the delta calc does not apply. prev is accepted for uniform
+    # signature with the Linux sampler and returned unchanged.
     sample = Sample()
 
     lines = _get_ps_lines_mac()
@@ -127,7 +148,7 @@ def _get_sample_mac(session_id: int) -> Optional[Sample]:
 
     if not pid_to_matching_sid:
         lgr.debug(f"No processes found for session ID {session_id}.")
-        return None
+        return None, prev
 
     # collections.deque with maxlen=0 is used to approximate the
     # performance of list comprehension (superior to basic for-loop)
@@ -143,11 +164,16 @@ def _get_sample_mac(session_id: int) -> Optional[Sample]:
     )
 
     sample.averages = Averages.from_sample(sample=sample)
-    return sample
+    return sample, prev
 
 
 _get_sample_per_system = {
     "Linux": _get_sample_linux,
     "Darwin": _get_sample_mac,
 }
-_get_sample: Callable[[int], Optional[Sample]] = _get_sample_per_system[SYSTEM]  # type: ignore[assignment]
+_get_sample: Callable[
+    [int, dict[int, tuple[float, float]]],
+    tuple[Optional[Sample], dict[int, tuple[float, float]]],
+] = _get_sample_per_system[
+    SYSTEM
+]  # type: ignore[assignment]
