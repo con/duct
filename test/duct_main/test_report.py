@@ -240,6 +240,49 @@ def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     assert report.system_info.user == os.environ.get("USER")
 
 
+@mock.patch("con_duct._tracker._get_sample")
+@mock.patch("con_duct._tracker.LogPaths")
+def test_collect_sample_round_trips_prev_raw(
+    mock_log_paths: mock.MagicMock, mock_get_sample: mock.MagicMock
+) -> None:
+    """Report.collect_sample threads its prev_raw dict across calls.
+
+    Each invocation of _get_sample receives the prev_raw returned by
+    the previous invocation (or {} on the first call) and the
+    returned new prev_raw lands on self.prev_raw for the next call.
+    Regression guard for the load-bearing decision that the Tracker
+    holds the cross-sample state.
+    """
+    mock_log_paths.prefix = "mock_prefix"
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
+    report.session_id = 42
+
+    received: list[dict] = []
+    returned: list[dict] = [
+        {1234: (80.0, 10.0)},
+        {1234: (82.0, 20.0)},
+    ]
+
+    def fake_get_sample(
+        _session_id: int, prev: dict[int, tuple[float, float]]
+    ) -> tuple[Sample, dict[int, tuple[float, float]]]:
+        received.append(dict(prev))
+        return Sample(), returned[len(received) - 1]
+
+    mock_get_sample.side_effect = fake_get_sample
+
+    report.collect_sample()
+    assert received[0] == {}
+    assert report.prev_raw == {1234: (80.0, 10.0)}
+
+    report.collect_sample()
+    assert received[1] == {1234: (80.0, 10.0)}
+    assert report.prev_raw == {1234: (82.0, 20.0)}
+
+
 @mock.patch("con_duct._tracker.shutil.which")
 @mock.patch("con_duct._tracker.subprocess.check_output")
 @mock.patch("con_duct._tracker.LogPaths")
