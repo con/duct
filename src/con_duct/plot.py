@@ -1,7 +1,8 @@
 """Resource-usage plotting for con-duct.
 
-The per-pid layout (per-pid pdcpu / pmem / rss lines) is modeled on
-brainlife's smon task viewer:
+Renders a per-pid pdcpu / pmem cloud overlaid by max (lower bound on
+the total) and sum (upper bound on the total) envelopes. The per-pid
+overlay is loosely modeled on brainlife's smon task viewer:
 https://github.com/brainlife/warehouse/blob/b833b98e3518181eacef71cc04ae773a7592b1a8/ui/src/modals/taskinfo.vue
 """
 
@@ -17,13 +18,15 @@ from con_duct.json_utils import is_info_file, load_info_file, load_usage_file
 # Drop pids whose peak pdcpu falls below this threshold AND whose peak rss
 # falls below DEFAULT_MIN_PEAK_RSS. A pid notable on either axis is kept.
 # Matches brainlife's near-zero filters: 0.5% for pcpu, 10MB for rss.
+# rss is still used here as a relevance signal even though the default chart
+# does not render an rss line -- a memory-only pid should still contribute
+# to the pmem envelope.
 DEFAULT_MIN_PEAK_PDCPU = 0.5
 DEFAULT_MIN_PEAK_RSS = 10 * 1024 * 1024
 
-# After filtering, cap the legend by taking the top-N pids: half by peak pdcpu
-# and half by peak rss, unioned. Result is between N//2 and N pids depending
-# on overlap. Set to None to keep all filtered pids.
-DEFAULT_TOP_N: Optional[int] = 10
+# Color per metric (all pid lines for that metric share this color).
+PCPU_COLOR = "tab:orange"
+PMEM_COLOR = "tab:blue"
 
 lgr = logging.getLogger(__name__)
 
@@ -83,27 +86,6 @@ class HumanizedAxisFormatter:
                 return f"{value:.1f}{name}"
 
         return _HumanizedAxisFormatter(min_ratio=min_ratio, units=units)
-
-
-def _shorten_cmd(cmd: str, limit: int = 50) -> str:
-    """Shorten a long cmd for legend display.
-
-    Mirrors brainlife's ``shorten()`` (taskinfo.vue): tokens longer than 20
-    chars get their last 20 kept after ``..``; final result is truncated to
-    ``limit`` chars.
-    """
-    if len(cmd) < limit:
-        return cmd
-    parts = []
-    for tok in cmd.split(" "):
-        if len(tok) < 20:
-            parts.append(tok)
-        else:
-            parts.append(".." + tok[-20:])
-    short = " ".join(parts)
-    if len(short) > limit:
-        short = short[:limit] + "..."
-    return short
 
 
 def _build_pid_series(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -180,20 +162,15 @@ def _filter_pids(
     *,
     min_peak_pdcpu: float = DEFAULT_MIN_PEAK_PDCPU,
     min_peak_rss: float = DEFAULT_MIN_PEAK_RSS,
-    top_n: Optional[int] = DEFAULT_TOP_N,
     drop_ps_observer: bool = False,
 ) -> Dict[str, Dict[str, Any]]:
     """Trim per-pid series for legibility.
 
     A pid is kept if it is "notable" on either axis: peak pdcpu reaches
     ``min_peak_pdcpu`` *or* peak rss reaches ``min_peak_rss``. This way an
-    idle process holding significant memory still appears on the chart.
-
-    With ``top_n`` set, the legend is capped by combining two rankings:
-    the top ``top_n // 2`` pids by peak pdcpu, plus the top ``top_n // 2``
-    pids by peak rss, unioned. Result is between ``top_n // 2`` and
-    ``top_n`` pids depending on overlap. This way "interesting on either
-    axis" survives the cap without one metric squeezing out the other.
+    idle process holding significant memory still contributes to the pmem
+    cloud and envelope, even though the default chart does not render an
+    rss line.
 
     With ``drop_ps_observer``, drops pids whose cmd starts with ``"ps "``.
     """
@@ -204,17 +181,36 @@ def _filter_pids(
         if _peak_pdcpu(s) < min_peak_pdcpu and _peak_rss(s) < min_peak_rss:
             continue
         out[pid] = s
-    if top_n is None or len(out) <= top_n:
-        return out
-    half = max(1, top_n // 2)
-    by_pdcpu = sorted(out.items(), key=lambda kv: -_peak_pdcpu(kv[1]))
-    by_rss = sorted(out.items(), key=lambda kv: -_peak_rss(kv[1]))
-    keep_order = list(
-        dict.fromkeys(
-            [pid for pid, _ in by_pdcpu[:half]] + [pid for pid, _ in by_rss[:half]]
-        )
-    )
-    return {pid: out[pid] for pid in keep_order}
+    return out
+
+
+def _envelopes(
+    series: Dict[str, Dict[str, Any]],
+    metric: str,
+) -> Tuple[List[float], List[float], List[float]]:
+    """Per-grid-timestamp max and sum across kept pids for ``metric``.
+
+    Each pid contributes a value at every entry-elapsed timestamp where it
+    appeared *and* its value at that timestamp is not ``None`` (pdcpu can be
+    ``None`` for first-observation, etime=0, sub-quantum, pid-reuse, or the
+    negative-pdcpu clamp). Grid points where no kept pid had a value are
+    omitted entirely rather than reported as zero -- a missing measurement
+    is not the same as zero load.
+
+    The grid is the union of (kept pids') elapsed values; the alternative
+    of "every entry timestamp regardless of who appeared" would only add
+    grid points that are missing measurements anyway.
+
+    :returns: ``(grid_xs, max_ys, sum_ys)`` aligned, sorted by ``grid_xs``.
+    """
+    grid: Dict[float, List[float]] = {}
+    for s in series.values():
+        for x, v in zip(s["elapsed"], s[metric]):
+            if v is None:
+                continue
+            grid.setdefault(x, []).append(v)
+    xs = sorted(grid.keys())
+    return xs, [max(grid[x]) for x in xs], [sum(grid[x]) for x in xs]
 
 
 def matplotlib_plot(args: argparse.Namespace) -> int:
@@ -287,69 +283,88 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
 
     filtered = _filter_pids(pid_series, min_peak_pdcpu=DEFAULT_MIN_PEAK_PDCPU)
 
-    fig, ax1 = plt.subplots(  # type: ignore[call-overload]
-        figsize=(20, 15), constrained_layout=True
-    )
-    ax2 = ax1.twinx()  # type: ignore[attr-defined]
+    fig, ax = plt.subplots()
 
-    # Pick colors from the default cycle so pdcpu/pmem/rss for one pid all
-    # share a color across the three line styles.
-    color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]  # type: ignore[attr-defined]
-
-    for i, (pid, s) in enumerate(filtered.items()):
-        label = _shorten_cmd(s["cmd"]) or f"pid {pid}"
-        color = color_cycle[i % len(color_cycle)]
-        # pdcpu: drop None (no plot point at first-observation / etime=0).
-        xs = [t for t, v in zip(s["elapsed"], s["pdcpu"]) if v is not None]
-        ys = [v for v in s["pdcpu"] if v is not None]
-        if xs:
-            ax1.plot(xs, ys, label=label, color=color)
-            # pmem: same axis, dotted, dimmed.
-            ax1.plot(  # type: ignore[call-arg]
-                s["elapsed"], s["pmem"], color=color, linestyle=":", alpha=0.5
-            )
-        else:
-            # No pdcpu measurement (single sample / all-reuse / etime=0). Still
-            # plot pmem so memory-only pids appear; attach the pid legend label
-            # to the pmem line in this case.
-            ax1.plot(  # type: ignore[call-arg]
-                s["elapsed"],
-                s["pmem"],
-                label=label,
-                color=color,
+    # Per-pid traces: dotted, faint, single color per metric. The cloud of
+    # pid lines reads as background texture; the envelopes carry the signal.
+    for s in filtered.values():
+        pdcpu_xs = [t for t, v in zip(s["elapsed"], s["pdcpu"]) if v is not None]
+        pdcpu_ys = [v for v in s["pdcpu"] if v is not None]
+        if pdcpu_xs:
+            ax.plot(  # type: ignore[call-arg]
+                pdcpu_xs,
+                pdcpu_ys,
+                color=PCPU_COLOR,
                 linestyle=":",
-                alpha=0.5,
+                linewidth=0.8,
+                alpha=0.4,
             )
-        # rss: secondary axis, dashed, dimmed.
-        ax2.plot(  # type: ignore[call-arg]
-            s["elapsed"], s["rss"], color=color, linestyle="--", alpha=0.5
+        ax.plot(  # type: ignore[call-arg]
+            s["elapsed"],
+            s["pmem"],
+            color=PMEM_COLOR,
+            linestyle=":",
+            linewidth=0.8,
+            alpha=0.4,
         )
-        # TODO: option to plot vsz alongside rss (commented out per #399 plot-fix scope).
-        # ax2.plot(s["elapsed"], s["vsz"], color=color, linestyle="-.", alpha=0.5)
 
-    ax1.set_xlabel("Elapsed Time")
-    ax1.set_ylabel("pdcpu / pmem (%)")
-    ax2.set_ylabel("rss")
+    # Envelopes: max (lower bound on total) solid, sum (upper bound) dashed.
+    # If some pid was at 50%, the total was at least 50% -- max is a true
+    # lower bound. The sum is an upper bound that can blow past 100% on
+    # multi-core (per-pid pdcpu doesn't know about cores) and overstate
+    # memory (shared pages get counted multiple times in pmem); both
+    # caveats are accepted -- the goal is "more meaningful than now".
+    for metric, color in (("pdcpu", PCPU_COLOR), ("pmem", PMEM_COLOR)):
+        env_xs, max_ys, sum_ys = _envelopes(filtered, metric)
+        if not env_xs:
+            continue
+        ax.plot(  # type: ignore[call-arg]
+            env_xs, max_ys, color=color, linestyle="-", linewidth=2.0
+        )
+        ax.plot(  # type: ignore[call-arg]
+            env_xs, sum_ys, color=color, linestyle="--", linewidth=1.5
+        )
+
+    ax.set_xlabel("Elapsed Time")
+    ax.set_ylabel("pcpu / pmem (%)")
     if filtered:
-        # Linestyle key (small black mock lines) so a viewer can decode
-        # solid/dotted/dashed without reading the axis labels. Added as an
-        # artist so the per-pid legend below doesn't replace it.
+        # Two legends, color-agnostic linestyle key on the right and metric
+        # color key on the left. Linestyle entries are listed in the order
+        # a viewer's eye scans the chart: upper bound (the high dashed line),
+        # lower bound (the solid line below it), per-pid (dotted cloud).
         style_handles = [
-            Line2D([0], [0], color="black", linestyle="-", label="pdcpu"),
-            Line2D([0], [0], color="black", linestyle=":", label="pmem"),
-            Line2D([0], [0], color="black", linestyle="--", label="rss"),
+            Line2D(
+                [0],
+                [0],
+                color="black",
+                linestyle="--",
+                linewidth=1.5,
+                label="upper bound",
+            ),
+            Line2D(
+                [0],
+                [0],
+                color="black",
+                linestyle="-",
+                linewidth=2.0,
+                label="lower bound",
+            ),
+            Line2D(
+                [0], [0], color="black", linestyle=":", linewidth=0.8, label="per-pid"
+            ),
         ]
-        style_legend = ax1.legend(  # type: ignore[call-arg]
-            handles=style_handles, loc="upper right", fontsize=8
+        style_legend = ax.legend(  # type: ignore[call-arg]
+            handles=style_handles, loc="upper right", fontsize=9
         )
-        ax1.add_artist(style_legend)  # type: ignore[attr-defined]
-        ax1.legend(loc="upper left", fontsize=8)  # type: ignore[call-arg]
+        ax.add_artist(style_legend)  # type: ignore[attr-defined]
+        color_handles = [
+            Line2D([0], [0], color=PCPU_COLOR, linewidth=2.0, label="pcpu"),
+            Line2D([0], [0], color=PMEM_COLOR, linewidth=2.0, label="pmem"),
+        ]
+        ax.legend(handles=color_handles, loc="upper left", fontsize=9)  # type: ignore[call-arg]
 
-    ax1.xaxis.set_major_formatter(  # type: ignore[attr-defined]
+    ax.xaxis.set_major_formatter(  # type: ignore[attr-defined]
         HumanizedAxisFormatter(min_ratio=args.min_ratio, units=_TIME_UNITS)
-    )
-    ax2.yaxis.set_major_formatter(  # type: ignore[attr-defined]
-        HumanizedAxisFormatter(min_ratio=args.min_ratio, units=_MEMORY_UNITS)
     )
 
     plt.title("Resource Usage Over Time (per pid)")
