@@ -10,6 +10,7 @@ import pytest
 
 pytest.importorskip("matplotlib")
 from con_duct import cli, plot  # noqa: E402
+from con_duct._formatter import FILESIZE_UNITS  # noqa: E402
 
 
 @pytest.mark.parametrize(
@@ -54,12 +55,12 @@ def test_pick_unit_with_varying_ratios(
         (plot._TIME_UNITS, (0, 300), 2.3 * 60, "2.3min"),
         (plot._TIME_UNITS, (0, 11000), 7.8 * 60 * 60, "7.8h"),
         (plot._TIME_UNITS, (0, 260000), 3.2 * 60 * 60 * 24, "3.2d"),
-        # Memory formatting tests
-        (plot._MEMORY_UNITS, (0, 5 * 1024), 2.6 * 1024, "2.6KB"),
-        (plot._MEMORY_UNITS, (0, 4 * 1024**2), 1.5 * (1024**2), "1.5MB"),
-        (plot._MEMORY_UNITS, (0, 3 * 1024**3), 8.3 * 1024**3, "8.3GB"),
-        (plot._MEMORY_UNITS, (0, 3 * 1024**4), 1.3 * 1024**4, "1.3TB"),
-        (plot._MEMORY_UNITS, (0, 3.1 * 1024**5), 6.5 * 1024**5, "6.5PB"),
+        # Memory formatting tests (base 1000, kB/MB/GB/TB/PB).
+        (FILESIZE_UNITS, (0, 5 * 1000), 2.6 * 1000, "2.6kB"),
+        (FILESIZE_UNITS, (0, 4 * 1000**2), 1.5 * (1000**2), "1.5MB"),
+        (FILESIZE_UNITS, (0, 3 * 1000**3), 8.3 * 1000**3, "8.3GB"),
+        (FILESIZE_UNITS, (0, 3 * 1000**4), 1.3 * 1000**4, "1.3TB"),
+        (FILESIZE_UNITS, (0, 3.1 * 1000**5), 6.5 * 1000**5, "6.5PB"),
     ],
 )
 def test_formatter_output(
@@ -348,18 +349,3 @@ class TestLoadHostMemoryTotal:
         weird = tmp_path / "weird.txt"
         weird.write_text("")
         assert plot._load_host_memory_total(weird) is None
-
-
-@pytest.mark.parametrize(
-    "n,expected",
-    [
-        (0, "0B"),
-        (512, "512.0B"),
-        (2048, "2.0KB"),
-        (5 * 1024**2, "5.0MB"),
-        (1024**3, "1.0GB"),
-        (int(1.5 * 1024**4), "1.5TB"),
-    ],
-)
-def test_format_bytes_compact(n: int, expected: str) -> None:
-    assert plot._format_bytes_compact(n) == expected

@@ -14,6 +14,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from con_duct._constants import SUFFIXES
+from con_duct._formatter import FILESIZE_UNITS, SummaryFormatter
 from con_duct._utils import etime_to_etimes, is_same_pid, pdcpu_from_pcpu
 from con_duct.json_utils import is_info_file, load_info_file, load_usage_file
 
@@ -35,15 +36,6 @@ _TIME_UNITS = [
     ("min", 60),
     ("h", 3600),
     ("d", 86400),
-]
-
-_MEMORY_UNITS = [
-    ("B", 1),
-    ("KB", 1024**1),
-    ("MB", 1024**2),
-    ("GB", 1024**3),
-    ("TB", 1024**4),
-    ("PB", 1024**5),
 ]
 
 
@@ -239,14 +231,6 @@ def _load_host_memory_total(file_path: Path) -> Optional[int]:
         return None
 
 
-def _format_bytes_compact(n: int) -> str:
-    """Compact human-readable bytes, e.g. ``1.0TB``, for legend text."""
-    for name, divisor in reversed(_MEMORY_UNITS):
-        if n >= divisor:
-            return f"{n / divisor:.1f}{name}"
-    return f"{n}B"
-
-
 def matplotlib_plot(args: argparse.Namespace) -> int:
     try:
         import matplotlib
@@ -400,7 +384,9 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         ax.add_artist(style_legend)  # type: ignore[attr-defined]
         rss_label = "rss"
         if host_memory_total is not None:
-            rss_label = f"rss (host: {_format_bytes_compact(host_memory_total)})"
+            rss_label = (
+                f"rss (host: {SummaryFormatter().naturalsize(host_memory_total)})"
+            )
         color_handles = [
             Line2D([0], [0], color=PCPU_COLOR, linewidth=2.0, label="pcpu"),
             Line2D([0], [0], color=RSS_COLOR, linewidth=2.0, label=rss_label),
@@ -411,7 +397,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         HumanizedAxisFormatter(min_ratio=args.min_ratio, units=_TIME_UNITS)
     )
     ax2.yaxis.set_major_formatter(  # type: ignore[attr-defined]
-        HumanizedAxisFormatter(min_ratio=args.min_ratio, units=_MEMORY_UNITS)
+        HumanizedAxisFormatter(min_ratio=args.min_ratio, units=FILESIZE_UNITS)
     )
 
     plt.title("Resource Usage Over Time (per pid)")
