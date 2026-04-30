@@ -1,7 +1,9 @@
 """Tests for plot command."""
 
 import argparse
+import json
 import os
+from pathlib import Path
 from typing import Any, List, Tuple
 from unittest.mock import MagicMock, Mock, mock_open, patch
 import pytest
@@ -300,3 +302,64 @@ class TestPlotMatplotlib:
         assert result == 0
         mock_show.assert_called_once()
         assert "matplotlib < 3.9" in caplog.text
+
+
+class TestLoadHostMemoryTotal:
+    """Best-effort host memory_total lookup for the rss legend label."""
+
+    def _write_info(self, path: Path, data: dict) -> None:
+        path.write_text(json.dumps(data))
+
+    def test_info_json_input(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        self._write_info(info, {"system": {"memory_total": 12345}})
+        assert plot._load_host_memory_total(info) == 12345
+
+    def test_usage_jsonl_with_sibling(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        usage = tmp_path / "run_usage.jsonl"
+        self._write_info(info, {"system": {"memory_total": 67890}})
+        usage.write_text("")
+        assert plot._load_host_memory_total(usage) == 67890
+
+    def test_usage_legacy_with_sibling(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        usage = tmp_path / "run_usage.json"
+        self._write_info(info, {"system": {"memory_total": 42}})
+        usage.write_text("")
+        assert plot._load_host_memory_total(usage) == 42
+
+    def test_no_sibling_returns_none(self, tmp_path: Path) -> None:
+        usage = tmp_path / "run_usage.jsonl"
+        usage.write_text("")
+        assert plot._load_host_memory_total(usage) is None
+
+    def test_missing_key_returns_none(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        self._write_info(info, {"system": {}})
+        assert plot._load_host_memory_total(info) is None
+
+    def test_invalid_json_returns_none(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        info.write_text("{not json")
+        assert plot._load_host_memory_total(info) is None
+
+    def test_unparseable_filename_returns_none(self, tmp_path: Path) -> None:
+        weird = tmp_path / "weird.txt"
+        weird.write_text("")
+        assert plot._load_host_memory_total(weird) is None
+
+
+@pytest.mark.parametrize(
+    "n,expected",
+    [
+        (0, "0B"),
+        (512, "512.0B"),
+        (2048, "2.0KB"),
+        (5 * 1024**2, "5.0MB"),
+        (1024**3, "1.0GB"),
+        (int(1.5 * 1024**4), "1.5TB"),
+    ],
+)
+def test_format_bytes_compact(n: int, expected: str) -> None:
+    assert plot._format_bytes_compact(n) == expected

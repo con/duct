@@ -1,8 +1,9 @@
 """Resource-usage plotting for con-duct.
 
-Renders a per-pid pdcpu / pmem cloud overlaid by max (lower bound on
-the total) and sum (upper bound on the total) envelopes. The per-pid
-overlay is loosely modeled on brainlife's smon task viewer:
+Renders a per-pid pdcpu / rss cloud overlaid by max (lower bound on
+the total) and sum (upper bound on the total) envelopes. pcpu lives
+on the primary y-axis (percent), rss on a secondary y-axis (bytes).
+The per-pid overlay is loosely modeled on brainlife's smon task viewer:
 https://github.com/brainlife/warehouse/blob/b833b98e3518181eacef71cc04ae773a7592b1a8/ui/src/modals/taskinfo.vue
 """
 
@@ -12,21 +13,20 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from con_duct._constants import SUFFIXES
 from con_duct._utils import etime_to_etimes, is_same_pid, pdcpu_from_pcpu
 from con_duct.json_utils import is_info_file, load_info_file, load_usage_file
 
 # Drop pids whose peak pdcpu falls below this threshold AND whose peak rss
-# falls below DEFAULT_MIN_PEAK_RSS. A pid notable on either axis is kept.
+# falls below DEFAULT_MIN_PEAK_RSS. A pid notable on either axis is kept --
+# a memory-only pid should still contribute to the rss cloud and envelope.
 # Matches brainlife's near-zero filters: 0.5% for pcpu, 10MB for rss.
-# rss is still used here as a relevance signal even though the default chart
-# does not render an rss line -- a memory-only pid should still contribute
-# to the pmem envelope.
 DEFAULT_MIN_PEAK_PDCPU = 0.5
 DEFAULT_MIN_PEAK_RSS = 10 * 1024 * 1024
 
 # Color per metric (all pid lines for that metric share this color).
 PCPU_COLOR = "tab:orange"
-PMEM_COLOR = "tab:blue"
+RSS_COLOR = "tab:blue"
 
 lgr = logging.getLogger(__name__)
 
@@ -168,9 +168,8 @@ def _filter_pids(
 
     A pid is kept if it is "notable" on either axis: peak pdcpu reaches
     ``min_peak_pdcpu`` *or* peak rss reaches ``min_peak_rss``. This way an
-    idle process holding significant memory still contributes to the pmem
-    cloud and envelope, even though the default chart does not render an
-    rss line.
+    idle process holding significant memory still contributes to the rss
+    cloud and envelope.
 
     With ``drop_ps_observer``, drops pids whose cmd starts with ``"ps "``.
     """
@@ -213,6 +212,41 @@ def _envelopes(
     return xs, [max(grid[x]) for x in xs], [sum(grid[x]) for x in xs]
 
 
+def _load_host_memory_total(file_path: Path) -> Optional[int]:
+    """Best-effort lookup of ``system.memory_total`` (bytes) from info.json.
+
+    Accepts either an info.json path or a usage path; for the latter, falls
+    back to a sibling info.json named by stripping the usage suffix and
+    appending ``info.json``. Returns ``None`` on any failure -- the caller
+    treats absence as "host RAM unknown" and renders a plain legend label.
+    """
+    try:
+        if is_info_file(str(file_path)):
+            info_data = load_info_file(str(file_path))
+        else:
+            usage_str = str(file_path)
+            sibling: Optional[Path] = None
+            for suffix in (SUFFIXES["usage"], SUFFIXES["usage_legacy"]):
+                if usage_str.endswith(suffix):
+                    sibling = Path(usage_str[: -len(suffix)] + SUFFIXES["info"])
+                    break
+            if sibling is None or not sibling.exists():
+                return None
+            info_data = load_info_file(str(sibling))
+        value = info_data["system"]["memory_total"]
+        return int(value)
+    except (FileNotFoundError, KeyError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+
+
+def _format_bytes_compact(n: int) -> str:
+    """Compact human-readable bytes, e.g. ``1.0TB``, for legend text."""
+    for name, divisor in reversed(_MEMORY_UNITS):
+        if n >= divisor:
+            return f"{n / divisor:.1f}{name}"
+    return f"{n}B"
+
+
 def matplotlib_plot(args: argparse.Namespace) -> int:
     try:
         import matplotlib
@@ -250,7 +284,8 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             )
 
     # Handle info.json files by determining the path to usage file
-    file_path = Path(args.file_path)
+    arg_path = Path(args.file_path)
+    file_path = arg_path
     if is_info_file(str(file_path)):
         try:
             info_data = load_info_file(str(file_path))
@@ -259,6 +294,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
             lgr.error("Error reading info file %s: %s", args.file_path, e)
             return 1
+    host_memory_total = _load_host_memory_total(arg_path)
 
     try:
         data = load_usage_file(str(file_path))
@@ -284,6 +320,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     filtered = _filter_pids(pid_series, min_peak_pdcpu=DEFAULT_MIN_PEAK_PDCPU)
 
     fig, ax = plt.subplots()
+    ax2 = ax.twinx()  # type: ignore[attr-defined]
 
     # Per-pid traces: dotted, faint, single color per metric. The cloud of
     # pid lines reads as background texture; the envelopes carry the signal.
@@ -299,10 +336,10 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                 linewidth=0.8,
                 alpha=0.4,
             )
-        ax.plot(  # type: ignore[call-arg]
+        ax2.plot(  # type: ignore[call-arg]
             s["elapsed"],
-            s["pmem"],
-            color=PMEM_COLOR,
+            s["rss"],
+            color=RSS_COLOR,
             linestyle=":",
             linewidth=0.8,
             alpha=0.4,
@@ -312,21 +349,25 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     # If some pid was at 50%, the total was at least 50% -- max is a true
     # lower bound. The sum is an upper bound that can blow past 100% on
     # multi-core (per-pid pdcpu doesn't know about cores) and overstate
-    # memory (shared pages get counted multiple times in pmem); both
+    # memory (shared pages get counted multiple times in rss); both
     # caveats are accepted -- the goal is "more meaningful than now".
-    for metric, color in (("pdcpu", PCPU_COLOR), ("pmem", PMEM_COLOR)):
+    for axis, metric, color in (
+        (ax, "pdcpu", PCPU_COLOR),
+        (ax2, "rss", RSS_COLOR),
+    ):
         env_xs, max_ys, sum_ys = _envelopes(filtered, metric)
         if not env_xs:
             continue
-        ax.plot(  # type: ignore[call-arg]
+        axis.plot(  # type: ignore[call-arg]
             env_xs, max_ys, color=color, linestyle="-", linewidth=2.0
         )
-        ax.plot(  # type: ignore[call-arg]
+        axis.plot(  # type: ignore[call-arg]
             env_xs, sum_ys, color=color, linestyle="--", linewidth=1.5
         )
 
     ax.set_xlabel("Elapsed Time")
-    ax.set_ylabel("pcpu / pmem (%)")
+    ax.set_ylabel("pcpu (%)")
+    ax2.set_ylabel("rss")
     if filtered:
         # Two legends, color-agnostic linestyle key on the right and metric
         # color key on the left. Linestyle entries are listed in the order
@@ -357,14 +398,20 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             handles=style_handles, loc="upper right", fontsize=9
         )
         ax.add_artist(style_legend)  # type: ignore[attr-defined]
+        rss_label = "rss"
+        if host_memory_total is not None:
+            rss_label = f"rss (host: {_format_bytes_compact(host_memory_total)})"
         color_handles = [
             Line2D([0], [0], color=PCPU_COLOR, linewidth=2.0, label="pcpu"),
-            Line2D([0], [0], color=PMEM_COLOR, linewidth=2.0, label="pmem"),
+            Line2D([0], [0], color=RSS_COLOR, linewidth=2.0, label=rss_label),
         ]
         ax.legend(handles=color_handles, loc="upper left", fontsize=9)  # type: ignore[call-arg]
 
     ax.xaxis.set_major_formatter(  # type: ignore[attr-defined]
         HumanizedAxisFormatter(min_ratio=args.min_ratio, units=_TIME_UNITS)
+    )
+    ax2.yaxis.set_major_formatter(  # type: ignore[attr-defined]
+        HumanizedAxisFormatter(min_ratio=args.min_ratio, units=_MEMORY_UNITS)
     )
 
     plt.title("Resource Usage Over Time (per pid)")
