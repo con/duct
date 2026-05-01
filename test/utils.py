@@ -14,15 +14,15 @@ def run_duct_command(cli_args: list[str], **kwargs: Any) -> int:
     Returns:
         Exit code from the executed command
     """
-    from con_duct._duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
     from con_duct._duct_main import execute as duct_execute
     from con_duct._models import Outputs, RecordTypes, SessionMode
+    from con_duct.cli import DEFAULT_OUTPUT_PREFIX, DEFAULT_SUMMARY_FORMAT
 
     command = cli_args[0]
     command_args = cli_args[1:] if len(cli_args) > 1 else []
 
     defaults = {
-        "output_prefix": DUCT_OUTPUT_PREFIX,
+        "output_prefix": DEFAULT_OUTPUT_PREFIX,
         "sample_interval": 1.0,
         "report_interval": 60.0,
         "fail_time": 3.0,
@@ -30,7 +30,7 @@ def run_duct_command(cli_args: list[str], **kwargs: Any) -> int:
         "capture_outputs": Outputs.ALL,
         "outputs": Outputs.ALL,
         "record_types": RecordTypes.ALL,
-        "summary_format": EXECUTION_SUMMARY_FORMAT,
+        "summary_format": DEFAULT_SUMMARY_FORMAT,
         "colors": False,
         "mode": SessionMode.NEW_SESSION,
         "message": "",
