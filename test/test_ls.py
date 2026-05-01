@@ -4,6 +4,7 @@ from io import StringIO
 import json
 import logging
 import os
+from pathlib import Path
 import tempfile
 from typing import Any, Dict, Optional
 import unittest
@@ -15,6 +16,7 @@ from con_duct.ls import (
     MINIMUM_SCHEMA_VERSION,
     _flatten_dict,
     _restrict_row,
+    compute_logs_size,
     ensure_compliant_schema,
     load_duct_runs,
     ls,
@@ -30,6 +32,32 @@ def test_load_duct_runs_sanity() -> None:
         result = load_duct_runs(["/test/path_info.json"])
     assert len(result) == 1
     assert result[0]["prefix"] == "/test/path_"
+    # logs_size is not computed unless explicitly requested
+    assert "logs_size" not in result[0]
+
+
+def test_load_duct_runs_computes_logs_size_when_requested() -> None:
+    mock_json = json.dumps(
+        {"schema_version": "0.2.1", "prefix": "/test/path_", "command": "echo hello"}
+    )
+    with patch("builtins.open", mock_open(read_data=mock_json)):
+        with patch("con_duct.ls.compute_logs_size", return_value=42) as mock_size:
+            result = load_duct_runs(["/test/path_info.json"], compute_size=True)
+    assert len(result) == 1
+    assert result[0]["logs_size"] == 42
+    mock_size.assert_called_once()
+
+
+def test_load_duct_runs_does_not_compute_logs_size_when_not_requested() -> None:
+    mock_json = json.dumps(
+        {"schema_version": "0.2.1", "prefix": "/test/path_", "command": "echo hello"}
+    )
+    with patch("builtins.open", mock_open(read_data=mock_json)):
+        with patch("con_duct.ls.compute_logs_size") as mock_size:
+            result = load_duct_runs(["/test/path_info.json"], compute_size=False)
+    assert len(result) == 1
+    assert "logs_size" not in result[0]
+    mock_size.assert_not_called()
 
 
 def test_load_duct_runs_skips_unsupported_schema() -> None:
@@ -164,6 +192,53 @@ def test_load_duct_runs_mixed_empty_and_valid_files(
     assert "Skipping empty file" in caplog.text
 
 
+def test_compute_logs_size_sums_all_files() -> None:
+    """Test that compute_logs_size sums sizes of all files with the given prefix."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prefix = os.path.join(tmpdir, "run_")
+        # Use arbitrary suffixes; compute_logs_size globs all files with the prefix
+        for suffix, content in [("a", b"hello"), ("b", b"world!"), ("c", b"{}...")]:
+            with open(f"{prefix}{suffix}", "wb") as f:
+                f.write(content)
+        # Create a subdirectory matching the prefix — it must NOT be counted
+        subdir = f"{prefix}subdir"
+        os.makedirs(subdir, exist_ok=True)
+        expected = sum(len(c) for c in [b"hello", b"world!", b"{}..."])
+        assert compute_logs_size(prefix) == expected
+        # Non-existent prefix returns 0
+        assert compute_logs_size(os.path.join(tmpdir, "nonexistent_")) == 0
+
+
+def test_compute_logs_size_warns_on_inaccessible_file(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """compute_logs_size should warn but still count accessible files."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prefix = os.path.join(tmpdir, "run_")
+        # Two files: one accessible, one that raises PermissionError on stat
+        accessible_content = b"accessible"
+        inaccessible_content = b"nope"
+        with open(f"{prefix}ok", "wb") as f:
+            f.write(accessible_content)
+        with open(f"{prefix}bad", "wb") as f:
+            f.write(inaccessible_content)
+
+        original_stat = Path.stat
+
+        def failing_stat(self: Path, **kwargs: Any) -> Any:
+            if self.name == "run_bad":
+                raise PermissionError("denied")
+            return original_stat(self, **kwargs)
+
+        with patch.object(Path, "stat", failing_stat):
+            with caplog.at_level(logging.WARNING, logger="con_duct.ls"):
+                total = compute_logs_size(prefix)
+
+    assert total == len(accessible_content)
+    assert "run_bad" in caplog.text
+    assert any(r.levelname == "WARNING" for r in caplog.records)
+
+
 class TestLS(unittest.TestCase):
     def setUp(self) -> None:
         """Create a temporary directory and test files."""
@@ -218,7 +293,7 @@ class TestLS(unittest.TestCase):
             args = argparse.Namespace(
                 paths=[os.path.join(self.temp_dir.name, path) for path in paths],
                 colors=False,
-                fields=["prefix", "schema_version"],
+                fields=["prefix", "schema_version", "logs_size"],
                 eval_filter=None,
                 format=fmt,
                 func=ls,
@@ -243,6 +318,8 @@ class TestLS(unittest.TestCase):
         ]
         assert len(prefixes) == 1
         assert any("file1" in p for p in prefixes)
+        assert "Logs Size:" in result
+        assert any(unit in result for unit in ["Byte", "kB", "MB", "GB"])
 
     def test_ls_with_filter(self) -> None:
         """Basic sanity test to ensure ls() runs without crashing."""
@@ -341,6 +418,7 @@ class TestLS(unittest.TestCase):
         parsed = json.loads(result)
         assert len(parsed) == 1
         assert "prefix" in parsed[0]
+        assert "logs_size" in parsed[0]
 
     def test_ls_json_pp_output(self) -> None:
         """Test pretty-printed JSON output format."""
