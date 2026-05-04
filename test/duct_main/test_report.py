@@ -228,6 +228,27 @@ def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     assert report.system_info.memory_total > 10
     assert report.system_info.uid == os.getuid()
     assert report.system_info.user == os.environ.get("USER")
+    # uname-derived fields are populated on any POSIX host (which is the only
+    # platform get_system_info supports — sysconf calls above are POSIX-only).
+    assert report.system_info.os_name
+    assert report.system_info.os_release
+    assert report.system_info.os_version
+    assert report.system_info.arch
+    # processor may be empty on linux; just assert it is a string
+    assert isinstance(report.system_info.processor, str)
+    # distro_* fields come from /etc/os-release; absent on macOS, so allow empty.
+    for field in (
+        "distro_id",
+        "distro_id_like",
+        "distro_name",
+        "distro_version",
+        "distro_version_id",
+        "distro_codename",
+        "distro_variant_id",
+        "distro_pretty_name",
+        "distro_build_id",
+    ):
+        assert isinstance(getattr(report.system_info, field), str)
 
 
 @mock.patch("con_duct._tracker.shutil.which")
