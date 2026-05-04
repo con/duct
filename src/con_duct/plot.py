@@ -18,13 +18,6 @@ from con_duct._formatter import FILESIZE_UNITS, SummaryFormatter
 from con_duct._utils import etime_to_etimes, is_same_pid, pdcpu_from_pcpu
 from con_duct.json_utils import is_info_file, load_info_file, load_usage_file
 
-# Drop pids whose peak pdcpu falls below this threshold AND whose peak rss
-# falls below DEFAULT_MIN_PEAK_RSS. A pid notable on either axis is kept --
-# a memory-only pid should still contribute to the rss cloud and envelope.
-# Matches brainlife's near-zero filters: 0.5% for pcpu, 10MB for rss.
-DEFAULT_MIN_PEAK_PDCPU = 0.5
-DEFAULT_MIN_PEAK_RSS = 10 * 1024 * 1024
-
 # Color per metric (all pid lines for that metric share this color).
 PCPU_COLOR = "tab:orange"
 RSS_COLOR = "tab:blue"
@@ -88,8 +81,7 @@ def _build_pid_series(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     measurement), ``pmem``, ``rss``. ``pdcpu`` is computed from
     consecutive (etime, pcpu) pairs; first observation per pid and any
     record with ``etime == "00:00"`` produce ``pdcpu = None`` and do not
-    establish a baseline for the next sample. Filtering is the caller's
-    job (see ``_filter_pids``).
+    establish a baseline for the next sample.
     """
     if not data:
         return {}
@@ -138,41 +130,6 @@ def _build_pid_series(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
             # Don't baseline from etime=0 -- next sample is a "first observation".
             pid_state[pid] = None if etime_sec == 0.0 else (etime_sec, pcpu, proc_ts)
     return series
-
-
-def _peak_pdcpu(s: Dict[str, Any]) -> float:
-    measurable = [v for v in s["pdcpu"] if v is not None]
-    return max(measurable) if measurable else 0.0
-
-
-def _peak_rss(s: Dict[str, Any]) -> float:
-    return max(s["rss"]) if s["rss"] else 0.0
-
-
-def _filter_pids(
-    series: Dict[str, Dict[str, Any]],
-    *,
-    min_peak_pdcpu: float = DEFAULT_MIN_PEAK_PDCPU,
-    min_peak_rss: float = DEFAULT_MIN_PEAK_RSS,
-    drop_ps_observer: bool = False,
-) -> Dict[str, Dict[str, Any]]:
-    """Trim per-pid series for legibility.
-
-    A pid is kept if it is "notable" on either axis: peak pdcpu reaches
-    ``min_peak_pdcpu`` *or* peak rss reaches ``min_peak_rss``. This way an
-    idle process holding significant memory still contributes to the rss
-    cloud and envelope.
-
-    With ``drop_ps_observer``, drops pids whose cmd starts with ``"ps "``.
-    """
-    out: Dict[str, Dict[str, Any]] = {}
-    for pid, s in series.items():
-        if drop_ps_observer and s["cmd"].startswith("ps "):
-            continue
-        if _peak_pdcpu(s) < min_peak_pdcpu and _peak_rss(s) < min_peak_rss:
-            continue
-        out[pid] = s
-    return out
 
 
 def _envelopes(
@@ -301,14 +258,12 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         lgr.error("Error processing usage file %s: %s", file_path, e)
         return 1
 
-    filtered = _filter_pids(pid_series, min_peak_pdcpu=DEFAULT_MIN_PEAK_PDCPU)
-
     fig, ax = plt.subplots()
     ax2 = ax.twinx()  # type: ignore[attr-defined]
 
     # Per-pid traces: dotted, faint, single color per metric. The cloud of
     # pid lines reads as background texture; the envelopes carry the signal.
-    for s in filtered.values():
+    for s in pid_series.values():
         pdcpu_xs = [t for t, v in zip(s["elapsed"], s["pdcpu"]) if v is not None]
         pdcpu_ys = [v for v in s["pdcpu"] if v is not None]
         if pdcpu_xs:
@@ -339,7 +294,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         (ax, "pdcpu", PCPU_COLOR),
         (ax2, "rss", RSS_COLOR),
     ):
-        env_xs, max_ys, sum_ys = _envelopes(filtered, metric)
+        env_xs, max_ys, sum_ys = _envelopes(pid_series, metric)
         if not env_xs:
             continue
         axis.plot(  # type: ignore[call-arg]
@@ -352,7 +307,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     ax.set_xlabel("Elapsed Time")
     ax.set_ylabel("pcpu (%)")
     ax2.set_ylabel("rss")
-    if filtered:
+    if pid_series:
         # Two legends, color-agnostic linestyle key on the right and metric
         # color key on the left. Linestyle entries are listed in the order
         # a viewer's eye scans the chart: upper bound (the high dashed line),
