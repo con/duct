@@ -161,6 +161,26 @@ def _envelopes(
     return xs, [max(grid[x]) for x in xs], [sum(grid[x]) for x in xs]
 
 
+def _totals_rss_series(data: List[Dict[str, Any]]) -> Tuple[List[float], List[float]]:
+    """Return ``(elapsed, totals.rss)`` per record.
+
+    ``totals.rss`` is duct's max-of-(sum-per-sample) within each report
+    interval -- the highest concurrent rss observed at any single sample
+    in that interval. Used as the rss upper-bound line on the chart,
+    replacing sum-of-per-pid-peaks (which over-counts pids whose peaks
+    never coexisted within the same sample -- "phantom coexistence").
+    """
+    if not data:
+        return [], []
+    base = datetime.fromisoformat(data[0]["timestamp"])
+    xs: List[float] = []
+    ys: List[float] = []
+    for entry in data:
+        xs.append((datetime.fromisoformat(entry["timestamp"]) - base).total_seconds())
+        ys.append(float(entry["totals"]["rss"]))
+    return xs, ys
+
+
 def _load_host_memory_total(file_path: Path) -> Optional[int]:
     """Best-effort lookup of ``system.memory_total`` (bytes) from info.json.
 
@@ -248,6 +268,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
 
     try:
         pid_series = _build_pid_series(data)
+        totals_rss_xs, totals_rss_ys = _totals_rss_series(data)
     except KeyError as e:
         lgr.error("Usage file %s is missing required field: %s", file_path, e)
         return 1
@@ -284,24 +305,43 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             alpha=0.4,
         )
 
-    # Envelopes: max (lower bound on total) solid, sum (upper bound) dashed.
-    # If some pid was at 50%, the total was at least 50% -- max is a true
-    # lower bound. The sum is an upper bound that can blow past 100% on
-    # multi-core (per-pid pdcpu doesn't know about cores) and overstate
-    # memory (shared pages get counted multiple times in rss); both
-    # caveats are accepted -- the goal is "more meaningful than now".
-    for axis, metric, color in (
-        (ax, "pdcpu", PCPU_COLOR),
-        (ax2, "rss", RSS_COLOR),
-    ):
-        env_xs, max_ys, sum_ys = _envelopes(pid_series, metric)
-        if not env_xs:
-            continue
-        axis.plot(  # type: ignore[call-arg]
-            env_xs, max_ys, color=color, linestyle="-", linewidth=2.0
+    # Envelopes: max (lower bound) solid, upper bound dashed. If some pid
+    # was at 50%, the total was at least 50% -- max-of-pids is a true lower
+    # bound on the concurrent total in both metrics.
+    #
+    # Upper bounds differ by metric:
+    #
+    # - pcpu: sum of per-pid pdcpu. A genuine upper bound on what the
+    #   concurrent total could have been. Loose on multi-core boxes (it
+    #   doesn't know about cores) but symmetric with the lower-bound line.
+    #
+    # - rss: duct's per-record ``totals.rss``, i.e. the peak concurrent rss
+    #   observed at any single sample in the report interval. Within
+    #   "observed samples only" framing this is a true upper bound on
+    #   sampled concurrent rss. We do NOT sum per-pid peaks for rss --
+    #   that introduces phantom coexistence (pids whose peaks fell in
+    #   different samples within the interval) and pads the line by gigs
+    #   on bursty workloads.
+    pcpu_xs, pcpu_max, pcpu_sum = _envelopes(pid_series, "pdcpu")
+    if pcpu_xs:
+        ax.plot(  # type: ignore[call-arg]
+            pcpu_xs, pcpu_max, color=PCPU_COLOR, linestyle="-", linewidth=2.0
         )
-        axis.plot(  # type: ignore[call-arg]
-            env_xs, sum_ys, color=color, linestyle="--", linewidth=1.5
+        ax.plot(  # type: ignore[call-arg]
+            pcpu_xs, pcpu_sum, color=PCPU_COLOR, linestyle="--", linewidth=1.5
+        )
+    rss_xs, rss_max, _ = _envelopes(pid_series, "rss")
+    if rss_xs:
+        ax2.plot(  # type: ignore[call-arg]
+            rss_xs, rss_max, color=RSS_COLOR, linestyle="-", linewidth=2.0
+        )
+    if totals_rss_xs:
+        ax2.plot(  # type: ignore[call-arg]
+            totals_rss_xs,
+            totals_rss_ys,
+            color=RSS_COLOR,
+            linestyle="--",
+            linewidth=1.5,
         )
 
     ax.set_xlabel("Elapsed Time")
