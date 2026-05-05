@@ -24,7 +24,12 @@ from con_duct.ls import (
 
 def test_load_duct_runs_sanity() -> None:
     mock_json = json.dumps(
-        {"schema_version": "0.2.1", "prefix": "/test/path_", "command": "echo hello"}
+        {
+            "schema_version": "0.2.1",
+            "prefix": "/test/path_",
+            "command": "echo hello",
+            "system": {},
+        }
     )
     with patch("builtins.open", mock_open(read_data=mock_json)):
         result = load_duct_runs(["/test/path_info.json"])
@@ -47,6 +52,7 @@ def test_load_duct_runs_uses_filenames_not_stored_prefix() -> None:
             "schema_version": "0.2.1",
             "prefix": "/test/not_anymore_",
             "command": "echo hello",
+            "system": {},
         }
     )
     with patch("builtins.open", mock_open(read_data=mock_json)):
@@ -96,10 +102,31 @@ def test_ensure_compliant_schema_noop_for_current_version() -> None:
 
 
 def test_ensure_compliant_schema_adds_field_for_old_version() -> None:
-    info: Dict[str, Any] = {"schema_version": "0.2.0", "execution_summary": {}}
+    info: Dict[str, Any] = {
+        "schema_version": "0.2.0",
+        "execution_summary": {},
+        "system": {},
+    }
     ensure_compliant_schema(info)
     assert info["execution_summary"]["working_directory"] == ""
     assert info["message"] == ""
+    for field in (
+        "os_name",
+        "os_release",
+        "os_version",
+        "arch",
+        "processor",
+        "distro_id",
+        "distro_id_like",
+        "distro_name",
+        "distro_version",
+        "distro_version_id",
+        "distro_codename",
+        "distro_variant_id",
+        "distro_pretty_name",
+        "distro_build_id",
+    ):
+        assert info["system"][field] == ""
 
 
 def test_ensure_compliant_schema_ignores_unexpected_future_version() -> None:
@@ -142,7 +169,12 @@ def test_load_duct_runs_mixed_empty_and_valid_files(
 ) -> None:
     """Test behavior with mix of empty and valid JSON files."""
     valid_json = json.dumps(
-        {"schema_version": "0.2.1", "prefix": "/test/path_", "command": "echo hello"}
+        {
+            "schema_version": "0.2.1",
+            "prefix": "/test/path_",
+            "command": "echo hello",
+            "system": {},
+        }
     )
 
     def side_effect(filename: str) -> Any:
@@ -174,28 +206,33 @@ class TestLS(unittest.TestCase):
             "file1_info.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
                 "execution_summary": {},
+                "system": {},
                 "prefix": "test1",
                 "filter_this": "yes",
             },
             "file2_info.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
                 "execution_summary": {},
+                "system": {},
                 "prefix": "test2",
                 "filter_this": "no",
             },
             "file3_info.json": {
                 "schema_version": "0.1.0",
                 "execution_summary": {},
+                "system": {},
                 "prefix": "old_version",
             },
             "not_matching.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
                 "execution_summary": {},
+                "system": {},
                 "prefix": "no_match",
             },
             ".duct/logs/default_logpath_info.json": {
                 "schema_version": MINIMUM_SCHEMA_VERSION,
                 "execution_summary": {},
+                "system": {},
                 "prefix": "default_file1",
             },
         }

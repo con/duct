@@ -1,6 +1,6 @@
 """Constants used throughout con-duct."""
 
-__schema_version__ = "0.2.2"
+__schema_version__ = "0.2.3"
 
 ENV_PREFIXES = ("PBS_", "SLURM_", "OSG")
 SUFFIXES = {

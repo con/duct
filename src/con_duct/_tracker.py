@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import os
+import platform
 import shutil
 import socket
 import subprocess
@@ -89,12 +90,31 @@ class Report:
 
     def get_system_info(self) -> None:
         """Gathers system information related to CPU, GPU, memory, and environment variables."""
+        uname = platform.uname()
+        try:
+            osr = platform.freedesktop_os_release()
+        except OSError:
+            osr = {}
         self.system_info = SystemInfo(
             cpu_total=os.sysconf("SC_NPROCESSORS_CONF"),
             memory_total=os.sysconf("SC_PAGESIZE") * os.sysconf("SC_PHYS_PAGES"),
             hostname=socket.gethostname(),
             uid=os.getuid(),
             user=os.environ.get("USER"),
+            os_name=uname.system,
+            os_release=uname.release,
+            os_version=uname.version,
+            arch=uname.machine,
+            processor=uname.processor,
+            distro_id=osr.get("ID", ""),
+            distro_id_like=osr.get("ID_LIKE", ""),
+            distro_name=osr.get("NAME", ""),
+            distro_version=osr.get("VERSION", ""),
+            distro_version_id=osr.get("VERSION_ID", ""),
+            distro_codename=osr.get("VERSION_CODENAME", ""),
+            distro_variant_id=osr.get("VARIANT_ID", ""),
+            distro_pretty_name=osr.get("PRETTY_NAME", ""),
+            distro_build_id=osr.get("BUILD_ID", ""),
         )
         # GPU information
         if shutil.which("nvidia-smi") is not None:

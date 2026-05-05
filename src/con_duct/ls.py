@@ -42,8 +42,18 @@ VALUE_TRANSFORMATION_MAP: Dict[str, str] = {
 }
 
 NON_TRANSFORMED_FIELDS: List[str] = [
+    "arch",
     "command",
     "cpu_total",
+    "distro_build_id",
+    "distro_codename",
+    "distro_id",
+    "distro_id_like",
+    "distro_name",
+    "distro_pretty_name",
+    "distro_variant_id",
+    "distro_version",
+    "distro_version_id",
     "duct_version",
     "gpu",
     "hostname",
@@ -52,7 +62,11 @@ NON_TRANSFORMED_FIELDS: List[str] = [
     "message",
     "num_samples",
     "num_reports",
+    "os_name",
+    "os_release",
+    "os_version",
     "prefix",
+    "processor",
     "schema_version",
     "stderr",
     "stdout",
@@ -118,6 +132,25 @@ def ensure_compliant_schema(info_dict: dict) -> None:
     # message field added in 0.2.2
     if parse_version(info_dict["schema_version"]) < parse_version("0.2.2"):
         info_dict["message"] = ""
+    # OS and distro provenance fields added to system block in 0.2.3
+    if parse_version(info_dict["schema_version"]) < parse_version("0.2.3"):
+        for field in (
+            "os_name",
+            "os_release",
+            "os_version",
+            "arch",
+            "processor",
+            "distro_id",
+            "distro_id_like",
+            "distro_name",
+            "distro_version",
+            "distro_version_id",
+            "distro_codename",
+            "distro_variant_id",
+            "distro_pretty_name",
+            "distro_build_id",
+        ):
+            info_dict["system"][field] = ""
 
 
 def process_run_data(
