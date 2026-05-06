@@ -17,7 +17,7 @@ from con_duct._constants import ENV_PREFIXES, __schema_version__
 from con_duct._formatter import SummaryFormatter
 from con_duct._models import LogPaths, Sample, SystemInfo
 from con_duct._output import safe_close_files
-from con_duct._sampling import _get_sample
+from con_duct._sampling import PsSampler, Sampler
 
 __version__ = version("con-duct")
 
@@ -38,6 +38,7 @@ class Report:
         clobber: bool = False,
         process: subprocess.Popen | None = None,
         message: str = "",
+        sampler: Optional[Sampler] = None,
     ) -> None:
         self._command = command
         self.arguments = arguments
@@ -46,6 +47,7 @@ class Report:
         self.clobber = clobber
         self.colors = colors
         self.message = message
+        self.sampler = sampler if sampler is not None else PsSampler()
         # Defaults to be set later
         self.start_time: float | None = None
         self.process = process
@@ -135,7 +137,7 @@ class Report:
     def collect_sample(self) -> Optional[Sample]:
         assert self.session_id is not None
         try:
-            sample = _get_sample(self.session_id)
+            sample = self.sampler.sample(self.session_id)
             return sample
         except subprocess.CalledProcessError as exc:  # when session_id has no processes
             lgr.debug("Error collecting sample: %s", str(exc))
@@ -154,7 +156,9 @@ class Report:
         assert self.current_sample is not None
         if self.usage_file is None:
             self.usage_file = open(self.log_paths.usage, "w")
-        self.usage_file.write(json.dumps(self.current_sample.for_json()) + "\n")
+        record = self.current_sample.for_json()
+        record["sampler"] = self.sampler.name
+        self.usage_file.write(json.dumps(record) + "\n")
         self.usage_file.flush()  # Force flush immediately
 
     @property
@@ -199,6 +203,7 @@ class Report:
                 "output_paths": asdict(self.log_paths),
                 "working_directory": self.working_directory,
                 "message": self.message,
+                "sampler": self.sampler.name,
             }
         )
 

@@ -5,10 +5,12 @@ from collections import Counter, deque
 from datetime import datetime
 import logging
 import os
+from pathlib import Path
 import platform
 import subprocess
 import sys
-from typing import Callable, Optional
+import time
+from typing import Optional, Union
 from con_duct._models import Averages, ProcessStats, Sample
 
 SYSTEM = platform.system()
@@ -143,4 +145,128 @@ _get_sample_per_system = {
     "Linux": _get_sample_linux,
     "Darwin": _get_sample_mac,
 }
-_get_sample: Callable[[int], Optional[Sample]] = _get_sample_per_system[SYSTEM]  # type: ignore[assignment]
+
+
+class PsSampler:
+    """Sampler that uses `ps` to collect per-process stats."""
+
+    name = "ps"
+
+    def sample(self, session_id: int) -> Optional[Sample]:
+        return _get_sample_per_system[SYSTEM](session_id)
+
+
+_CGROUP_V2_ROOT = Path("/sys/fs/cgroup")
+
+
+def _detect_cgroup_v2_path() -> Path:
+    """Return the absolute path to duct's own cgroup v2 directory.
+
+    Raises NotImplementedError if cgroup v2 unified hierarchy is not
+    mounted, or if /proc/self/cgroup does not expose a v2 entry.
+    """
+    controllers = _CGROUP_V2_ROOT / "cgroup.controllers"
+    if not controllers.exists():
+        raise NotImplementedError(
+            "cgroup-ps-hybrid requires cgroup v2 unified hierarchy at "
+            f"{_CGROUP_V2_ROOT}; this host does not appear to have v2 mounted"
+        )
+    # cgroup v2 entry in /proc/<pid>/cgroup has the shape "0::/<path>".
+    proc_cgroup = Path("/proc/self/cgroup").read_text()
+    for line in proc_cgroup.splitlines():
+        if line.startswith("0::"):
+            rel = line.split("::", 1)[1].strip().lstrip("/")
+            return _CGROUP_V2_ROOT / rel
+    raise NotImplementedError(
+        "cgroup-ps-hybrid could not find a cgroup v2 entry ('0::/...') in "
+        "/proc/self/cgroup"
+    )
+
+
+def _read_cgroup_cpu_usage_usec(cgroup_root: Path) -> int:
+    """Read cumulative CPU microseconds from cgroup v2 ``cpu.stat``."""
+    for line in (cgroup_root / "cpu.stat").read_text().splitlines():
+        if line.startswith("usage_usec "):
+            return int(line.split()[1])
+    raise RuntimeError(f"usage_usec not present in {cgroup_root / 'cpu.stat'}")
+
+
+class CgroupSampler:
+    """Hybrid cgroup v2 + ps sampler.
+
+    Session totals (``total_rss``, ``total_pcpu``) come from kernel
+    cgroup counters; per-pid stats come from a ``ps`` sub-sample. The
+    ``sampler`` tag on each emitted record disambiguates the source.
+
+    Reader mode only: duct does NOT create a cgroup; it reads the one
+    it already lives in via ``/proc/self/cgroup``. This requires
+    ``--mode=current-session`` so duct and the tracked command share a
+    cgroup (enforced in ``_duct_main.execute``).
+
+    TODO(poc): our polling shape (sample-at-interval + Sample.aggregate
+    max) is inherited from the ps model. cgroup could emit cumulative/
+    delta directly -- e.g. one ``memory.peak`` read at end-of-run
+    instead of max-of-currents -- but that would require reshaping the
+    Sample/Report pipeline. Deferred post-POC.
+    """
+
+    name = "cgroup-ps-hybrid"
+
+    def __init__(self) -> None:
+        self._cgroup_root = _detect_cgroup_v2_path()
+        # Baseline for delta-based pcpu on the first sample.
+        self._last_cpu_usec = _read_cgroup_cpu_usage_usec(self._cgroup_root)
+        self._last_cpu_time = time.monotonic()
+
+    def sample(self, session_id: int) -> Optional[Sample]:
+        # Per-pid stats via the ps path so records still carry the pid
+        # breakdown users expect from duct.
+        sample = _get_sample_per_system[SYSTEM](session_id)
+        if sample is None:
+            return None
+        try:
+            # Memory: session total from cgroup (replaces the ps sum).
+            mem_current = int(
+                (self._cgroup_root / "memory.current").read_text().strip()
+            )
+            sample.total_rss = mem_current
+
+            # CPU: delta of cumulative usage_usec over the last interval.
+            now_usec = _read_cgroup_cpu_usage_usec(self._cgroup_root)
+            now_time = time.monotonic()
+            delta_sec = now_time - self._last_cpu_time
+            if delta_sec > 0:
+                delta_usec = now_usec - self._last_cpu_usec
+                # usage_usec / elapsed_usec * 100 = percent of one core.
+                sample.total_pcpu = delta_usec / delta_sec / 10_000
+            self._last_cpu_usec = now_usec
+            self._last_cpu_time = now_time
+        except (OSError, ValueError) as exc:
+            raise RuntimeError(
+                f"cgroup read failed at {self._cgroup_root}: {exc}"
+            ) from exc
+
+        # TODO(poc): total_vsz and total_pmem remain ps-sourced; cgroup
+        # v2 has no direct analogs (memory.current is already physical).
+        # TODO(poc): overwrite full_run_stats.total_rss with memory.peak
+        # at end of run for a truer run-level peak than max-of-currents.
+        # TODO(poc): this assumes the tracked command stays in duct's
+        # cgroup; systemd-run or similar would migrate the child out
+        # and silently break the measurement.
+
+        # Recompute averages so they reflect the cgroup-sourced totals
+        # rather than the stale ps-sourced values set by _get_sample_*.
+        sample.averages = Averages.from_sample(sample=sample)
+        return sample
+
+
+Sampler = Union[PsSampler, CgroupSampler]
+
+
+def make_sampler(name: str) -> Sampler:
+    """Factory: resolve a sampler name (as passed on the CLI) to an instance."""
+    if name == PsSampler.name:
+        return PsSampler()
+    if name == CgroupSampler.name:
+        return CgroupSampler()
+    raise ValueError(f"unknown sampler: {name!r}")

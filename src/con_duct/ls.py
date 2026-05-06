@@ -53,6 +53,7 @@ NON_TRANSFORMED_FIELDS: List[str] = [
     "num_samples",
     "num_reports",
     "prefix",
+    "sampler",
     "schema_version",
     "stderr",
     "stdout",
