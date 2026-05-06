@@ -12,33 +12,39 @@ from con_duct._tracker import Report
 
 stat0 = ProcessStats(
     pcpu=0.0,
+    pcpu_raw=0.0,
     pmem=0,
     rss=0,
     vsz=0,
     timestamp="2024-06-11T10:09:37-04:00",
     etime="00:00",
+    etimes=0.0,
     cmd="cmd 1",
     stat=Counter(["stat0"]),
 )
 
 stat1 = ProcessStats(
     pcpu=1.0,
+    pcpu_raw=1.0,
     pmem=0,
     rss=0,
     vsz=0,
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
+    etimes=2.0,
     cmd="cmd 1",
     stat=Counter(["stat1"]),
 )
 
 stat2 = ProcessStats(
     pcpu=1.1,
+    pcpu_raw=1.1,
     pmem=1.1,
     rss=11,
     vsz=11,
     timestamp="2024-06-11T10:13:23-04:00",
     etime="00:02",
+    etimes=2.0,
     cmd="cmd 1",
     stat=Counter(["stat2"]),
 )
@@ -178,11 +184,13 @@ def test_process_stats_green(
     # Assert does not raise
     ProcessStats(
         pcpu=pcpu,
+        pcpu_raw=pcpu,
         pmem=pmem,
         rss=rss,
         vsz=vsz,
         timestamp=datetime.now().astimezone().isoformat(),
         etime=etime,
+        etimes=0.0,
         cmd=cmd,
         stat=Counter(["stat0"]),
     )
@@ -204,11 +212,13 @@ def test_process_stats_red(
     with pytest.raises(AssertionError):
         ProcessStats(
             pcpu=pcpu,
+            pcpu_raw=0.0,
             pmem=pmem,
             rss=rss,
             vsz=vsz,
             timestamp=datetime.now().astimezone().isoformat(),
             etime=etime,
+            etimes=0.0,
             cmd=cmd,
             stat=Counter(["stat0"]),
         )
@@ -228,6 +238,49 @@ def test_system_info_sanity(mock_log_paths: mock.MagicMock) -> None:
     assert report.system_info.memory_total > 10
     assert report.system_info.uid == os.getuid()
     assert report.system_info.user == os.environ.get("USER")
+
+
+@mock.patch("con_duct._tracker._get_sample")
+@mock.patch("con_duct._tracker.LogPaths")
+def test_collect_sample_round_trips_prev_raw(
+    mock_log_paths: mock.MagicMock, mock_get_sample: mock.MagicMock
+) -> None:
+    """Report.collect_sample threads its prev_raw dict across calls.
+
+    Each invocation of _get_sample receives the prev_raw returned by
+    the previous invocation (or {} on the first call) and the
+    returned new prev_raw lands on self.prev_raw for the next call.
+    Regression guard for the load-bearing decision that the Tracker
+    holds the cross-sample state.
+    """
+    mock_log_paths.prefix = "mock_prefix"
+    cwd = os.getcwd()
+    report = Report(
+        "_cmd", [], mock_log_paths, EXECUTION_SUMMARY_FORMAT, cwd, clobber=False
+    )
+    report.session_id = 42
+
+    received: list[dict] = []
+    returned: list[dict] = [
+        {1234: (80.0, 10.0)},
+        {1234: (82.0, 20.0)},
+    ]
+
+    def fake_get_sample(
+        _session_id: int, prev: dict[int, tuple[float, float]]
+    ) -> tuple[Sample, dict[int, tuple[float, float]]]:
+        received.append(dict(prev))
+        return Sample(), returned[len(received) - 1]
+
+    mock_get_sample.side_effect = fake_get_sample
+
+    report.collect_sample()
+    assert received[0] == {}
+    assert report.prev_raw == {1234: (80.0, 10.0)}
+
+    report.collect_sample()
+    assert received[1] == {1234: (80.0, 10.0)}
+    assert report.prev_raw == {1234: (82.0, 20.0)}
 
 
 @mock.patch("con_duct._tracker.shutil.which")

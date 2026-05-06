@@ -23,6 +23,39 @@ def set_test_config() -> Generator:
             del os.environ[k]
 
 
+@pytest.fixture(scope="session", autouse=True)
+def disable_drop_young_pids_for_tests() -> Generator:
+    """Disable the DROP_YOUNG_PIDS sampler filter for in-process
+    tests. Affects only the test process's interpreter; subprocess
+    tests (e.g. test_e2e.py) inherit the production default and
+    must use commands that outlive ps's 1-second etime quantum.
+    """
+    import con_duct._sampling as sampling_module
+
+    orig = sampling_module.DROP_YOUNG_PIDS
+    sampling_module.DROP_YOUNG_PIDS = False
+    yield
+    sampling_module.DROP_YOUNG_PIDS = orig
+
+
+@pytest.fixture
+def enable_drop_young_pids(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Opt back into the production DROP_YOUNG_PIDS filter for a
+    single in-process test (used by unit tests in test_sampling.py
+    that specifically exercise the drop behavior).
+
+    Only effective for tests that exercise duct via in-process
+    Python imports (e.g. test_sampling.py with mocked ps,
+    test_execution.py via run_duct_command). Has no effect on
+    subprocess-based tests (test_e2e.py), which spawn fresh Python
+    interpreters that read DROP_YOUNG_PIDS from _constants.py
+    directly. Subprocess tests must instead use workloads that
+    outlive ps's 1-second etime quantum if they assert on
+    observability under the production default.
+    """
+    monkeypatch.setattr("con_duct._sampling.DROP_YOUNG_PIDS", True)
+
+
 @pytest.fixture(autouse=True)
 def reset_logger_state() -> Generator:
     """Automatically reset logger state after each test.

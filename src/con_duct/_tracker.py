@@ -56,6 +56,10 @@ class Report:
         self.system_info: SystemInfo | None = None
         self.full_run_stats = Sample()
         self.current_sample: Optional[Sample] = None
+        # Per-pid (pcpu_raw, etimes) carried forward across samples
+        # so the Linux sampler can compute instantaneous %CPU as a
+        # delta. Mac sampler accepts but does not consume it.
+        self.prev_raw: dict[int, tuple[float, float]] = {}
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
         self.usage_file: TextIO | None = None
@@ -135,7 +139,7 @@ class Report:
     def collect_sample(self) -> Optional[Sample]:
         assert self.session_id is not None
         try:
-            sample = _get_sample(self.session_id)
+            sample, self.prev_raw = _get_sample(self.session_id, self.prev_raw)
             return sample
         except subprocess.CalledProcessError as exc:  # when session_id has no processes
             lgr.debug("Error collecting sample: %s", str(exc))
