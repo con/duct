@@ -22,6 +22,14 @@ from con_duct.json_utils import is_info_file, load_info_file, load_usage_file
 PCPU_COLOR = "tab:orange"
 RSS_COLOR = "tab:blue"
 
+# --cpu choices.
+# ps-pcpu: raw lifetime ratio from `ps -o pcpu`, no transformation.
+# ps-cpu-timepoint: delta-corrected pdcpu computed from consecutive
+# (pcpu, etime) pairs -- our derived time-point estimate.
+CPU_MODE_PS_PCPU = "ps-pcpu"
+CPU_MODE_PS_CPU_TIMEPOINT = "ps-cpu-timepoint"
+CPU_MODES = (CPU_MODE_PS_PCPU, CPU_MODE_PS_CPU_TIMEPOINT)
+
 lgr = logging.getLogger(__name__)
 
 _TIME_UNITS = [
@@ -73,16 +81,24 @@ class HumanizedAxisFormatter:
         return _HumanizedAxisFormatter(min_ratio=min_ratio, units=units)
 
 
-def _build_pid_series(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+def _build_pid_series(
+    data: List[Dict[str, Any]],
+    cpu_mode: str = CPU_MODE_PS_PCPU,
+) -> Dict[str, Dict[str, Any]]:
     """Walk usage records once, return per-pid time series.
 
     For each pid present in any record, returns aligned lists of
-    ``elapsed`` (seconds since first record), ``cpu`` (None where no
-    measurement), ``pmem``, ``rss``. ``cpu`` is the delta-corrected
-    pdcpu computed from consecutive (etime, pcpu) pairs; first
-    observation per pid and any record with ``etime == "00:00"``
-    produce ``cpu = None`` and do not establish a baseline for the
-    next sample.
+    ``elapsed`` (seconds since first record), ``cpu``, ``pmem``,
+    ``rss``.
+
+    The ``cpu`` field is populated according to ``cpu_mode``:
+
+    - ``ps-pcpu``: raw ``pcpu`` from each record, untransformed. Every
+      record contributes a value; no entry is dropped.
+    - ``ps-cpu-timepoint``: delta-corrected pdcpu computed from
+      consecutive (etime, pcpu) pairs. ``None`` for first observation
+      per pid, records with ``etime == "00:00"``, sub-quantum
+      intervals, pid reuse, and the negative-pdcpu clamp.
     """
     if not data:
         return {}
@@ -93,27 +109,37 @@ def _build_pid_series(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
         entry_ts = datetime.fromisoformat(entry["timestamp"])
         elapsed = (entry_ts - base_ts).total_seconds()
         for pid, p in entry.get("processes", {}).items():
-            try:
-                etime_sec = etime_to_etimes(p.get("etime", ""))
-            except ValueError:
-                continue
             pcpu = float(p.get("pcpu", 0.0))
-            # Use the per-process timestamp (the moment this pid was last
-            # sampled) for the wall-delta in is_same_pid -- not the report
-            # timestamp. duct emits each report at the end of its interval,
-            # but a short-lived pid's last sample within the interval can
-            # be many seconds earlier. Comparing Δetime against Δreport
-            # timestamp would falsely flag a continuous-but-short pid as
-            # reused.
-            proc_ts = datetime.fromisoformat(p.get("timestamp", entry["timestamp"]))
-            prev = pid_state.get(pid)
-            pdcpu: Optional[float] = None
-            if etime_sec != 0.0 and prev is not None:
-                prev_etime, prev_pcpu, prev_proc_ts = prev
-                wall_delta = (proc_ts - prev_proc_ts).total_seconds()
-                if is_same_pid(prev_etime, etime_sec, wall_delta):
-                    pdcpu = pdcpu_from_pcpu(prev_pcpu, prev_etime, pcpu, etime_sec)
-                # else: pid reuse -- pdcpu stays None, re-baseline below.
+            cpu_value: Optional[float]
+            if cpu_mode == CPU_MODE_PS_PCPU:
+                cpu_value = pcpu
+            else:
+                try:
+                    etime_sec = etime_to_etimes(p.get("etime", ""))
+                except ValueError:
+                    continue
+                # Use the per-process timestamp (the moment this pid was last
+                # sampled) for the wall-delta in is_same_pid -- not the report
+                # timestamp. duct emits each report at the end of its interval,
+                # but a short-lived pid's last sample within the interval can
+                # be many seconds earlier. Comparing Δetime against Δreport
+                # timestamp would falsely flag a continuous-but-short pid as
+                # reused.
+                proc_ts = datetime.fromisoformat(p.get("timestamp", entry["timestamp"]))
+                prev = pid_state.get(pid)
+                cpu_value = None
+                if etime_sec != 0.0 and prev is not None:
+                    prev_etime, prev_pcpu, prev_proc_ts = prev
+                    wall_delta = (proc_ts - prev_proc_ts).total_seconds()
+                    if is_same_pid(prev_etime, etime_sec, wall_delta):
+                        cpu_value = pdcpu_from_pcpu(
+                            prev_pcpu, prev_etime, pcpu, etime_sec
+                        )
+                    # else: pid reuse -- cpu stays None, re-baseline below.
+                # Don't baseline from etime=0 -- next sample is a "first observation".
+                pid_state[pid] = (
+                    None if etime_sec == 0.0 else (etime_sec, pcpu, proc_ts)
+                )
             entry_series = series.setdefault(
                 pid,
                 {
@@ -125,11 +151,9 @@ def _build_pid_series(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
                 },
             )
             entry_series["elapsed"].append(elapsed)
-            entry_series["cpu"].append(pdcpu)
+            entry_series["cpu"].append(cpu_value)
             entry_series["pmem"].append(float(p.get("pmem", 0.0)))
             entry_series["rss"].append(float(p.get("rss", 0.0)))
-            # Don't baseline from etime=0 -- next sample is a "first observation".
-            pid_state[pid] = None if etime_sec == 0.0 else (etime_sec, pcpu, proc_ts)
     return series
 
 
@@ -268,7 +292,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         return 1
 
     try:
-        pid_series = _build_pid_series(data)
+        pid_series = _build_pid_series(data, cpu_mode=args.cpu)
         totals_rss_xs, totals_rss_ys = _totals_rss_series(data)
     except KeyError as e:
         lgr.error("Usage file %s is missing required field: %s", file_path, e)
@@ -346,7 +370,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         )
 
     ax.set_xlabel("Elapsed Time")
-    ax.set_ylabel("pcpu (%)")
+    ax.set_ylabel(f"{args.cpu} (%)")
     ax2.set_ylabel("rss")
     if pid_series:
         # Two legends, color-agnostic linestyle key on the right and metric
@@ -384,7 +408,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                 f"rss (host: {SummaryFormatter().naturalsize(host_memory_total)})"
             )
         color_handles = [
-            Line2D([0], [0], color=PCPU_COLOR, linewidth=2.0, label="pcpu"),
+            Line2D([0], [0], color=PCPU_COLOR, linewidth=2.0, label=args.cpu),
             Line2D([0], [0], color=RSS_COLOR, linewidth=2.0, label=rss_label),
         ]
         ax.legend(handles=color_handles, loc="upper left", fontsize=9)  # type: ignore[call-arg]

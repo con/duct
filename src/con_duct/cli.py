@@ -11,7 +11,7 @@ from con_duct._duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
 from con_duct._duct_main import execute as duct_execute
 from con_duct._models import Outputs, RecordTypes, SessionMode
 from con_duct.ls import LS_FIELD_CHOICES, ls
-from con_duct.plot import matplotlib_plot
+from con_duct.plot import CPU_MODE_PS_PCPU, CPU_MODES, matplotlib_plot
 from con_duct.pprint_json import pprint_json
 
 # Default .env file search paths (in precedence order)
@@ -398,6 +398,15 @@ def _create_plot_parser() -> argparse.ArgumentParser:
         default=3.0,
         help="Minimum ratio for axis unit selection (default: 3.0). Lower values use larger units sooner. "
         "Use -1 to always use base units (seconds, bytes).",
+    )
+    parser.add_argument(
+        "--cpu",
+        choices=CPU_MODES,
+        default=CPU_MODE_PS_PCPU,
+        help="Which CPU value to plot. 'ps-pcpu' uses the raw lifetime ratio "
+        "from ps with no transformation. 'ps-cpu-timepoint' computes a "
+        "delta-corrected time-point estimate from consecutive (pcpu, etime) "
+        "pairs.",
     )
     return parser
 
