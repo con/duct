@@ -77,11 +77,12 @@ def _build_pid_series(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """Walk usage records once, return per-pid time series.
 
     For each pid present in any record, returns aligned lists of
-    ``elapsed`` (seconds since first record), ``pdcpu`` (None where no
-    measurement), ``pmem``, ``rss``. ``pdcpu`` is computed from
-    consecutive (etime, pcpu) pairs; first observation per pid and any
-    record with ``etime == "00:00"`` produce ``pdcpu = None`` and do not
-    establish a baseline for the next sample.
+    ``elapsed`` (seconds since first record), ``cpu`` (None where no
+    measurement), ``pmem``, ``rss``. ``cpu`` is the delta-corrected
+    pdcpu computed from consecutive (etime, pcpu) pairs; first
+    observation per pid and any record with ``etime == "00:00"``
+    produce ``cpu = None`` and do not establish a baseline for the
+    next sample.
     """
     if not data:
         return {}
@@ -118,13 +119,13 @@ def _build_pid_series(data: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
                 {
                     "cmd": p.get("cmd", ""),
                     "elapsed": [],
-                    "pdcpu": [],
+                    "cpu": [],
                     "pmem": [],
                     "rss": [],
                 },
             )
             entry_series["elapsed"].append(elapsed)
-            entry_series["pdcpu"].append(pdcpu)
+            entry_series["cpu"].append(pdcpu)
             entry_series["pmem"].append(float(p.get("pmem", 0.0)))
             entry_series["rss"].append(float(p.get("rss", 0.0)))
             # Don't baseline from etime=0 -- next sample is a "first observation".
@@ -285,8 +286,8 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     # Per-pid traces: dotted, faint, single color per metric. The cloud of
     # pid lines reads as background texture; the envelopes carry the signal.
     for s in pid_series.values():
-        pdcpu_xs = [t for t, v in zip(s["elapsed"], s["pdcpu"]) if v is not None]
-        pdcpu_ys = [v for v in s["pdcpu"] if v is not None]
+        pdcpu_xs = [t for t, v in zip(s["elapsed"], s["cpu"]) if v is not None]
+        pdcpu_ys = [v for v in s["cpu"] if v is not None]
         if pdcpu_xs:
             ax.plot(  # type: ignore[call-arg]
                 pdcpu_xs,
@@ -322,7 +323,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     #   that introduces phantom coexistence (pids whose peaks fell in
     #   different samples within the interval) and pads the line by gigs
     #   on bursty workloads.
-    pcpu_xs, pcpu_max, pcpu_sum = _envelopes(pid_series, "pdcpu")
+    pcpu_xs, pcpu_max, pcpu_sum = _envelopes(pid_series, "cpu")
     if pcpu_xs:
         ax.plot(  # type: ignore[call-arg]
             pcpu_xs, pcpu_max, color=PCPU_COLOR, linestyle="-", linewidth=2.0
