@@ -186,14 +186,16 @@ def _envelopes(
     return xs, [max(grid[x]) for x in xs], [sum(grid[x]) for x in xs]
 
 
-def _totals_rss_series(data: List[Dict[str, Any]]) -> Tuple[List[float], List[float]]:
-    """Return ``(elapsed, totals.rss)`` per record.
+def _totals_series(
+    data: List[Dict[str, Any]], field: str
+) -> Tuple[List[float], List[float]]:
+    """Return ``(elapsed, totals[field])`` per record.
 
-    ``totals.rss`` is duct's max-of-(sum-per-sample) within each report
-    interval -- the highest concurrent rss observed at any single sample
-    in that interval. Used as the rss upper-bound line on the chart,
-    replacing sum-of-per-pid-peaks (which over-counts pids whose peaks
-    never coexisted within the same sample -- "phantom coexistence").
+    ``totals[field]`` is duct's max-of-(sum-per-sample) within each report
+    interval -- the highest concurrent value observed at any single sample
+    in that interval. Used as the upper-bound line on the chart, replacing
+    sum-of-per-pid-peaks (which over-counts pids whose peaks never
+    coexisted within the same sample -- "phantom coexistence").
     """
     if not data:
         return [], []
@@ -202,7 +204,7 @@ def _totals_rss_series(data: List[Dict[str, Any]]) -> Tuple[List[float], List[fl
     ys: List[float] = []
     for entry in data:
         xs.append((datetime.fromisoformat(entry["timestamp"]) - base).total_seconds())
-        ys.append(float(entry["totals"]["rss"]))
+        ys.append(float(entry["totals"][field]))
     return xs, ys
 
 
@@ -293,7 +295,8 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
 
     try:
         pid_series = _build_pid_series(data, cpu_mode=args.cpu)
-        totals_rss_xs, totals_rss_ys = _totals_rss_series(data)
+        totals_rss_xs, totals_rss_ys = _totals_series(data, "rss")
+        totals_pcpu_xs, totals_pcpu_ys = _totals_series(data, "pcpu")
     except KeyError as e:
         lgr.error("Usage file %s is missing required field: %s", file_path, e)
         return 1
@@ -330,39 +333,37 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             alpha=0.4,
         )
 
-    # Envelopes: max (lower bound) solid, upper bound dashed. If some pid
-    # was at 50%, the total was at least 50% -- max-of-pids is a true lower
-    # bound on the concurrent total in both metrics.
+    # Envelopes: max-across-pids (lower bound) solid, upper bound dashed.
+    # If some pid was at 50%, the total was at least 50% -- max-of-pids is
+    # a true lower bound on the concurrent total in both metrics.
     #
-    # Upper bounds differ by metric and (for cpu) by mode:
+    # Upper bounds: for both rss and (in ps-pcpu mode) cpu, we use duct's
+    # per-record ``totals[field]`` -- the peak concurrent value observed
+    # at any single sub-sample within the report interval. This is a
+    # tight upper bound under "observed samples only" framing, and avoids
+    # the phantom-coexistence inflation of summing per-pid peaks (pids
+    # whose peaks fell in different sub-samples within the interval would
+    # otherwise both contribute their peak).
     #
-    # - cpu, ps-cpu-timepoint: sum of per-pid pdcpu. A genuine upper bound
-    #   on what the concurrent total could have been. Loose on multi-core
-    #   boxes (it doesn't know about cores) but symmetric with the lower
-    #   bound line.
-    # - cpu, ps-pcpu: NO upper bound drawn. The per-pid value is ps's
-    #   cumulative lifetime ratio, which inflates wildly for short-lived
-    #   pids (e.g., a 0.01s pid that used 0.5s cputime reports pcpu=5000
-    #   because etime is integer-rounded). Summing those per-pid maxes
-    #   across pids that may not have coexisted at any single sub-sample
-    #   compounds the inflation with phantom coexistence. The result
-    #   ("sum=11000% on a 20-core box") is misleading enough that we'd
-    #   rather render no upper bound than a wrong one. The per-pid cloud
-    #   plus max-across-pids lower bound carry the signal.
-    #
-    # - rss: duct's per-record ``totals.rss``, i.e. the peak concurrent rss
-    #   observed at any single sample in the report interval. Within
-    #   "observed samples only" framing this is a true upper bound on
-    #   sampled concurrent rss. We do NOT sum per-pid peaks for rss --
-    #   that introduces phantom coexistence (pids whose peaks fell in
-    #   different samples within the interval) and pads the line by gigs
-    #   on bursty workloads.
+    # In ps-cpu-timepoint mode there is no per-record ``totals.pdcpu`` --
+    # pdcpu is computed at plot time -- so we fall back to summing per-pid
+    # pdcpu. The negative-pdcpu clamp filters the worst aggregation-timing
+    # artifacts; remaining looseness is a known, accepted caveat.
     pcpu_xs, pcpu_max, pcpu_sum = _envelopes(pid_series, "cpu")
     if pcpu_xs:
         ax.plot(  # type: ignore[call-arg]
             pcpu_xs, pcpu_max, color=PCPU_COLOR, linestyle="-", linewidth=2.0
         )
-        if args.cpu != CPU_MODE_PS_PCPU:
+        if args.cpu == CPU_MODE_PS_PCPU:
+            if totals_pcpu_xs:
+                ax.plot(  # type: ignore[call-arg]
+                    totals_pcpu_xs,
+                    totals_pcpu_ys,
+                    color=PCPU_COLOR,
+                    linestyle="--",
+                    linewidth=1.5,
+                )
+        else:
             ax.plot(  # type: ignore[call-arg]
                 pcpu_xs, pcpu_sum, color=PCPU_COLOR, linestyle="--", linewidth=1.5
             )
