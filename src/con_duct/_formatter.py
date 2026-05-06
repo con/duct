@@ -9,6 +9,24 @@ from typing import Any
 lgr = logging.getLogger("con-duct")
 
 
+# Decimal (SI) byte units, single source of truth for byte humanization in
+# duct. Used by SummaryFormatter.naturalsize for run-summary output and by
+# the plot axis formatter for tick labels, so a "kB" means the same thing
+# in both places. A future opt-in could add a 1024-base + IEC-suffix
+# variant (KiB/MiB/GiB/...) and let callers pick.
+FILESIZE_UNITS: list[tuple[str, int]] = [
+    ("B", 1),
+    ("kB", 1000**1),
+    ("MB", 1000**2),
+    ("GB", 1000**3),
+    ("TB", 1000**4),
+    ("PB", 1000**5),
+    ("EB", 1000**6),
+    ("ZB", 1000**7),
+    ("YB", 1000**8),
+]
+
+
 class SummaryFormatter(string.Formatter):
     OK = "OK"
     NOK = "X"
@@ -16,7 +34,6 @@ class SummaryFormatter(string.Formatter):
     BLACK, RED, GREEN, YELLOW, BLUE, MAGENTA, CYAN, WHITE = range(30, 38)
     RESET_SEQ = "\033[0m"
     COLOR_SEQ = "\033[1;%dm"
-    FILESIZE_SUFFIXES = (" kB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB")
 
     def __init__(self, enable_colors: bool = False) -> None:
         self.enable_colors = enable_colors
@@ -34,7 +51,7 @@ class SummaryFormatter(string.Formatter):
             >>> formatter.naturalsize(3000000)
             '3.0 MB'
             >>> formatter.naturalsize(3000, "%.3f")
-            '2.930 kB'
+            '3.000 kB'
             >>> formatter.naturalsize(10**28)
             '10000.0 YB'
             ```
@@ -46,24 +63,23 @@ class SummaryFormatter(string.Formatter):
         Returns:
             str: Human readable representation of a filesize.
         """
-        base = 1000
         bytes_ = float(value)
         abs_bytes = abs(bytes_)
 
         if abs_bytes == 1:
             return "%d Byte" % bytes_
 
-        if abs_bytes < base:
+        if abs_bytes < 1000:
             return "%d Bytes" % bytes_
 
-        for i, _s in enumerate(self.FILESIZE_SUFFIXES):
-            unit = base ** (i + 2)
-
-            if abs_bytes < unit:
-                break
-
-        ret: str = format % (base * bytes_ / unit) + _s
-        return ret
+        # Pick the largest unit where the value is at least 1 of that unit.
+        # FILESIZE_UNITS is ordered ascending; iterate to keep updating until
+        # one further step would underflow.
+        name, divisor = FILESIZE_UNITS[1]  # default to "kB" (loop entry value)
+        for n, d in FILESIZE_UNITS[1:]:
+            if abs_bytes / d >= 1:
+                name, divisor = n, d
+        return f"{format % (bytes_ / divisor)} {name}"
 
     def color_word(self, s: str, color: int) -> str:
         """Color `s` with `color`.

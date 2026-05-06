@@ -1,13 +1,16 @@
 """Tests for plot command."""
 
 import argparse
+import json
 import os
+from pathlib import Path
 from typing import Any, List, Tuple
 from unittest.mock import MagicMock, Mock, mock_open, patch
 import pytest
 
 pytest.importorskip("matplotlib")
 from con_duct import cli, plot  # noqa: E402
+from con_duct._formatter import FILESIZE_UNITS  # noqa: E402
 
 
 @pytest.mark.parametrize(
@@ -52,12 +55,12 @@ def test_pick_unit_with_varying_ratios(
         (plot._TIME_UNITS, (0, 300), 2.3 * 60, "2.3min"),
         (plot._TIME_UNITS, (0, 11000), 7.8 * 60 * 60, "7.8h"),
         (plot._TIME_UNITS, (0, 260000), 3.2 * 60 * 60 * 24, "3.2d"),
-        # Memory formatting tests
-        (plot._MEMORY_UNITS, (0, 5 * 1024), 2.6 * 1024, "2.6KB"),
-        (plot._MEMORY_UNITS, (0, 4 * 1024**2), 1.5 * (1024**2), "1.5MB"),
-        (plot._MEMORY_UNITS, (0, 3 * 1024**3), 8.3 * 1024**3, "8.3GB"),
-        (plot._MEMORY_UNITS, (0, 3 * 1024**4), 1.3 * 1024**4, "1.3TB"),
-        (plot._MEMORY_UNITS, (0, 3.1 * 1024**5), 6.5 * 1024**5, "6.5PB"),
+        # Memory formatting tests (base 1000, kB/MB/GB/TB/PB).
+        (FILESIZE_UNITS, (0, 5 * 1000), 2.6 * 1000, "2.6kB"),
+        (FILESIZE_UNITS, (0, 4 * 1000**2), 1.5 * (1000**2), "1.5MB"),
+        (FILESIZE_UNITS, (0, 3 * 1000**3), 8.3 * 1000**3, "8.3GB"),
+        (FILESIZE_UNITS, (0, 3 * 1000**4), 1.3 * 1000**4, "1.3TB"),
+        (FILESIZE_UNITS, (0, 3.1 * 1000**5), 6.5 * 1000**5, "6.5PB"),
     ],
 )
 def test_formatter_output(
@@ -85,6 +88,7 @@ class TestPlotMatplotlib:
             func=plot.matplotlib_plot,
             log_level="INFO",
             min_ratio=3.0,
+            cpu="ps-pcpu",
         )
         assert cli.execute(args) == 0
         mock_plot_save.assert_called_once_with("outfile.png")
@@ -102,6 +106,7 @@ class TestPlotMatplotlib:
             func=plot.matplotlib_plot,
             log_level="INFO",
             min_ratio=3.0,
+            cpu="ps-pcpu",
         )
         assert cli.execute(args) == 0
         mock_use.assert_called_once_with("Agg")
@@ -144,6 +149,7 @@ class TestPlotMatplotlib:
             func=plot.matplotlib_plot,
             log_level="INFO",
             min_ratio=3.0,
+            cpu="ps-pcpu",
         )
         assert cli.execute(args) == 0
         mock_plot_save.assert_called_once_with("outfile.png")
@@ -167,6 +173,7 @@ class TestPlotMatplotlib:
             func=plot.matplotlib_plot,
             log_level="INFO",
             min_ratio=3.0,
+            cpu="ps-pcpu",
         )
         assert cli.execute(args) == 0
         mock_plot_save.assert_called_once_with("outfile.png")
@@ -211,6 +218,7 @@ class TestPlotMatplotlib:
             func=plot.matplotlib_plot,
             log_level="INFO",
             min_ratio=3.0,
+            cpu="ps-pcpu",
         )
         result = cli.execute(args)
         assert result == 1
@@ -233,6 +241,7 @@ class TestPlotMatplotlib:
             func=plot.matplotlib_plot,
             log_level="INFO",
             min_ratio=3.0,
+            cpu="ps-pcpu",
         )
         result = cli.execute(args)
         assert result == 1
@@ -253,6 +262,7 @@ class TestPlotMatplotlib:
             func=plot.matplotlib_plot,
             log_level="INFO",
             min_ratio=3.0,
+            cpu="ps-pcpu",
         )
         result = cli.execute(args)
         assert result == 0
@@ -295,8 +305,112 @@ class TestPlotMatplotlib:
             func=plot.matplotlib_plot,
             log_level="INFO",
             min_ratio=3.0,
+            cpu="ps-pcpu",
         )
         result = cli.execute(args)
         assert result == 0
         mock_show.assert_called_once()
         assert "matplotlib < 3.9" in caplog.text
+
+
+class TestBuildPidSeriesCpuMode:
+    """``cpu`` series content varies by ``cpu_mode``."""
+
+    @staticmethod
+    def _record(ts: str, pid: str, pcpu: float, etime: str) -> dict:
+        return {
+            "timestamp": ts,
+            "processes": {
+                pid: {
+                    "pcpu": pcpu,
+                    "pmem": 0.0,
+                    "rss": 0,
+                    "etime": etime,
+                    "timestamp": ts,
+                    "cmd": "x",
+                }
+            },
+        }
+
+    def test_ps_pcpu_takes_raw_values(self) -> None:
+        data = [
+            self._record("2026-05-06T00:00:00", "1", 1.5, "00:01"),
+            self._record("2026-05-06T00:01:00", "1", 2.5, "01:01"),
+            self._record("2026-05-06T00:02:00", "1", 3.5, "02:01"),
+        ]
+        series = plot._build_pid_series(data, cpu_mode=plot.CPU_MODE_PS_PCPU)
+        assert series["1"]["cpu"] == [1.5, 2.5, 3.5]
+
+    def test_ps_pcpu_includes_etime_zero_record(self) -> None:
+        # In timepoint mode etime=="00:00" is dropped before delta math; in
+        # raw mode every record contributes its pcpu unchanged.
+        data = [
+            self._record("2026-05-06T00:00:00", "1", 0.0, "00:00"),
+            self._record("2026-05-06T00:01:00", "1", 5.0, "01:00"),
+        ]
+        series = plot._build_pid_series(data, cpu_mode=plot.CPU_MODE_PS_PCPU)
+        assert series["1"]["cpu"] == [0.0, 5.0]
+
+    def test_ps_cpu_timepoint_drops_first_and_etime_zero(self) -> None:
+        # Baseline: timepoint mode unchanged by the new flag -- first record
+        # is None (no prior baseline), etime=="00:00" record is None.
+        data = [
+            self._record("2026-05-06T00:00:00", "1", 10.0, "01:00"),
+            self._record("2026-05-06T00:01:00", "1", 0.0, "00:00"),
+            self._record("2026-05-06T00:02:00", "1", 50.0, "03:00"),
+        ]
+        series = plot._build_pid_series(data, cpu_mode=plot.CPU_MODE_PS_CPU_TIMEPOINT)
+        cpu = series["1"]["cpu"]
+        assert cpu[0] is None
+        assert cpu[1] is None
+
+    def test_default_is_ps_pcpu(self) -> None:
+        data = [self._record("2026-05-06T00:00:00", "1", 7.0, "00:30")]
+        series = plot._build_pid_series(data)
+        assert series["1"]["cpu"] == [7.0]
+
+
+class TestLoadHostMemoryTotal:
+    """Best-effort host memory_total lookup for the rss legend label."""
+
+    def _write_info(self, path: Path, data: dict) -> None:
+        path.write_text(json.dumps(data))
+
+    def test_info_json_input(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        self._write_info(info, {"system": {"memory_total": 12345}})
+        assert plot._load_host_memory_total(info) == 12345
+
+    def test_usage_jsonl_with_sibling(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        usage = tmp_path / "run_usage.jsonl"
+        self._write_info(info, {"system": {"memory_total": 67890}})
+        usage.write_text("")
+        assert plot._load_host_memory_total(usage) == 67890
+
+    def test_usage_legacy_with_sibling(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        usage = tmp_path / "run_usage.json"
+        self._write_info(info, {"system": {"memory_total": 42}})
+        usage.write_text("")
+        assert plot._load_host_memory_total(usage) == 42
+
+    def test_no_sibling_returns_none(self, tmp_path: Path) -> None:
+        usage = tmp_path / "run_usage.jsonl"
+        usage.write_text("")
+        assert plot._load_host_memory_total(usage) is None
+
+    def test_missing_key_returns_none(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        self._write_info(info, {"system": {}})
+        assert plot._load_host_memory_total(info) is None
+
+    def test_invalid_json_returns_none(self, tmp_path: Path) -> None:
+        info = tmp_path / "run_info.json"
+        info.write_text("{not json")
+        assert plot._load_host_memory_total(info) is None
+
+    def test_unparseable_filename_returns_none(self, tmp_path: Path) -> None:
+        weird = tmp_path / "weird.txt"
+        weird.write_text("")
+        assert plot._load_host_memory_total(weird) is None
