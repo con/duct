@@ -334,11 +334,21 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     # was at 50%, the total was at least 50% -- max-of-pids is a true lower
     # bound on the concurrent total in both metrics.
     #
-    # Upper bounds differ by metric:
+    # Upper bounds differ by metric and (for cpu) by mode:
     #
-    # - pcpu: sum of per-pid pdcpu. A genuine upper bound on what the
-    #   concurrent total could have been. Loose on multi-core boxes (it
-    #   doesn't know about cores) but symmetric with the lower-bound line.
+    # - cpu, ps-cpu-timepoint: sum of per-pid pdcpu. A genuine upper bound
+    #   on what the concurrent total could have been. Loose on multi-core
+    #   boxes (it doesn't know about cores) but symmetric with the lower
+    #   bound line.
+    # - cpu, ps-pcpu: NO upper bound drawn. The per-pid value is ps's
+    #   cumulative lifetime ratio, which inflates wildly for short-lived
+    #   pids (e.g., a 0.01s pid that used 0.5s cputime reports pcpu=5000
+    #   because etime is integer-rounded). Summing those per-pid maxes
+    #   across pids that may not have coexisted at any single sub-sample
+    #   compounds the inflation with phantom coexistence. The result
+    #   ("sum=11000% on a 20-core box") is misleading enough that we'd
+    #   rather render no upper bound than a wrong one. The per-pid cloud
+    #   plus max-across-pids lower bound carry the signal.
     #
     # - rss: duct's per-record ``totals.rss``, i.e. the peak concurrent rss
     #   observed at any single sample in the report interval. Within
@@ -352,9 +362,10 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         ax.plot(  # type: ignore[call-arg]
             pcpu_xs, pcpu_max, color=PCPU_COLOR, linestyle="-", linewidth=2.0
         )
-        ax.plot(  # type: ignore[call-arg]
-            pcpu_xs, pcpu_sum, color=PCPU_COLOR, linestyle="--", linewidth=1.5
-        )
+        if args.cpu != CPU_MODE_PS_PCPU:
+            ax.plot(  # type: ignore[call-arg]
+                pcpu_xs, pcpu_sum, color=PCPU_COLOR, linestyle="--", linewidth=1.5
+            )
     rss_xs, rss_max, _ = _envelopes(pid_series, "rss")
     if rss_xs:
         ax2.plot(  # type: ignore[call-arg]
