@@ -293,11 +293,12 @@ Could be done the repository (not just specific clone, but any instance since re
 
 ### My command behaves differently under duct (`goaccess` fails, `tqdm` "freezes", progress bars look wrong)
 
-duct starts the wrapped command in a new session (`start_new_session=True`), so the child has no controlling terminal, and duct attaches pipes to its stdout/stderr instead of a PTY.
+By default, duct starts the wrapped command in a new session (`start_new_session=True`; `--mode new-session`), so the child has no controlling terminal, and duct attaches pipes to its stdout/stderr instead of a PTY.
 Programs that inspect `isatty()` to decide how to behave will therefore take their non-interactive path under duct.
+If you run duct with `--mode current-session`, this session detachment does not happen.
 Two common cases:
 
-- [`goaccess`](https://goaccess.io) refuses to read piped stdin without an explicit `-` argument and exits with `No input data was provided` [[ref: con/duct#261](https://github.com/con/duct/issues/261)].
+- Under duct, [`goaccess`](https://goaccess.io) may require an explicit `-` argument to force stdin mode; otherwise it can exit with `No input data was provided` in this non-TTY/piped setup [[ref: con/duct#261](https://github.com/con/duct/issues/261)].
   Pass `-` (e.g. `... | goaccess - --log-format=AWSS3 -o report.html`) to force stdin mode.
 - [`tqdm`](https://tqdm.github.io) drops `\r`-overwrite redraws and switches to its rate-limited non-TTY path, so updates print one line at a time and arrive in bursts seconds apart — it looks like the bar has frozen [[ref: con/duct#426](https://github.com/con/duct/issues/426)].
   Tune `mininterval`/`maxinterval`/`miniters` on the `tqdm()` call, or pass `disable=False` together with the rate options, to get more frequent output in log mode.
