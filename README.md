@@ -306,7 +306,7 @@ Two common cases:
 To check whether a given problem is a TTY issue and not a duct bug, reproduce it outside duct with `setsid`, which similarly detaches the controlling terminal:
 
 ```bash
-setsid bash -c "your command here" < /dev/null > out.log 2>&1
+setsid bash -c "your command here" > out.log 2>&1
 ```
 
 If the symptom reproduces under `setsid`, develop and test the non-interactive flag set there; the command will then behave the same way under duct.
