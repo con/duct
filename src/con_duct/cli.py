@@ -141,6 +141,7 @@ environment variables:
   DUCT_REPORT_INTERVAL: see --report-interval
   DUCT_CAPTURE_OUTPUTS: see --capture-outputs
   DUCT_MESSAGE: see --message
+  DUCT_SAMPLER: see --sampler
   DUCT_CONFIG_PATHS: paths to .env files separated by platform path separator
     (':' on Unix) (see below)
 
@@ -360,6 +361,16 @@ def _create_run_parser() -> argparse.ArgumentParser:
         help="Session mode: 'new-session' creates a new session for the command (default), "
         "'current-session' tracks the current session instead of starting a new one. "
         "Useful for tracking slurm jobs or other commands that should run in the current session.",
+    )
+    parser.add_argument(
+        "--sampler",
+        default=os.getenv("DUCT_SAMPLER", "ps"),
+        choices=("ps", "cgroup-ps-hybrid"),
+        type=str,
+        help="Resource sampler to use. 'ps' (default) polls `ps` for per-process "
+        "stats; 'cgroup-ps-hybrid' combines cgroup v2 session totals with `ps` "
+        "per-process stats (Linux cgroup v2 only; POC, not yet implemented). "
+        "You can also provide value via DUCT_SAMPLER env variable.",
     )
     return parser
 
