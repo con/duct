@@ -58,6 +58,12 @@ def execute(
         raise ValueError(
             "--report-interval must be greater than or equal to --sample-interval."
         )
+    if sample_interval < 1.0:
+        lgr.warning(
+            "--sample-interval=%.3f is below 1.0s and may behave erratically. "
+            "See docs/resource-statistics.md for details.",
+            sample_interval,
+        )
 
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
     log_paths.prepare_paths(clobber, capture_outputs)

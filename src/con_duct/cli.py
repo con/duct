@@ -300,7 +300,8 @@ def _create_run_parser() -> argparse.ArgumentParser:
         default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
         help="Interval in seconds between status checks of the running process. "
         "Sample interval must be less than or equal to report interval, and it achieves the "
-        "best results when sample is significantly less than the runtime of the process.",
+        "best results when sample is significantly less than the runtime of the process. "
+        "Values below 1.0 behave erratically.",
     )
     parser.add_argument(
         "--report-interval",
