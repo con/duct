@@ -36,6 +36,10 @@ Try it out using either `duct` or `con-duct run`:
 
 `duct` is most useful when the report-interval is less than the duration of the script.
 
+## Documentation
+
+- [Interpreting duct's resource statistics](docs/resource-statistics.md) — what `pcpu`, `rss`, and the `con-duct plot` chart actually measure, and where the numbers can mislead.
+
 ## Command Reference
 
 ### con-duct
