@@ -9,6 +9,7 @@ from enum import Enum
 import logging
 import os
 import re
+import string
 from typing import Any, Optional
 from con_duct._constants import SUFFIXES
 from con_duct._utils import assert_num
@@ -129,6 +130,13 @@ class LogPaths:
 
     @classmethod
     def create(cls, output_prefix: str, pid: None | int = None) -> LogPaths:
+        if any(
+            field_name == "datetime_filesafe"
+            for _, field_name, _, _ in string.Formatter().parse(output_prefix)
+        ):
+            lgr.warning(
+                "{datetime_filesafe} in --output-prefix is deprecated; use {datetime} instead"
+            )
         datetime_filesafe = datetime.now().strftime("%Y.%m.%dT%H.%M.%S")
         formatted_prefix = output_prefix.format(
             pid=pid,

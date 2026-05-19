@@ -363,3 +363,17 @@ def test_no_message_in_json_output(temp_output_dir: str) -> None:
 
     assert "message" in info_dict
     assert info_dict["message"] == ""
+
+
+def test_execute_existing_files_no_clobber(
+    temp_output_dir: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    Path(temp_output_dir, SUFFIXES["info"]).write_text("pre-existing")
+    with caplog.at_level(logging.ERROR):
+        assert run_duct_command(["echo", "hi"], output_prefix=temp_output_dir) == 1
+    assert "Conflicting files:" in caplog.text
+    assert_files(
+        temp_output_dir,
+        [SUFFIXES["stdout"], SUFFIXES["stderr"], SUFFIXES["usage"]],
+        exists=False,
+    )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import asdict
+import logging
 import os
 import re
 from unittest.mock import MagicMock, call, patch
@@ -14,12 +15,34 @@ def test_log_paths_datetime_prefix() -> None:
         assert re.match(pattern, path) is not None
 
 
-def test_log_paths_deprecated_datetime_filesafe_prefix() -> None:
-    """Ensure deprecated {datetime_filesafe} format field still works."""
-    log_paths = LogPaths.create("start_{datetime_filesafe}")
+def test_log_paths_deprecated_datetime_filesafe_prefix(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Ensure deprecated {datetime_filesafe} format field still works and warns."""
+    with caplog.at_level(logging.WARNING):
+        log_paths = LogPaths.create("start_{datetime_filesafe}")
     pattern = r"^start_\d{4}\.\d{2}\.\d{2}T\d{2}\.\d{2}\.\d{2}.*"
     for path in asdict(log_paths).values():
         assert re.match(pattern, path) is not None
+    assert "{datetime_filesafe}" in caplog.text
+
+
+def test_log_paths_no_warning_for_escaped_datetime_filesafe(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Escaped braces {{datetime_filesafe}} are literal text; no warning should fire."""
+    with caplog.at_level(logging.WARNING):
+        LogPaths.create("prefix_{{datetime_filesafe}}_suffix_")
+    assert "{datetime_filesafe}" not in caplog.text
+
+
+def test_log_paths_datetime_filesafe_warning_with_format_spec(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Warning fires when {datetime_filesafe} has a format spec (substring check would miss this)."""
+    with caplog.at_level(logging.WARNING):
+        LogPaths.create("padded_{datetime_filesafe:>20}")
+    assert "{datetime_filesafe}" in caplog.text
 
 
 def test_log_paths_pid_prefix() -> None:
