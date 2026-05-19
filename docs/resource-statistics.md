@@ -20,7 +20,7 @@ Duct polls the monitored process tree on two independent intervals:
 Aggregation within a report window uses **max reduction**:
 
 - For each per-pid metric, the reported value is the maximum observed across all samples of that pid in the window.
-- For each session-total metric (`total_rss`, `total_pcpu`, etc.), the reported value is the maximum observed across all samples' totals in the window.
+- For each session-total metric (`totals.rss`, `totals.pcpu`, etc.), the reported value is the maximum observed across all samples' totals in the window.
 
 Consequences worth knowing:
 
@@ -28,7 +28,7 @@ Consequences worth knowing:
    A process that briefly allocates 10GB and frees it within a single sample interval is invisible to duct.
 2. **Per-pid and session-total peaks may come from different sample moments.**
    Per-pid max-reduction and total max-reduction are independent.
-   The same record can have `stats[A].rss = X` (A's peak from one sub-sample) and `total_rss = Y` (the peak simultaneous total from another sub-sample).
+   The same record can have `stats[A].rss = X` (A's peak from one sub-sample) and `totals.rss = Y` (the peak simultaneous total from another sub-sample).
 
 ---
 
@@ -188,7 +188,7 @@ Both modes have caveats:
   A pid that ran on 4 cores for 150ms and went idle peaks at 400% in the first report interval that observed it, then decays toward its true average as `etime` grows in subsequent intervals.
 - The derived `ps-cpu-timepoint` mode is approximate (delta math on max-reduced samples).
   It discards each pid's first observation (no prior point to delta against), so short-lived pids that appear in only one record drop out entirely.
-  CPU bursts from those pids are not visible in the timepoint view, but remain visible in the `ps-pcpu` view via `total_pcpu`.
+  CPU bursts from those pids are not visible in the timepoint view, but remain visible in the `ps-pcpu` view via `totals.pcpu`.
 
 ### Envelope semantics
 
@@ -197,10 +197,10 @@ The plot draws two envelopes over the per-pid trace cloud:
 - **Lower bound (solid)**: max-across-pids at each timestamp.
   Reads as "at least this much was in use."
 - **Upper bound (dashed)**: depends on what's being plotted.
-  - **RSS, and CPU in `ps-pcpu` mode**: `total_*` from the record.
+  - **RSS, and CPU in `ps-pcpu` mode**: `totals.*` from the record.
     duct computes this as the peak simultaneous total observed across the report window's sub-samples.
   - **CPU in `ps-cpu-timepoint` mode**: sum-across-pids of the derived (instantaneous) values at each timestamp.
-    Used here because `total_pcpu` is a peak of *lifetime averages* and doesn't share units with the derived instantaneous values.
+    Used here because `totals.pcpu` is a peak of *lifetime averages* and doesn't share units with the derived instantaneous values.
 
 ## Common questions
 
@@ -228,17 +228,17 @@ Example: a pid that did 600ms of CPU on 4 cores in its first 150ms and was idle 
 
 The timepoint view is more "honest" about current usage but loses the cumulative-effort information that `ps-pcpu` carries.
 
-### Why does `total_*` not equal `sum(per-pid max)` in a record?
+### Why does `totals.*` not equal `sum(per-pid max)` in a record?
 
 duct max-reduces per-pid stats and session totals independently within a report window.
-A pid's reported `rss` is its max across sub-samples in the window; `total_rss` is the max of the *simultaneous total* across those sub-samples.
+A pid's reported `rss` is its max across sub-samples in the window; `totals.rss` is the max of the *simultaneous total* across those sub-samples.
 The per-pid peaks may have happened at different moments, so summing them counts moments that never coexisted.
-`total_*` is the actual peak simultaneous footprint and is the right number for sizing.
+`totals.*` is the actual peak simultaneous footprint and is the right number for sizing.
 
 ### My RSS chart grew a lot when I added more worker processes. Did memory usage really grow proportionally?
 
 Probably not.
 If the workers are forked children of a common parent, each child's RSS counts the shared pages it inherited.
 Per-pid traces and their max envelope grow roughly linearly with child count even when physical memory grows much less.
-The dashed `total_rss` upper bound is closer to actual physical use, but still over-counts shared libraries linked by independent processes.
+The dashed `totals.rss` upper bound is closer to actual physical use, but still over-counts shared libraries linked by independent processes.
 See [The shared-page issue](#the-shared-page-issue).
