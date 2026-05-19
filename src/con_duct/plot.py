@@ -1,8 +1,12 @@
 """Resource-usage plotting for con-duct.
 
-Renders a per-pid pdcpu / rss cloud overlaid by max (lower bound on
-the total) and sum (upper bound on the total) envelopes. pcpu lives
-on the primary y-axis (percent), rss on a secondary y-axis (bytes).
+Renders a per-pid CPU / rss cloud overlaid by envelopes:
+max-across-pids as a lower bound, and either ``totals.*`` from the
+record (RSS, and CPU in ``ps-pcpu`` mode) or sum-across-pids of the
+derived values (CPU in ``ps-cpu-timepoint`` mode) as the upper
+bound. CPU lives on the primary y-axis (percent), rss on a
+secondary y-axis (bytes).
+
 The per-pid overlay is loosely modeled on brainlife's smon task viewer:
 https://github.com/brainlife/warehouse/blob/b833b98e3518181eacef71cc04ae773a7592b1a8/ui/src/modals/taskinfo.vue
 """
