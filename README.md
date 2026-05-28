@@ -68,10 +68,10 @@ options:
 ```shell
 >duct --help
 
-usage: con-duct run [-h] [-l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}] [-q]
-                    [--version] [-p OUTPUT_PREFIX]
-                    [--summary-format SUMMARY_FORMAT] [--colors] [--clobber]
-                    [--sample-interval SAMPLE_INTERVAL]
+usage: con-duct run [-h] [--version]
+                    [-l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}] [-q]
+                    [-p OUTPUT_PREFIX] [--summary-format SUMMARY_FORMAT]
+                    [--colors] [--clobber] [--sample-interval SAMPLE_INTERVAL]
                     [--report-interval REPORT_INTERVAL]
                     [--fail-time FAIL_TIME] [-c {all,none,stdout,stderr}]
                     [-o {all,none,stdout,stderr}]
@@ -167,12 +167,12 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  --version             show program's version number and exit
   -l {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}, --log-level {NONE,CRITICAL,ERROR,WARNING,INFO,DEBUG}
                         Level of log output to stderr, use NONE to entirely
                         disable. (default: INFO)
   -q, --quiet           [deprecated, use log level NONE] Disable duct logging
                         output (to stderr) (default: False)
-  --version             show program's version number and exit
   -p OUTPUT_PREFIX, --output-prefix OUTPUT_PREFIX
                         File string format to be used as a prefix for the
                         files -- the captured stdout and stderr and the
