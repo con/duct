@@ -232,15 +232,16 @@ def ls(args: argparse.Namespace) -> int:
     info_files = [path for path in args.paths if is_info_file(path)]
     run_data_raw = load_duct_runs(info_files, args.eval_filter)
 
-    sort_by = getattr(args, "sort_by", None)
-    if sort_by:
-        flat_data = [_flatten_dict(d) for d in run_data_raw]
+    if sort_by := getattr(args, "sort_by", None):
         run_data_raw = [
             item
             for _, item in sorted(
-                zip(flat_data, run_data_raw),
+                zip(map(_flatten_dict, run_data_raw), run_data_raw),
                 key=lambda x: tuple(
-                    (x[0].get(k) is None, x[0].get(k) if x[0].get(k) is not None else "")
+                    (
+                        x[0].get(k) is None,
+                        x[0].get(k) if x[0].get(k) is not None else "",
+                    )
                     for k in sort_by
                 ),
             )

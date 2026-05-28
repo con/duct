@@ -464,14 +464,14 @@ def _create_ls_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--reverse",
         action="store_true",
-        help="List entries in reverse order (most recent first).",
+        help="List entries in reverse order.",
     )
     parser.add_argument(
         "--sort-by",
         nargs="+",
         metavar="FIELD",
         choices=LS_FIELD_CHOICES,
-        help=f"Sort results by one or more fields. Available choices: {', '.join(sorted(LS_FIELD_CHOICES))}.",
+        help="Sort results by one or more fields. See --fields for available choices.",
     )
     return parser
 
