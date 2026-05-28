@@ -223,6 +223,7 @@ class TestLS(unittest.TestCase):
                 format=fmt,
                 func=ls,
                 reverse=False,
+                sort_by=None,
             )
         buf = StringIO()
         with contextlib.redirect_stdout(buf):
@@ -255,6 +256,7 @@ class TestLS(unittest.TestCase):
             format="summaries",
             func=ls,
             reverse=False,
+            sort_by=None,
         )
         result = self._run_ls(paths, "summaries", args)
 
@@ -383,9 +385,48 @@ class TestLS(unittest.TestCase):
             format="json",
             func=ls,
             reverse=True,
+            sort_by=None,
         )
         result_reversed = self._run_ls(paths, "json", args)
         parsed_reversed = json.loads(result_reversed)
         prefixes_reversed = [row["prefix"] for row in parsed_reversed]
 
         assert prefixes_reversed == list(reversed(prefixes_normal))
+
+    def test_ls_sort_by(self) -> None:
+        """Test --sort-by flag sorts entries by the specified field."""
+        paths = ["file1_info.json", "file2_info.json"]
+
+        args = argparse.Namespace(
+            paths=[os.path.join(self.temp_dir.name, path) for path in paths],
+            colors=False,
+            fields=["prefix", "schema_version"],
+            eval_filter=None,
+            format="json",
+            func=ls,
+            reverse=False,
+            sort_by=["prefix"],
+        )
+        result = self._run_ls(paths, "json", args)
+        parsed = json.loads(result)
+        prefixes = [row["prefix"] for row in parsed]
+        assert prefixes == sorted(prefixes)
+
+    def test_ls_sort_by_reverse(self) -> None:
+        """Test --sort-by combined with --reverse gives descending order."""
+        paths = ["file1_info.json", "file2_info.json"]
+
+        args = argparse.Namespace(
+            paths=[os.path.join(self.temp_dir.name, path) for path in paths],
+            colors=False,
+            fields=["prefix", "schema_version"],
+            eval_filter=None,
+            format="json",
+            func=ls,
+            reverse=True,
+            sort_by=["prefix"],
+        )
+        result = self._run_ls(paths, "json", args)
+        parsed = json.loads(result)
+        prefixes = [row["prefix"] for row in parsed]
+        assert prefixes == sorted(prefixes, reverse=True)
