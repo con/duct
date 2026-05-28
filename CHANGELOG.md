@@ -1,3 +1,41 @@
+# v0.21.0 (Thu May 28 2026)
+
+### Release Notes
+
+#### Add plot --cpu modes, including ps-cpu-timepoint for derived instantaneous CPU ([#424](https://github.com/con/duct/pull/424))
+
+- Change: `con-duct plot` now shows per-pid traces with max-across-pids and `totals.*` envelopes. Previously it drew only `totals.pcpu` and `totals.rss` as a single line per metric, with no per-pid breakdown.
+ - Change: `con-duct plot` now shows absolute `rss` on a secondary y-axis instead of `pmem`. Motivated by SLURM, where `pmem = rss / host_total` makes job usage look tiny on big nodes.
+ - Change: `con-duct plot` drops `vsz` from the secondary y-axis, since this is a rarely useful metric.
+ - Add: host available RAM in the legend when `info.json` is available.
+ - Add: `--cpu` argument to `con-duct plot`:
+   - `--cpu ps-pcpu` (default): plot ps's raw lifetime `pcpu` per pid, untransformed. Every point on the chart is an unaltered ps reading.
+   - `--cpu ps-cpu-timepoint`: at plot time, derive a per-interval estimate from consecutive `(pcpu, etime)` pairs to approximate instantaneous CPU. Sidesteps lifetime-average inflation on short-lived bursty pids.
+ - Change: `con-duct run` warns when `--sample-interval` is below 1.0s. ps reports `etime` as integer seconds, so `pcpu` calculations for sub-second-young pids are unstable.
+ - Change: byte humanization in `con-duct plot` is now decimal (base 1000, `kB`/`MB`/`GB`), matching the run summary. Previously the plot used base-1024 with decimal-style suffixes.
+ - Docs: new [`docs/resource-statistics.md`](docs/resource-statistics.md) explains what duct's `pcpu` / `rss` / `pmem` actually measure, how aggregation works, and how `con-duct plot` renders these. Linked from README.
+
+---
+
+#### 🚀 Enhancement
+
+- Add plot --cpu modes, including ps-cpu-timepoint for derived instantaneous CPU [#424](https://github.com/con/duct/pull/424) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- [pre-commit.ci] pre-commit autoupdate [#422](https://github.com/con/duct/pull/422) ([@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]))
+- Explained level options with examples [#369](https://github.com/con/duct/pull/369) ([@asmacdo](https://github.com/asmacdo))
+- fix: clean error on output prefix collision instead of traceback [#420](https://github.com/con/duct/pull/420) ([@lobennett](https://github.com/lobennett))
+- fix: emit deprecation warning for {datetime_filesafe} format field [#421](https://github.com/con/duct/pull/421) ([@lobennett](https://github.com/lobennett))
+
+#### Authors: 3
+
+- [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot])
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Logan Bennett ([@lobennett](https://github.com/lobennett))
+
+---
+
 # v0.20.1 (Sat Apr 25 2026)
 
 #### 🐛 Bug Fix
