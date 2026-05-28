@@ -174,10 +174,6 @@ def _envelopes(
     omitted entirely rather than reported as zero -- a missing measurement
     is not the same as zero load.
 
-    The grid is the union of (kept pids') elapsed values; the alternative
-    of "every entry timestamp regardless of who appeared" would only add
-    grid points that are missing measurements anyway.
-
     :returns: ``(grid_xs, max_ys, sum_ys)`` aligned, sorted by ``grid_xs``.
     """
     grid: Dict[float, List[float]] = {}
@@ -337,22 +333,12 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             alpha=0.4,
         )
 
-    # Envelopes: max-across-pids (lower bound) solid, upper bound dashed.
-    # If some pid was at 50%, the total was at least 50% -- max-of-pids is
-    # a true lower bound on the concurrent total in both metrics.
-    #
-    # Upper bounds: for both rss and (in ps-pcpu mode) cpu, we use duct's
-    # per-record ``totals[field]`` -- the peak concurrent value observed
-    # at any single sub-sample within the report interval. This is a
-    # tight upper bound under "observed samples only" framing, and avoids
-    # the phantom-coexistence inflation of summing per-pid peaks (pids
-    # whose peaks fell in different sub-samples within the interval would
-    # otherwise both contribute their peak).
-    #
-    # In ps-cpu-timepoint mode there is no per-record ``totals.pdcpu`` --
-    # pdcpu is computed at plot time -- so we fall back to summing per-pid
-    # pdcpu. The negative-pdcpu clamp filters the worst aggregation-timing
-    # artifacts; remaining looseness is a known, accepted caveat.
+    # Solid = max-across-pids (lower bound on the concurrent total).
+    # Dashed = upper bound: per-record ``totals[field]`` for rss and
+    # ps-pcpu cpu; in ps-cpu-timepoint mode there is no
+    # ``totals.pdcpu`` (computed at plot time), so fall back to
+    # sum-across-pids. See docs/resource-statistics.md for the
+    # phantom-coexistence rationale.
     pcpu_xs, pcpu_max, pcpu_sum = _envelopes(pid_series, "cpu")
     if pcpu_xs:
         ax.plot(  # type: ignore[call-arg]
@@ -389,10 +375,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
     ax.set_ylabel(f"{args.cpu} (%)")
     ax2.set_ylabel("rss")
     if pid_series:
-        # Two legends, color-agnostic linestyle key on the right and metric
-        # color key on the left. Linestyle entries are listed in the order
-        # a viewer's eye scans the chart: upper bound (the high dashed line),
-        # lower bound (the solid line below it), per-pid (dotted cloud).
+        # Two legends: linestyle key on the right, metric color key on the left.
         style_handles = [
             Line2D(
                 [0],

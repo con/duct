@@ -79,34 +79,27 @@ def pdcpu_from_pcpu(
     """Delta-corrected %CPU between two ps samples of the same pid.
 
     Inverts the procps identity ``pcpu = cputime / etime * 100`` to
-    recover cputime at each sample, takes the cputime delta, and
-    divides by the elapsed interval. The ``/100`` and ``*100``
-    cancel, so the result is in the same units as ``pcpu``.
+    recover cputime at each sample, deltas it, and divides by the
+    elapsed interval. Result is in the same units as ``pcpu``.
 
     Linux-only: assumes ``pcpu`` is the cumulative ``cputime/etime``
     ratio. Invalid on Darwin (decayed EWMA).
 
-    Identity is the caller's responsibility: invoke ``is_same_pid``
-    first. If the inputs satisfy that precondition, ``Δetime`` is
-    positive and the math is well-defined.
+    Identity is the caller's responsibility -- invoke ``is_same_pid``
+    first.
 
     :param prev_pcpu: %CPU from the earlier sample.
     :param prev_etimes: elapsed seconds at the earlier sample.
     :param curr_pcpu: %CPU from the later sample.
     :param curr_etimes: elapsed seconds at the later sample.
     :returns: delta-corrected %CPU over the interval, or ``None``
-        in two "no measurement" cases:
+        when no measurement is recoverable:
 
-        - ``Δetime <= 0`` -- defensive guard for callers that
-          skipped ``is_same_pid``; covers sub-quantum and obvious
-          pid-reuse.
-        - Computed ``pdcpu < 0`` -- aggregation-timing artifact.
-          When duct's per-pid ``pcpu`` is max-across-samples while
-          ``etime`` is from the last sample, a spike-then-idle
-          pattern earlier in the run inflates ``prev_pcpu *
-          prev_etimes`` enough that the cputime "delta" goes
-          negative. The pid is the same; the math is just noisy.
-          A small minus dip is honestly null, not zero.
+        - ``Δetime <= 0`` -- defensive guard; covers sub-quantum and
+          obvious pid-reuse for callers that skipped ``is_same_pid``.
+        - Computed ``pdcpu < 0`` -- aggregation-timing artifact from
+          duct's max-pcpu / end-etime mismatch on spike-then-idle
+          patterns. Honestly null, not zero.
     """
     interval = curr_etimes - prev_etimes
     if interval <= 0:

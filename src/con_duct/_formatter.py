@@ -9,11 +9,9 @@ from typing import Any
 lgr = logging.getLogger("con-duct")
 
 
-# Decimal (SI) byte units, single source of truth for byte humanization in
-# duct. Used by SummaryFormatter.naturalsize for run-summary output and by
-# the plot axis formatter for tick labels, so a "kB" means the same thing
-# in both places. A future opt-in could add a 1024-base + IEC-suffix
-# variant (KiB/MiB/GiB/...) and let callers pick.
+# Decimal (SI) byte units shared by SummaryFormatter.naturalsize (run
+# summary) and the plot axis formatter, so "kB" means the same thing in
+# both places.
 FILESIZE_UNITS: list[tuple[str, int]] = [
     ("B", 1),
     ("kB", 1000**1),
