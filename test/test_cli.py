@@ -100,6 +100,14 @@ def test_con_duct_version() -> None:
     assert re.match(r"con-duct \d+\.\d+\.\d+", output_str)
 
 
+@pytest.mark.parametrize("subcommand", ["run", "ls", "pp", "plot"])
+def test_con_duct_subcommand_version(subcommand: str) -> None:
+    out = subprocess.check_output(["con-duct", subcommand, "--version"])
+    output_str = out.decode("utf-8").strip()
+    assert output_str.startswith(f"con-duct {subcommand} ")
+    assert re.search(r"\d+\.\d+\.\d+", output_str)
+
+
 @pytest.mark.skipif(SYSTEM != "Linux", reason="Test specific to Linux behavior")
 def test_cmd_help() -> None:
     out = subprocess.check_output(["duct", "ps", "--help"])
