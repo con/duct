@@ -36,6 +36,10 @@ Try it out using either `duct` or `con-duct run`:
 
 `duct` is most useful when the report-interval is less than the duration of the script.
 
+## Documentation
+
+- [Interpreting duct's resource statistics](docs/resource-statistics.md) — what `pcpu`, `rss`, and the `con-duct plot` chart actually measure, and where the numbers can mislead.
+
 ## Reference
 
 ### con-duct
@@ -207,7 +211,8 @@ options:
                         running process. Sample interval must be less than or
                         equal to report interval, and it achieves the best
                         results when sample is significantly less than the
-                        runtime of the process. (default: 1.0)
+                        runtime of the process. Values below 1.0 behave
+                        erratically. (default: 1.0)
   --report-interval REPORT_INTERVAL, --r-i REPORT_INTERVAL
                         Interval in seconds at which to report aggregated
                         data. (default: 60.0)

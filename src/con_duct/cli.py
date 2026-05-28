@@ -11,7 +11,7 @@ from con_duct._duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
 from con_duct._duct_main import execute as duct_execute
 from con_duct._models import Outputs, RecordTypes, SessionMode
 from con_duct.ls import LS_FIELD_CHOICES, ls
-from con_duct.plot import matplotlib_plot
+from con_duct.plot import CPU_MODE_PS_PCPU, CPU_MODES, matplotlib_plot
 from con_duct.pprint_json import pprint_json
 
 # Default .env file search paths (in precedence order)
@@ -300,7 +300,8 @@ def _create_run_parser() -> argparse.ArgumentParser:
         default=float(os.getenv("DUCT_SAMPLE_INTERVAL", "1.0")),
         help="Interval in seconds between status checks of the running process. "
         "Sample interval must be less than or equal to report interval, and it achieves the "
-        "best results when sample is significantly less than the runtime of the process.",
+        "best results when sample is significantly less than the runtime of the process. "
+        "Values below 1.0 behave erratically.",
     )
     parser.add_argument(
         "--report-interval",
@@ -398,6 +399,15 @@ def _create_plot_parser() -> argparse.ArgumentParser:
         default=3.0,
         help="Minimum ratio for axis unit selection (default: 3.0). Lower values use larger units sooner. "
         "Use -1 to always use base units (seconds, bytes).",
+    )
+    parser.add_argument(
+        "--cpu",
+        choices=CPU_MODES,
+        default=CPU_MODE_PS_PCPU,
+        help="Which CPU value to plot. 'ps-pcpu' uses the raw lifetime ratio "
+        "from ps with no transformation. 'ps-cpu-timepoint' computes a "
+        "delta-corrected time-point estimate from consecutive (pcpu, etime) "
+        "pairs.",
     )
     return parser
 
