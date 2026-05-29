@@ -429,3 +429,47 @@ def test_ls_sort_by(reverse: bool, tmp_path: Any) -> None:
         assert ls(args) == 0
     prefixes = [row["prefix"] for row in json.loads(buf.getvalue().strip())]
     assert prefixes == sorted(prefixes, reverse=reverse)
+
+
+def test_ls_sort_by_non_displayed_field(tmp_path: Any) -> None:
+    """Test --sort-by works for fields not included in --fields (not displayed)."""
+    # Three runs with commands in non-alphabetical order; paths also in non-alphabetical
+    # order so glob/filesystem order cannot accidentally pass the test.
+    entries = [
+        ("run_b_info.json", "cmd_b"),
+        ("run_a_info.json", "cmd_a"),
+        ("run_c_info.json", "cmd_c"),
+    ]
+    for filename, command in entries:
+        (tmp_path / filename).write_text(
+            json.dumps(
+                {
+                    "schema_version": MINIMUM_SCHEMA_VERSION,
+                    "execution_summary": {},
+                    "command": command,
+                }
+            )
+        )
+
+    # paths deliberately in creation order (b, a, c) — not sorted by command
+    paths = [str(tmp_path / filename) for filename, _ in entries]
+    args = argparse.Namespace(
+        paths=paths,
+        colors=False,
+        fields=["prefix"],  # "command" is intentionally NOT in displayed fields
+        eval_filter=None,
+        format="json",
+        func=ls,
+        reverse=False,
+        sort_by=["command"],
+    )
+    buf = StringIO()
+    with contextlib.redirect_stdout(buf):
+        assert ls(args) == 0
+    rows = json.loads(buf.getvalue().strip())
+    # Output order should match sorted command order: cmd_a, cmd_b, cmd_c
+    # which corresponds to run_a, run_b, run_c prefixes
+    prefixes = [row["prefix"] for row in rows]
+    assert "run_a_" in prefixes[0]
+    assert "run_b_" in prefixes[1]
+    assert "run_c_" in prefixes[2]
