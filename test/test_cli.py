@@ -3,7 +3,7 @@ import os
 import platform
 import re
 import subprocess
-from typing import Any
+from typing import Any, Optional
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -92,12 +92,14 @@ def test_duct_version() -> None:
     assert re.search(r"\d+\.\d+\.\d+", output_str)
 
 
-def test_con_duct_version() -> None:
-    out = subprocess.check_output(["con-duct", "--version"])
+@pytest.mark.parametrize("subcommand", [None, "run", "ls", "pp", "plot"])
+def test_con_duct_version(subcommand: Optional[str]) -> None:
+    cmd = ["con-duct"] + ([subcommand] if subcommand else []) + ["--version"]
+    out = subprocess.check_output(cmd)
     output_str = out.decode("utf-8").strip()
-    assert output_str.startswith("con-duct ")
-    # Check that it has a version pattern
-    assert re.match(r"con-duct \d+\.\d+\.\d+", output_str)
+    expected_prefix = f"con-duct {subcommand}" if subcommand else "con-duct"
+    assert output_str.startswith(expected_prefix)
+    assert re.search(r"\d+\.\d+\.\d+", output_str)
 
 
 @pytest.mark.skipif(SYSTEM != "Linux", reason="Test specific to Linux behavior")
