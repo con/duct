@@ -94,6 +94,9 @@ class Report:
         try:
             osr = platform.freedesktop_os_release()
         except OSError:
+            # No os-release file found (/etc/os-release or /usr/lib/os-release).
+            # Expected on non-freedesktop systems such as macOS; the distro_*
+            # fields below fall back to "".
             osr = {}
         self.system_info = SystemInfo(
             cpu_total=os.sysconf("SC_NPROCESSORS_CONF"),
