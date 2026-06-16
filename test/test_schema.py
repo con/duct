@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from utils import run_duct_command
 from con_duct._constants import SUFFIXES
-from con_duct.ls import LS_FIELD_CHOICES, _flatten_dict
+from con_duct.ls import COMPUTED_FIELDS, LS_FIELD_CHOICES, _flatten_dict
 
 
 def test_info_fields(temp_output_dir: str) -> None:
@@ -29,4 +29,5 @@ def test_info_fields(temp_output_dir: str) -> None:
     actual_info_schema = _flatten_dict(json.loads(info_file.read_text())).keys()
     os.remove(info_file)
 
-    assert set(actual_info_schema) == set(LS_FIELD_CHOICES)
+    schema_field_choices = [f for f in LS_FIELD_CHOICES if f not in COMPUTED_FIELDS]
+    assert set(actual_info_schema) == set(schema_field_choices)
