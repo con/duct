@@ -210,6 +210,29 @@ def test_empty_window_returns_none() -> None:
     assert agg.report() is None
 
 
+def test_empty_ps_reading_drops_sample() -> None:
+    # ps returning no pids (session gone) must not buffer or count the sample.
+    fake = FakeCollector("ps", [{}, {1: {"rss": 5.0}}])
+    agg = _agg([ALL_MEASUREMENTS["ps_rss"]], [fake])
+    assert agg.add_sample() is False
+    assert agg.num_samples == 0
+    assert agg.add_sample() is True
+    assert agg.num_samples == 1
+    record = agg.report()
+    assert record is not None and record["measurements"]["ps_rss"] == {"1": 5.0}
+
+
+def test_non_ps_only_selection_still_records() -> None:
+    # Selecting only a single-read collector (no ps liveness signal) still
+    # buffers samples so reports get written.
+    cg = FakeSingleCollector("cgroup", 4096.0)
+    agg = _agg([ALL_MEASUREMENTS["cgroup_rss_peak"]], [cg])
+    assert agg.add_sample() is True
+    record = agg.report()
+    assert record is not None
+    assert record["measurements"]["cgroup_rss_peak"] == 4096.0
+
+
 def test_summary_accumulates_across_reports() -> None:
     ms = [ALL_MEASUREMENTS["ps_rss_total"], ALL_MEASUREMENTS["ps_cpu_seconds"]]
     fake = FakeCollector(

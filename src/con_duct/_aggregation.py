@@ -103,15 +103,19 @@ class Aggregator:
         """True when the current window holds at least one buffered sample."""
         return bool(self._wall_times)
 
-    def add_sample(self) -> int:
+    def add_sample(self) -> bool:
         """Collect one sample from every per-sample collector into the buffer.
 
-        :returns: number of pids the ``ps`` collector saw (0 when the tracked
-            session has no processes, mirroring the old ``collect_sample``
-            sentinel so the monitor loop can decide to stop).
+        :returns: True if a sample was buffered; False when ``ps`` found no
+            processes (the session is gone), letting the monitor loop stop.
+
+        When ``ps`` finds no processes the sample is dropped entirely (not
+        buffered, not counted): there is nothing to record and an empty
+        trailing reading must not skew a delta/total.
         """
         mono = time.monotonic()
         wall = datetime.now().astimezone().isoformat()
+        readings: Dict[str, PerPidReading] = {}
         ps_pid_count = 0
         for name, collector in self._collectors.items():
             if not collector.per_sample:  # type: ignore[attr-defined]
@@ -122,12 +126,19 @@ class Aggregator:
                 # ps exits non-zero when the session has no processes left.
                 lgr.debug("Collector %s found no processes: %s", name, exc)
                 reading = {}
-            self._samples[name].append((mono, reading))
+            readings[name] = reading
             if name == "ps":
                 ps_pid_count = len(reading)
+
+        # ps is the liveness signal: no pids => session gone, drop the sample.
+        if "ps" in self._collectors and ps_pid_count == 0:
+            return False
+
+        for name, reading in readings.items():
+            self._samples[name].append((mono, reading))
         self._wall_times.append(wall)
         self.num_samples += 1
-        return ps_pid_count
+        return True
 
     def report(self) -> Optional[dict]:
         """Aggregate the current window into one usage record, then reset it.

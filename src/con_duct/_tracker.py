@@ -222,8 +222,8 @@ def monitor_process(
                 "Breaking out of the monitor since the passthrough command has finished"
             )
             break
-        pid_count = report.aggregator.add_sample()
-        if pid_count == 0:
+        recorded = report.aggregator.add_sample()
+        if not recorded:
             # ps found no processes -- passthrough has probably finished before
             # a sample could be collected.
             if process.poll() is not None:
