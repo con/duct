@@ -12,12 +12,13 @@ import socket
 import subprocess
 import threading
 import time
-from typing import Any, Optional, TextIO
+from typing import Any, List, Optional, TextIO
+from con_duct._aggregation import Aggregator, null_summary
+from con_duct._collectors import Measurement
 from con_duct._constants import ENV_PREFIXES, __schema_version__
 from con_duct._formatter import SummaryFormatter
-from con_duct._models import LogPaths, Sample, SystemInfo
+from con_duct._models import LogPaths, SystemInfo
 from con_duct._output import safe_close_files
-from con_duct._sampling import _get_sample
 
 __version__ = version("con-duct")
 
@@ -38,6 +39,7 @@ class Report:
         clobber: bool = False,
         process: subprocess.Popen | None = None,
         message: str = "",
+        measurements: Optional[List[Measurement]] = None,
     ) -> None:
         self._command = command
         self.arguments = arguments
@@ -46,6 +48,8 @@ class Report:
         self.clobber = clobber
         self.colors = colors
         self.message = message
+        # The resolved measurement selection (empty => nothing to record).
+        self.measurements: List[Measurement] = measurements or []
         # Defaults to be set later
         self.start_time: float | None = None
         self.process = process
@@ -54,8 +58,9 @@ class Report:
         self.env: dict[str, str] | None = None
         self.number = 1
         self.system_info: SystemInfo | None = None
-        self.full_run_stats = Sample()
-        self.current_sample: Optional[Sample] = None
+        # The collect -> buffer -> aggregate-once engine; built once the tracked
+        # session id is known (see start_aggregator).
+        self.aggregator: Optional[Aggregator] = None
         self.end_time: float | None = None
         self.run_time_seconds: str | None = None
         self.usage_file: TextIO | None = None
@@ -132,29 +137,16 @@ class Report:
                 lgr.warning("Error parsing gpu information: %s", str(e))
                 self.gpus = None
 
-    def collect_sample(self) -> Optional[Sample]:
+    def start_aggregator(self) -> None:
+        """Build the aggregation engine once the tracked session id is known."""
         assert self.session_id is not None
-        try:
-            sample = _get_sample(self.session_id)
-            return sample
-        except subprocess.CalledProcessError as exc:  # when session_id has no processes
-            lgr.debug("Error collecting sample: %s", str(exc))
-            return None
+        self.aggregator = Aggregator(self.measurements, self.session_id)
 
-    def update_from_sample(self, sample: Sample) -> None:
-        self.full_run_stats = self.full_run_stats.aggregate(sample)
-        if self.current_sample is None:
-            self.current_sample = Sample().aggregate(sample)
-        else:
-            assert self.current_sample.averages is not None
-            self.current_sample = self.current_sample.aggregate(sample)
-        assert self.current_sample is not None
-
-    def write_subreport(self) -> None:
-        assert self.current_sample is not None
+    def write_record(self, record: dict) -> None:
+        """Append one aggregated usage record as a JSON line."""
         if self.usage_file is None:
             self.usage_file = open(self.log_paths.usage, "w")
-        self.usage_file.write(json.dumps(self.current_sample.for_json()) + "\n")
+        self.usage_file.write(json.dumps(record) + "\n")
         self.usage_file.flush()  # Force flush immediately
 
     @property
@@ -163,22 +155,22 @@ class Report:
         # https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html#tag_19_08_02
         if self.process and self.process.returncode < 0:
             self.process.returncode = 128 + abs(self.process.returncode)
-        # prepare the base, but enrich if we did get process running
+        # Measurement-derived keys (always present; None when unselected) plus
+        # run/meta keys.  Built from the aggregator, or nulls if monitoring was
+        # disabled so info.json schema stays stable.
+        measurement_summary = (
+            self.aggregator.summary() if self.aggregator is not None else null_summary()
+        )
+        num_samples = self.aggregator.num_samples if self.aggregator else 0
+        num_reports = self.aggregator.num_reports if self.aggregator else 0
         return {
             "exit_code": self.process.returncode if self.process else None,
             "command": self.command,
             "logs_prefix": self.log_paths.prefix if self.log_paths else "",
             "wall_clock_time": self.wall_clock_time,
-            "peak_rss": self.full_run_stats.total_rss,
-            "average_rss": self.full_run_stats.averages.rss,
-            "peak_vsz": self.full_run_stats.total_vsz,
-            "average_vsz": self.full_run_stats.averages.vsz,
-            "peak_pmem": self.full_run_stats.total_pmem,
-            "average_pmem": self.full_run_stats.averages.pmem,
-            "peak_pcpu": self.full_run_stats.total_pcpu,
-            "average_pcpu": self.full_run_stats.averages.pcpu,
-            "num_samples": self.full_run_stats.averages.num_samples,
-            "num_reports": self.number,
+            **measurement_summary,
+            "num_samples": num_samples,
+            "num_reports": num_reports,
             "start_time": self.start_time,
             "end_time": self.end_time,
             "working_directory": self.working_directory,
@@ -221,17 +213,19 @@ def monitor_process(
         sample_interval,
         report_interval,
     )
+    if report.aggregator is None:
+        report.start_aggregator()
+    assert report.aggregator is not None
     while True:
         if process.poll() is not None:
             lgr.debug(
                 "Breaking out of the monitor since the passthrough command has finished"
             )
             break
-        sample = report.collect_sample()
-        # Report averages should be updated prior to sample aggregation
-        if (
-            sample is None
-        ):  # passthrough has probably finished before sample could be collected
+        pid_count = report.aggregator.add_sample()
+        if pid_count == 0:
+            # ps found no processes -- passthrough has probably finished before
+            # a sample could be collected.
             if process.poll() is not None:
                 lgr.debug(
                     "Breaking out of the monitor since the passthrough command has finished "
@@ -240,13 +234,13 @@ def monitor_process(
                 break
             # process is still running, but we could not collect sample
             continue
-        report.update_from_sample(sample)
         if (
             report.start_time
             and report.elapsed_time >= (report.number - 1) * report_interval
         ):
-            report.write_subreport()
-            report.current_sample = None
+            record = report.aggregator.report()
+            if record is not None:
+                report.write_record(record)
             report.number += 1
         if stop_event.wait(timeout=sample_interval):
             lgr.debug("Breaking out because stop event was set")

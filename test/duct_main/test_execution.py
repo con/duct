@@ -95,10 +95,10 @@ def test_execution_summary(
         info_dict = json.loads(info.read())
     execution_summary = info_dict["execution_summary"]
     # Since resources used should be small lets make sure values are roughly sane
-    assert execution_summary["average_pmem"] < 10
-    assert execution_summary["peak_pmem"] < 10
-    assert execution_summary["average_pcpu"] < 10
-    assert execution_summary["peak_pcpu"] < 10
+    assert execution_summary["peak_ps_rss_total"] > 0
+    assert execution_summary["ave_ps_rss_total"] > 0
+    # A brief sleep accrues little/no whole-second ps cputime.
+    assert execution_summary["ps_cpu_seconds"] >= 0
     assert execution_summary["exit_code"] == 0
     assert execution_summary["working_directory"] == os.getcwd()
 

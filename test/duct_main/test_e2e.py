@@ -46,12 +46,12 @@ def test_spawn_children(
     with open(f"{duct_prefix}{SUFFIXES['usage']}") as usage_file:
         all_samples = [json.loads(line) for line in usage_file]
 
-    # Only count the child sleep processes
+    # Only count the child sleep processes (ps_cmd is a per-pid command label).
     all_child_pids = set(
         pid
         for sample in all_samples
-        for pid, proc in sample["processes"].items()
-        if "sleep" in proc["cmd"]
+        for pid, cmd in sample["measurements"].get("ps_cmd", {}).items()
+        if "sleep" in cmd
     )
     # Add one pid for the hold-the-door process, see spawn_children.sh line 7
     if mode == "setsid":
@@ -84,8 +84,8 @@ def test_session_modes(temp_output_dir: str, duct_cmd: str, session_mode: str) -
     # Validate sample structure
     for sample in samples:
         assert "timestamp" in sample
-        assert "processes" in sample
-        assert "totals" in sample
+        assert "num_samples" in sample
+        assert "measurements" in sample
 
     # Read and validate info data
     with open(info_file) as f:
@@ -135,16 +135,16 @@ def test_session_mode_behavior_difference(temp_output_dir: str, duct_cmd: str) -
         # Check for our unique background process
         new_session_has_marker = any(
             any(
-                "DUCT_TEST_MARKER" in str(proc.get("cmd", ""))
-                for proc in sample["processes"].values()
+                "DUCT_TEST_MARKER" in str(cmd)
+                for cmd in sample["measurements"].get("ps_cmd", {}).values()
             )
             for sample in new_session_samples
         )
 
         current_session_has_marker = any(
             any(
-                "DUCT_TEST_MARKER" in str(proc.get("cmd", ""))
-                for proc in sample["processes"].values()
+                "DUCT_TEST_MARKER" in str(cmd)
+                for cmd in sample["measurements"].get("ps_cmd", {}).values()
             )
             for sample in current_session_samples
         )

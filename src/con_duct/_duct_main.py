@@ -6,7 +6,12 @@ import signal
 import subprocess
 import threading
 import time
-from typing import IO, TextIO
+from typing import IO, List, Optional, TextIO
+from con_duct._collectors import (
+    UnavailableMeasurementError,
+    UnknownMeasurementError,
+    resolve_selection,
+)
 from con_duct._models import LogPaths, Outputs, RecordTypes, SessionMode
 from con_duct._output import TailPipe, prepare_outputs, remove_files, safe_close_files
 from con_duct._signals import SigIntHandler
@@ -23,14 +28,11 @@ EXECUTION_SUMMARY_FORMAT = (
     "Command: {command}\n"
     "Log files location: {logs_prefix}\n"
     "Wall Clock Time: {wall_clock_time:.3f} sec\n"
-    "Memory Peak Usage (RSS): {peak_rss!S}\n"
-    "Memory Average Usage (RSS): {average_rss!S}\n"
-    "Virtual Memory Peak Usage (VSZ): {peak_vsz!S}\n"
-    "Virtual Memory Average Usage (VSZ): {average_vsz!S}\n"
-    "Memory Peak Percentage: {peak_pmem:.2f!N}%\n"
-    "Memory Average Percentage: {average_pmem:.2f!N}%\n"
-    "CPU Peak Usage: {peak_pcpu:.2f!N}%\n"
-    "Average CPU Usage: {average_pcpu:.2f!N}%\n"
+    "Memory Peak Usage (ps RSS total): {peak_ps_rss_total!S}\n"
+    "Memory Average Usage (ps RSS total): {ave_ps_rss_total!S}\n"
+    "CPU Seconds (ps): {ps_cpu_seconds!N}\n"
+    "Memory Peak (cgroup): {peak_cgroup_rss_peak!S}\n"
+    "Memory Peak (psutil PSS total): {peak_psutil_pss_total!S}\n"
 )
 
 
@@ -49,6 +51,7 @@ def execute(
     colors: bool,
     mode: SessionMode,
     message: str = "",
+    measurements: Optional[str] = None,
 ) -> int:
     """A wrapper to execute a command, monitor and log the process details.
 
@@ -64,6 +67,20 @@ def execute(
             "See docs/resource-statistics.md for details.",
             sample_interval,
         )
+
+    # Resolve the measurement selection up front so an unknown/unavailable key
+    # fails fast with a clean message before the command runs.  Availability is
+    # environment- (not session-) based, so resolve with our own session id.
+    requested: Optional[List[str]] = (
+        [key.strip() for key in measurements.split(",") if key.strip()]
+        if measurements
+        else None
+    )
+    try:
+        resolved_measurements = resolve_selection(requested, os.getsid(0))
+    except (UnknownMeasurementError, UnavailableMeasurementError) as exc:
+        lgr.error("%s", exc)
+        return 1
 
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
     try:
@@ -96,6 +113,7 @@ def execute(
         colors,
         clobber,
         message=message,
+        measurements=resolved_measurements,
     )
     files_to_close.append(report.usage_file)
 
@@ -166,9 +184,11 @@ def execute(
         monitoring_thread.join()
         lgr.debug("Monitoring thread finished")
 
-    # If we have any extra samples that haven't been written yet, do it now
-    if report.current_sample is not None:
-        report.write_subreport()
+    # Flush any buffered samples from the final, partial report window.
+    if report.aggregator is not None:
+        final_record = report.aggregator.report()
+        if final_record is not None:
+            report.write_record(final_record)
 
     report.process = process
     if env_thread is not None:

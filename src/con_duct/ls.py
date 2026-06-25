@@ -26,17 +26,15 @@ except ImportError:
 lgr = logging.getLogger(__name__)
 
 VALUE_TRANSFORMATION_MAP: Dict[str, str] = {
-    "average_pcpu": "{value:.2f!N}%",
-    "average_pmem": "{value:.2f!N}%",
-    "average_rss": "{value!S}",
-    "average_vsz": "{value!S}",
+    # Measurement-derived summary keys (see con_duct._aggregation.SUMMARY_KEYS).
+    "peak_ps_rss_total": "{value!S}",
+    "ave_ps_rss_total": "{value!S}",
+    "ps_cpu_seconds": "{value:.2f!N}",
+    "peak_cgroup_rss_peak": "{value!S}",
+    "peak_psutil_pss_total": "{value!S}",
     "end_time": "{value:.2f!N}",
     "exit_code": "{value!E}",
     "memory_total": "{value!S}",
-    "peak_pcpu": "{value:.2f!N}%",
-    "peak_pmem": "{value:.2f!N}%",
-    "peak_rss": "{value!S}",
-    "peak_vsz": "{value!S}",
     "start_time": "{value:.2f!N}",
     "wall_clock_time": "{value:.3f} sec",
 }
