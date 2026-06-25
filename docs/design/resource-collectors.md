@@ -52,11 +52,11 @@ The same interface should absorb other collectors without special-casing. Sketch
 <summary>How collectors map onto the interface — ps, cgroup, psutil, /proc, io</summary>
 
 ```
-Collector:   available() -> bool;  measurements;  collect(ts) -> [reading];  report_read(ts) -> [reading]
-Measurement = (name, scope, derive?, reduce)
+Collector:   available() -> bool;  measurements;  collect() -> reading;  read() -> reading   # per-sample collect(); per-report read()
+Measurement = (name, collector, field, scope, reduce, derive?)
   scope  = per_pid | single             # single = one value; the collector decides how (sum of its pids, a kernel read, a system read)
-  derive = e.g. rate(cputime)           # counter -> per-sample rate; optional
-  reduce = max | mean | delta | last    # per-interval collapse
+  derive = rate                         # counter -> per-sample rate Δfield/Δt; optional
+  reduce = max | delta | last           # per-interval collapse (mean sketched, not built in the POC)
 
 # ps — per-pid, always available (the baseline)
 collect: one `ps` call -> reading per pid {rss, cputime}
@@ -105,3 +105,36 @@ What the sketch shows: every collector is the same three pieces (`available` / `
 
 - **Surgical fixes without the interface:** change `total_rss` to `max(per-process rss)` instead of the sum (removes the shared-page double-count, but undercounts a large private child), and keep the plot-time CPU correction (already shipped, approximate). Smaller, but does not generalize and does not let new sources compose.
 - **Add `cputime` and the cgroup peak as standalone fields, no refactor:** cheaper and delivers the two numbers, but commits field names and record placement without the structure, and each additional source stays ad-hoc.
+
+## Implementation status (POC)
+
+A proof of concept of this model lives in `con_duct._collectors` (pure
+collectors → raw readings) and `con_duct._aggregation` (buffer →
+aggregate-once). It replaces the old per-sample `max` engine end to end. See
+`docs/design/DECISIONS_LOG.md` for the per-decision rationale. What the POC
+actually builds, and where it deviates from the sketch above:
+
+- **Collectors built:** `ps` (per-sample, per-pid: `ps_rss`, `ps_rss_total`,
+  `ps_pdcpu`, `ps_cpu_seconds`), `cgroup` (per-report single read:
+  `cgroup_rss_peak`, reading duct's *own* cgroup peak — v2 `memory.peak` /
+  v1 `memory.max_usage_in_bytes`), and optional `psutil` (`psutil_pss`,
+  `psutil_pss_total`, `psutil_pdcpu`). The `io` and `/proc` collectors are not
+  built.
+- **`pmem`/`vsz`/lifetime-`pcpu` are dropped**, not just renamed: the model
+  records only the keys above. The old `pcpu` lifetime average is superseded by
+  `*_pdcpu`.
+- **`ps_pdcpu`/`psutil_pdcpu` units are cputime-seconds per wall-second
+  (≈ cores; 1.0 = one fully-used core), not percent.** The `rate` derive is
+  generic `Δfield/Δt`, so the same machinery will serve future I/O byte-rates.
+- **Extra `ps_cmd` key** (per_pid, `reduce=last`): a string command label, not
+  in the key list above, kept so per-pid records stay identifiable.
+- **Selection:** `con-duct run --measurements k1,k2,...` (default: all available
+  keys; `DUCT_MEASUREMENTS` env). An unknown key, or a `psutil_*` key without
+  psutil installed, is a clean fail-fast error.
+- **On-disk shapes** (schema 0.3.0): each `usage.jsonl` record is
+  `{timestamp, num_samples, measurements: {key: scalar | {pid: value}}}`; the
+  end-of-run `execution_summary` carries `peak_ps_rss_total`,
+  `ave_ps_rss_total`, `ps_cpu_seconds`, `peak_cgroup_rss_peak`,
+  `peak_psutil_pss_total` (always present, `null` when unselected/unavailable).
+- **Out of scope / not migrated:** `plot`, `ls`, and `pprint` still read the
+  old field shapes and were intentionally not updated to the new records.

@@ -85,3 +85,36 @@ See `POC_BRIEF.md` for the goal and `resource-collectors.md` for the design.
   is fine for the POC). `ps_pdcpu` rate is generic Δfield/Δt = **cputime-seconds
   per wall second (≈cores, 1.0 = one core), NOT percent** like the old `pcpu`;
   kept generic so future io rates fit the same `derive=rate`. Revisit.
+- `ps` is the liveness signal: when it returns no pids the whole sample is
+  dropped (not buffered, not counted) so a trailing empty reading can't skew a
+  delta/total. `add_sample()` returns whether a sample was recorded; reporting
+  is no longer gated on a nonzero ps pid count, so a non-ps-only selection
+  (e.g. just `cgroup_rss_peak`) still emits records.
+- **`ps_cpu_seconds` delta clamps to 0 on a negative window** (a pid with
+  accrued cputime exits, so the summed cumulative total drops below the seed).
+  The lost counter can't be attributed without per-pid delta tracking; clamping
+  under-counts that window. Acceptable for the POC; a per-pid delta sum would
+  fix it. Revisit.
+- Collectors expose `collect()` (per-sample) / `read()` (per-report) with no
+  `ts` arg — the aggregator stamps `time.monotonic()` (for rate Δt) and a wall
+  isoformat (for the record) centrally, keeping collectors pure.
+- The first foundation commit was reformatted by pre-commit and aborted, so the
+  collector+aggregation modules landed inside the "wire the engine" commit
+  rather than as a separate commit. Harmless; history is clean.
+
+### Out of scope — interface fit (per brief)
+
+- **`io` collector:** fits cleanly. It is just another per-sample/per-pid
+  collector whose counters use `derive=rate` exactly like cputime
+  (`io_read_rate` = `rate(read_bytes)`), and node `iowait` is a single-read like
+  cgroup. No new machinery needed.
+- **`/proc` sub-second CPU:** fits — same `derive=rate` measurement, different
+  collector reading `/proc/<pid>/stat`. Only the source changes; the reducer is
+  identical. (Confirms the rate derive belongs to the measurement, not ps.)
+- **Named key-groups / presets:** easy to add over the existing registry as an
+  alias layer expanding to keys before `resolve_selection`; deliberately not
+  built.
+- **Differential (same metric, two collectors):** the model already supports it
+  — `ps_pdcpu` and `psutil_pdcpu` coexist and are recorded side by side, so
+  comparing two methods of the same quantity is just selecting both keys. The
+  awkward part is purely presentation (plot/ls), which is out of scope.
