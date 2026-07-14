@@ -182,7 +182,7 @@ def test_compile_eval_filter_rejects_nbsp() -> None:
     than surfacing later as per-file "Failed to load file" warnings."""
     # Note the U+00A0 non-breaking space between "and" and "exit_code",
     # exactly as reported by a macOS user in gh-440 (Option+Space).
-    bad_expr = '"fmriprep" in command and exit_code == 1'
+    bad_expr = '"fmriprep" in command and\u00a0exit_code == 1'
     with pytest.raises(ValueError, match="U\\+00A0"):
         compile_eval_filter(bad_expr)
 
@@ -201,10 +201,10 @@ def test_load_duct_runs_fails_fast_on_bad_filter(
         with pytest.raises(ValueError, match="U\\+00A0"):
             load_duct_runs(
                 ["/test/a_info.json", "/test/b_info.json"],
-                eval_filter='"x" in command and exit_code == 1',
+                eval_filter='"x" in command and\u00a0exit_code == 1',
             )
     mock_open_fn.assert_not_called()
-    # And nothing was mis-classified as a per-file load failure.
+    # And nothing was misclassified as a per-file load failure.
     assert not any("Failed to load file" in r.message for r in caplog.records)
 
 
@@ -217,7 +217,7 @@ def test_ls_exits_cleanly_on_bad_filter(
         paths=["/no/such/file_info.json"],
         colors=False,
         fields=["prefix"],
-        eval_filter='"x" in command and exit_code == 1',
+        eval_filter='"x" in command and\u00a0exit_code == 1',
         format="summaries",
         func=ls,
         reverse=False,

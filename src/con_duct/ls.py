@@ -72,7 +72,7 @@ def compile_eval_filter(eval_filter: Optional[str]) -> Optional[CodeType]:
     """Compile an --eval-filter expression up-front.
 
     Compiling once (rather than re-parsing per file) lets us fail fast with a
-    clear error before any files are opened, and mis-classified errors like a
+    clear error before any files are opened, and misclassified errors like a
     stray U+00A0 (non-breaking space) in the expression no longer surface as
     per-file "Failed to load file" warnings.
     """
