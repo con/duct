@@ -15,6 +15,7 @@ from con_duct.ls import (
     MINIMUM_SCHEMA_VERSION,
     _flatten_dict,
     _restrict_row,
+    compile_eval_filter,
     ensure_compliant_schema,
     load_duct_runs,
     ls,
@@ -162,6 +163,69 @@ def test_load_duct_runs_mixed_empty_and_valid_files(
     assert len([r for r in caplog.records if r.levelname == "DEBUG"]) == 1
     assert not any(r for r in caplog.records if r.levelname == "WARNING")
     assert "Skipping empty file" in caplog.text
+
+
+def test_compile_eval_filter_none_returns_none() -> None:
+    assert compile_eval_filter(None) is None
+
+
+def test_compile_eval_filter_valid() -> None:
+    code = compile_eval_filter("exit_code == 0")
+    assert code is not None
+    assert eval(code, {"exit_code": 0}) is True
+    assert eval(code, {"exit_code": 1}) is False
+
+
+def test_compile_eval_filter_rejects_nbsp() -> None:
+    """Regression test for gh-440: a U+00A0 in the filter must fail
+    up-front with a clear message that mentions the character, rather
+    than surfacing later as per-file "Failed to load file" warnings."""
+    # Note the U+00A0 non-breaking space between "and" and "exit_code",
+    # exactly as reported by a macOS user in gh-440 (Option+Space).
+    bad_expr = '"fmriprep" in command and exit_code == 1'
+    with pytest.raises(ValueError, match="U\\+00A0"):
+        compile_eval_filter(bad_expr)
+
+
+def test_compile_eval_filter_rejects_syntax_error() -> None:
+    with pytest.raises(ValueError, match="Invalid --eval-filter"):
+        compile_eval_filter("this is not valid python")
+
+
+def test_load_duct_runs_fails_fast_on_bad_filter(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A bad filter must raise before any file is opened, not surface
+    once per file as a "Failed to load" warning."""
+    with patch("builtins.open") as mock_open_fn:
+        with pytest.raises(ValueError, match="U\\+00A0"):
+            load_duct_runs(
+                ["/test/a_info.json", "/test/b_info.json"],
+                eval_filter='"x" in command and exit_code == 1',
+            )
+    mock_open_fn.assert_not_called()
+    # And nothing was mis-classified as a per-file load failure.
+    assert not any("Failed to load file" in r.message for r in caplog.records)
+
+
+def test_ls_exits_cleanly_on_bad_filter(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """`con-duct ls` should error out with a clear message and non-zero
+    exit code when --eval-filter has a syntax error, without traceback."""
+    args = argparse.Namespace(
+        paths=["/no/such/file_info.json"],
+        colors=False,
+        fields=["prefix"],
+        eval_filter='"x" in command and exit_code == 1',
+        format="summaries",
+        func=ls,
+        reverse=False,
+    )
+    with caplog.at_level(logging.ERROR):
+        rc = ls(args)
+    assert rc == 2
+    assert any("U+00A0" in r.message for r in caplog.records)
 
 
 class TestLS(unittest.TestCase):
