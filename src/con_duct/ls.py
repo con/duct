@@ -149,6 +149,19 @@ def _flatten_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     return dict(items)
 
 
+def _make_sort_value(v: Any) -> Any:
+    """Convert a field value to a sortable representation.
+
+    Lists and dicts are serialised to a JSON string to give a stable
+    deterministic ordering without raising TypeError.
+    """
+    if v is None:
+        return ""
+    if isinstance(v, (list, dict)):
+        return json.dumps(v, sort_keys=True)
+    return v
+
+
 def _restrict_row(field_list: List[str], row: Dict[str, Any]) -> OrderedDict[str, Any]:
     restricted: OrderedDict[str, Any] = OrderedDict()
     # prefix is the "primary key", its the only field guaranteed to be unique.
@@ -240,7 +253,7 @@ def ls(args: argparse.Namespace) -> int:
                 key=lambda x: tuple(
                     (
                         x[0].get(k) is None,
-                        x[0].get(k) if x[0].get(k) is not None else "",
+                        _make_sort_value(x[0].get(k)),
                     )
                     for k in sort_by
                 ),
