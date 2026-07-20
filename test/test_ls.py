@@ -12,6 +12,7 @@ import pytest
 from con_duct._constants import __schema_version__
 from con_duct._formatter import SummaryFormatter
 from con_duct.ls import (
+    LS_FIELD_CHOICES,
     MINIMUM_SCHEMA_VERSION,
     _flatten_dict,
     _restrict_row,
@@ -223,6 +224,7 @@ class TestLS(unittest.TestCase):
                 format=fmt,
                 func=ls,
                 reverse=False,
+                sort_by=None,
             )
         buf = StringIO()
         with contextlib.redirect_stdout(buf):
@@ -255,6 +257,7 @@ class TestLS(unittest.TestCase):
             format="summaries",
             func=ls,
             reverse=False,
+            sort_by=None,
         )
         result = self._run_ls(paths, "summaries", args)
 
@@ -383,9 +386,161 @@ class TestLS(unittest.TestCase):
             format="json",
             func=ls,
             reverse=True,
+            sort_by=None,
         )
         result_reversed = self._run_ls(paths, "json", args)
         parsed_reversed = json.loads(result_reversed)
         prefixes_reversed = [row["prefix"] for row in parsed_reversed]
 
         assert prefixes_reversed == list(reversed(prefixes_normal))
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_ls_sort_by(reverse: bool, tmp_path: Any) -> None:
+    """Test --sort-by flag sorts entries by the specified field, with optional reverse."""
+    files = {
+        "file1_info.json": {
+            "schema_version": MINIMUM_SCHEMA_VERSION,
+            "execution_summary": {},
+            "prefix": "test1",
+        },
+        "file2_info.json": {
+            "schema_version": MINIMUM_SCHEMA_VERSION,
+            "execution_summary": {},
+            "prefix": "test2",
+        },
+    }
+    for filename, content in files.items():
+        path = tmp_path / filename
+        path.write_text(json.dumps(content))
+
+    paths = [str(tmp_path / f) for f in files]
+    args = argparse.Namespace(
+        paths=paths,
+        colors=False,
+        fields=["prefix", "schema_version"],
+        eval_filter=None,
+        format="json",
+        func=ls,
+        reverse=reverse,
+        sort_by=["prefix"],
+    )
+    buf = StringIO()
+    with contextlib.redirect_stdout(buf):
+        assert ls(args) == 0
+    prefixes = [row["prefix"] for row in json.loads(buf.getvalue().strip())]
+    assert prefixes == sorted(prefixes, reverse=reverse)
+
+
+def test_ls_sort_by_non_displayed_field(tmp_path: Any) -> None:
+    """Test --sort-by works for fields not included in --fields (not displayed)."""
+    # Three runs with commands in non-alphabetical order; paths also in non-alphabetical
+    # order so glob/filesystem order cannot accidentally pass the test.
+    entries = [
+        ("run_b_info.json", "cmd_b"),
+        ("run_a_info.json", "cmd_a"),
+        ("run_c_info.json", "cmd_c"),
+    ]
+    for filename, command in entries:
+        (tmp_path / filename).write_text(
+            json.dumps(
+                {
+                    "schema_version": MINIMUM_SCHEMA_VERSION,
+                    "execution_summary": {},
+                    "command": command,
+                }
+            )
+        )
+
+    # paths deliberately in creation order (b, a, c) — not sorted by command
+    paths = [str(tmp_path / filename) for filename, _ in entries]
+    args = argparse.Namespace(
+        paths=paths,
+        colors=False,
+        fields=["prefix"],  # "command" is intentionally NOT in displayed fields
+        eval_filter=None,
+        format="json",
+        func=ls,
+        reverse=False,
+        sort_by=["command"],
+    )
+    buf = StringIO()
+    with contextlib.redirect_stdout(buf):
+        assert ls(args) == 0
+    rows = json.loads(buf.getvalue().strip())
+    # Output order should match sorted command order: cmd_a, cmd_b, cmd_c
+    # which corresponds to run_a, run_b, run_c prefixes
+    prefixes = [row["prefix"] for row in rows]
+    assert "run_a_" in prefixes[0]
+    assert "run_b_" in prefixes[1]
+    assert "run_c_" in prefixes[2]
+
+
+@pytest.mark.parametrize("sort_field", LS_FIELD_CHOICES)
+def test_ls_sort_by_each_field(sort_field: str, tmp_path: Any) -> None:
+    """Sorting by every LS_FIELD_CHOICES field must not crash and must produce sorted output."""
+    # Choose 3 values for the sort field, assigned to run1/run2/run3 in the order listed
+    # (val1 to run1, val2 to run2, val3 to run3).  After sorting, the expected output
+    # order must be run2, run1, run3 (smallest to largest).
+    if sort_field == "prefix":
+        # prefix is derived from the file path by load_duct_runs, not from JSON content.
+        filenames = ["run_b_info.json", "run_a_info.json", "run_c_info.json"]
+        base = {"schema_version": __schema_version__, "execution_summary": {}}
+        for fn in filenames:
+            (tmp_path / fn).write_text(json.dumps(base))
+        paths = [str(tmp_path / fn) for fn in filenames]
+        # sorted prefix order: ...run_a_ < ...run_b_ < ...run_c_
+        expected_fragments = ["run_a_", "run_b_", "run_c_"]
+    else:
+        # Assign sort values so run2 < run1 < run3.
+        if sort_field == "schema_version":
+            # Must be valid version strings >= MINIMUM_SCHEMA_VERSION.
+            val1, val2, val3 = "0.2.1", "0.2.0", "0.2.2"
+        elif sort_field == "gpu":
+            # gpu is a list[dict]; _make_sort_value serialises to JSON string.
+            val1 = [{"name": "gpu_b"}]
+            val2 = [{"name": "gpu_a"}]
+            val3 = [{"name": "gpu_c"}]
+        else:
+            val1, val2, val3 = "sort_b", "sort_a", "sort_c"
+
+        def build_run(val: Any) -> Dict[str, Any]:
+            # Use the current schema version so ensure_compliant_schema returns early
+            # and does not overwrite any fields we are setting for the test.
+            data: Dict[str, Any] = {
+                "schema_version": __schema_version__,
+                "execution_summary": {},
+            }
+            if sort_field == "schema_version":
+                data["schema_version"] = val
+            else:
+                # Place at top level; _flatten_dict will expose it for sorting.
+                data[sort_field] = val
+            return data
+
+        filenames = [f"run{i}_info.json" for i in range(1, 4)]
+        for fn, val in zip(filenames, [val1, val2, val3]):
+            (tmp_path / fn).write_text(json.dumps(build_run(val)))
+        paths = [str(tmp_path / fn) for fn in filenames]
+        # sorted: val2(run2) < val1(run1) < val3(run3)
+        expected_fragments = ["run2_", "run1_", "run3_"]
+
+    args = argparse.Namespace(
+        paths=paths,
+        colors=False,
+        fields=["prefix"],
+        eval_filter=None,
+        format="json",
+        func=ls,
+        reverse=False,
+        sort_by=[sort_field],
+    )
+    buf = StringIO()
+    with contextlib.redirect_stdout(buf):
+        assert ls(args) == 0
+    prefixes = [row["prefix"] for row in json.loads(buf.getvalue().strip())]
+    for i, fragment in enumerate(expected_fragments):
+        assert fragment in prefixes[i], (
+            f"sort_by={sort_field!r}: position {i} expected '{fragment}' in prefix,"
+            f" got '{prefixes[i]}'"
+        )

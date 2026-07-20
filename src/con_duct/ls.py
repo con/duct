@@ -149,6 +149,19 @@ def _flatten_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     return dict(items)
 
 
+def _make_sort_value(v: Any) -> Any:
+    """Convert a field value to a sortable representation.
+
+    Lists and dicts are serialised to a JSON string to give a stable
+    deterministic ordering without raising TypeError.
+    """
+    if v is None:
+        return ""
+    if isinstance(v, (list, dict)):
+        return json.dumps(v, sort_keys=True)
+    return v
+
+
 def _restrict_row(field_list: List[str], row: Dict[str, Any]) -> OrderedDict[str, Any]:
     restricted: OrderedDict[str, Any] = OrderedDict()
     # prefix is the "primary key", its the only field guaranteed to be unique.
@@ -231,6 +244,22 @@ def ls(args: argparse.Namespace) -> int:
     )
     info_files = [path for path in args.paths if is_info_file(path)]
     run_data_raw = load_duct_runs(info_files, args.eval_filter)
+
+    if sort_by := getattr(args, "sort_by", None):
+        run_data_raw = [
+            item
+            for _, item in sorted(
+                zip(map(_flatten_dict, run_data_raw), run_data_raw),
+                key=lambda x: tuple(
+                    (
+                        x[0].get(k) is None,
+                        _make_sort_value(x[0].get(k)),
+                    )
+                    for k in sort_by
+                ),
+            )
+        ]
+
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
     if args.reverse:
