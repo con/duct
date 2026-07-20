@@ -5,7 +5,7 @@ import json
 import logging
 import re
 from types import CodeType, ModuleType
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 from con_duct._constants import __schema_version__
 from con_duct._duct_main import DUCT_OUTPUT_PREFIX
 from con_duct._formatter import SummaryFormatter
@@ -91,13 +91,15 @@ def compile_eval_filter(eval_filter: Optional[str]) -> Optional[CodeType]:
 
 def load_duct_runs(
     info_files: List[str],
-    eval_filter: Optional[Union[str, CodeType]] = None,
+    eval_filter: Optional[CodeType] = None,
 ) -> List[Dict[str, Any]]:
-    compiled_filter = (
-        compile_eval_filter(eval_filter)
-        if eval_filter is None or isinstance(eval_filter, str)
-        else eval_filter
-    )
+    """Load the given info.json files, keeping those matching `eval_filter`.
+
+    Args:
+        info_files: Paths to `info.json` files to load.
+        eval_filter: Filter expression already compiled by
+            `compile_eval_filter()`; `None` keeps every run.
+    """
     loaded: List[Dict[str, Any]] = []
     for info_file in info_files:
         with open(info_file) as file:
@@ -114,10 +116,8 @@ def load_duct_runs(
                     )
                     continue
                 ensure_compliant_schema(this)
-                if compiled_filter is not None and not (
-                    eval_results := eval(
-                        compiled_filter, _flatten_dict(this), dict(re=re)
-                    )
+                if eval_filter is not None and not (
+                    eval_results := eval(eval_filter, _flatten_dict(this), dict(re=re))
                 ):
                     lgr.debug(
                         "Filtering out %s due to filter results matching: %s",
@@ -255,7 +255,7 @@ def ls(args: argparse.Namespace) -> int:
         compiled_filter = compile_eval_filter(args.eval_filter)
     except ValueError as exc:
         lgr.error("%s", exc)
-        return 2
+        return 2  # usage error
 
     if not args.paths:
         pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*"

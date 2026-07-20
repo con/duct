@@ -192,29 +192,15 @@ def test_compile_eval_filter_rejects_syntax_error() -> None:
         compile_eval_filter("this is not valid python")
 
 
-def test_load_duct_runs_fails_fast_on_bad_filter(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """A bad filter must raise before any file is opened, not surface
-    once per file as a "Failed to load" warning."""
-    with patch("builtins.open") as mock_open_fn:
-        with pytest.raises(ValueError, match="U\\+00A0"):
-            load_duct_runs(
-                ["/test/a_info.json", "/test/b_info.json"],
-                eval_filter='"x" in command and\u00a0exit_code == 1',
-            )
-    mock_open_fn.assert_not_called()
-    # And nothing was misclassified as a per-file load failure.
-    assert not any("Failed to load file" in r.message for r in caplog.records)
-
-
 def test_ls_exits_cleanly_on_bad_filter(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """`con-duct ls` should error out with a clear message and non-zero
-    exit code when --eval-filter has a syntax error, without traceback."""
+    exit code when --eval-filter has a syntax error, without traceback --
+    and before any file is opened, so the failure is never misattributed
+    to a log file as a "Failed to load" warning."""
     args = argparse.Namespace(
-        paths=["/no/such/file_info.json"],
+        paths=["/no/such/file_info.json", "/no/such/other_info.json"],
         colors=False,
         fields=["prefix"],
         eval_filter='"x" in command and\u00a0exit_code == 1',
@@ -223,9 +209,12 @@ def test_ls_exits_cleanly_on_bad_filter(
         reverse=False,
     )
     with caplog.at_level(logging.ERROR):
-        rc = ls(args)
+        with patch("builtins.open") as mock_open_fn:
+            rc = ls(args)
     assert rc == 2
+    mock_open_fn.assert_not_called()
     assert any("U+00A0" in r.message for r in caplog.records)
+    assert not any("Failed to load file" in r.message for r in caplog.records)
 
 
 class TestLS(unittest.TestCase):
