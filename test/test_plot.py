@@ -155,6 +155,42 @@ class TestPlotMatplotlib:
         mock_plot_save.assert_called_once_with("outfile.png")
 
     @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_info_json_renamed_usage(
+        self, mock_plot_save: MagicMock, tmp_path: Any
+    ) -> None:
+        """When info.json references a usage file that has been renamed (e.g. in
+        con/duct-gallery), fall back to any sibling file with a recognised usage
+        suffix."""
+        import json as _json
+        import shutil
+
+        # Copy gallery-like structure: info.json references original name,
+        # but only a renamed usage file exists alongside it.
+        src_info = Path("test/data/mriqc-example/info.json")
+        src_usage = Path("test/data/mriqc-example/usage.json")
+
+        info_data = _json.loads(src_info.read_text())
+        # Point output_paths.usage at a file that won't exist in tmp_path
+        info_data["output_paths"]["usage"] = "original_runusage.json"
+        dest_info = tmp_path / "example_output_info.json"
+        dest_info.write_text(_json.dumps(info_data))
+
+        # Usage file lives alongside info.json but under a different name
+        shutil.copy(src_usage, tmp_path / "example_output_usage.json")
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path=str(dest_info),
+            output="outfile.png",
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        assert cli.execute(args) == 0
+        mock_plot_save.assert_called_once_with("outfile.png")
+
+    @patch("matplotlib.pyplot.savefig")
     def test_matplotlib_plot_info_json_absolute_path(
         self, mock_plot_save: MagicMock, monkeypatch: Any, tmp_path: Any
     ) -> None:
