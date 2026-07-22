@@ -4,7 +4,7 @@ import glob
 import json
 import logging
 import re
-from types import ModuleType
+from types import CodeType, ModuleType
 from typing import Any, Dict, List, Optional
 from con_duct._constants import __schema_version__
 from con_duct._duct_main import DUCT_OUTPUT_PREFIX
@@ -68,9 +68,38 @@ LS_FIELD_CHOICES: List[str] = (
 MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
+def compile_eval_filter(eval_filter: Optional[str]) -> Optional[CodeType]:
+    """Compile an --eval-filter expression up-front.
+
+    Compiling once (rather than re-parsing per file) lets us fail fast with a
+    clear error before any files are opened, and misclassified errors like a
+    stray U+00A0 (non-breaking space) in the expression no longer surface as
+    per-file "Failed to load file" warnings.
+    """
+    if eval_filter is None:
+        return None
+    try:
+        return compile(eval_filter, "<eval-filter>", "eval")
+    except SyntaxError as exc:
+        raise ValueError(
+            f"Invalid --eval-filter expression {eval_filter!r}: {exc}. "
+            "Check for hidden non-printable characters (e.g. U+00A0 "
+            "non-breaking space produced by macOS Option+Space or copy-paste "
+            "from a browser/document)."
+        ) from exc
+
+
 def load_duct_runs(
-    info_files: List[str], eval_filter: Optional[str] = None
+    info_files: List[str],
+    eval_filter: Optional[CodeType] = None,
 ) -> List[Dict[str, Any]]:
+    """Load the given info.json files, keeping those matching `eval_filter`.
+
+    Args:
+        info_files: Paths to `info.json` files to load.
+        eval_filter: Filter expression already compiled by
+            `compile_eval_filter()`; `None` keeps every run.
+    """
     loaded: List[Dict[str, Any]] = []
     for info_file in info_files:
         with open(info_file) as file:
@@ -219,6 +248,15 @@ def pyout_ls(run_data_list: List[OrderedDict[str, Any]], enable_colors: bool) ->
 
 
 def ls(args: argparse.Namespace) -> int:
+    # Validate the filter expression up front so a typo (or a hidden
+    # non-printable character like U+00A0) errors out cleanly, before we
+    # glob or open any files.
+    try:
+        compiled_filter = compile_eval_filter(args.eval_filter)
+    except ValueError as exc:
+        lgr.error("%s", exc)
+        return 2  # usage error
+
     if not args.paths:
         pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*"
         args.paths = [p for p in glob.glob(pattern)]
@@ -230,7 +268,7 @@ def ls(args: argparse.Namespace) -> int:
         enable_colors=False if args.format == "pyout" else args.colors
     )
     info_files = [path for path in args.paths if is_info_file(path)]
-    run_data_raw = load_duct_runs(info_files, args.eval_filter)
+    run_data_raw = load_duct_runs(info_files, compiled_filter)
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
     if args.reverse:
