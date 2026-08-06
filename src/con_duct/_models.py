@@ -63,6 +63,20 @@ class SystemInfo:
     hostname: str | None
     uid: int
     user: str | None
+    os_name: str
+    os_release: str
+    os_version: str
+    arch: str
+    processor: str
+    distro_id: str
+    distro_id_like: str
+    distro_name: str
+    distro_version: str
+    distro_version_id: str
+    distro_codename: str
+    distro_variant_id: str
+    distro_pretty_name: str
+    distro_build_id: str
 
 
 @dataclass
