@@ -282,6 +282,20 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
             lgr.error("Error reading info file %s: %s", args.file_path, e)
             return 1
+        # If the referenced usage file doesn't exist (e.g. logs were renamed),
+        # search for any sibling file with a recognised usage suffix.
+        if not file_path.exists():
+            parent = arg_path.parent
+            for suffix in (SUFFIXES["usage"], SUFFIXES["usage_legacy"]):
+                candidates = sorted(parent.glob(f"*{suffix}"))
+                if candidates:
+                    lgr.debug(
+                        "Usage file %s not found next to info file; using %s",
+                        file_path.name,
+                        candidates[0],
+                    )
+                    file_path = candidates[0]
+                    break
     host_memory_total = _load_host_memory_total(arg_path)
 
     try:
