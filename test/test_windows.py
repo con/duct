@@ -7,9 +7,9 @@ import pytest
 
 
 @pytest.fixture
-def _reload_sampling() -> Generator:
-    """Ensure _sampling module is restored after tests that reload it."""
-    import con_duct._sampling as mod
+def _reload_collectors() -> Generator:
+    """Ensure _collectors module is restored after tests that reload it."""
+    import con_duct._collectors as mod
 
     yield
     if hasattr(sys, "tracebacklimit"):
@@ -18,9 +18,9 @@ def _reload_sampling() -> Generator:
 
 
 @mock.patch("platform.system", return_value="Windows")
-@pytest.mark.usefixtures("_reload_sampling")
+@pytest.mark.usefixtures("_reload_collectors")
 def test_unsupported_system_raises(_mock_system: mock.MagicMock) -> None:
-    import con_duct._sampling as mod
+    import con_duct._collectors as mod
 
     with pytest.raises(
         NotImplementedError, match="does not currently support.*Windows"

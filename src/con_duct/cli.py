@@ -354,6 +354,17 @@ def _create_run_parser() -> argparse.ArgumentParser:
         "You can also provide value via DUCT_MESSAGE env variable.",
     )
     parser.add_argument(
+        "--measurements",
+        type=str,
+        default=os.getenv("DUCT_MEASUREMENTS"),
+        help="Comma-separated measurement keys to record (default: all keys "
+        "available in this environment). The collector behind each key is "
+        "internal; selecting several keys from one source is still a single "
+        "pass. Example: ps_rss,ps_pdcpu,ps_cpu_seconds,cgroup_rss_peak. "
+        "Optional psutil_* keys require con-duct[all]. "
+        "You can also provide value via DUCT_MEASUREMENTS env variable.",
+    )
+    parser.add_argument(
         "--mode",
         default="new-session",
         choices=list(SessionMode),
@@ -437,7 +448,7 @@ def _create_ls_parser() -> argparse.ArgumentParser:
             "command",
             "exit_code",
             "wall_clock_time",
-            "peak_rss",
+            "peak_ps_rss_total",
         ],
     )
     parser.add_argument(
