@@ -202,6 +202,9 @@ def _create_common_parser() -> argparse.ArgumentParser:
     """Create a parser with common arguments shared across all commands."""
     parser = argparse.ArgumentParser(add_help=False)  # help provided by child
     parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    parser.add_argument(
         "-l",
         "--log-level",
         default=os.getenv("DUCT_LOG_LEVEL", "INFO").upper(),
@@ -253,9 +256,6 @@ def _create_run_parser() -> argparse.ArgumentParser:
         "command",
         metavar="command [command_args ...]",
         help="The command to execute, along with its arguments.",
-    )
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
     )
     parser.add_argument(
         "command_args", nargs=argparse.REMAINDER, help="Arguments for the command."
