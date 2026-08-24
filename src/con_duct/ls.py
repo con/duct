@@ -178,17 +178,92 @@ def _flatten_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     return dict(items)
 
 
-def _make_sort_value(v: Any) -> Any:
-    """Convert a field value to a sortable representation.
+# Ranks keep values of different types in separate ordering buckets so that
+# they are never compared to each other (which would raise a TypeError).
+_SORT_RANK_NUMBER = 0
+_SORT_RANK_TEXT = 1
+_SORT_RANK_OTHER = 2
+_SORT_RANK_MISSING = 3  # missing/None always sorts last
 
-    Lists and dicts are serialised to a JSON string to give a stable
-    deterministic ordering without raising TypeError.
+
+def _natural_chunks(text: str) -> tuple[tuple[int, int, str], ...]:
+    """Split `text` into chunks which sort "naturally".
+
+    Digit runs are compared as numbers and everything else as text, so
+    e.g. version 0.9.0 sorts before 0.10.0 and run2_ before run10_.
+    Every chunk has the same (kind, number, text) shape so that a digit
+    chunk is never compared against a text chunk.
+
+    Args:
+        text: String to split.
+
+    Returns:
+        Tuple of comparable (kind, number, text) chunks.
     """
-    if v is None:
-        return ""
-    if isinstance(v, (list, dict)):
-        return json.dumps(v, sort_keys=True)
-    return v
+    # re.split with a capturing group alternates text, digits, text, ...
+    return tuple(
+        (0, int(part), "") if i % 2 else (1, 0, part)
+        for i, part in enumerate(re.split(r"(\d+)", text))
+        if part
+    )
+
+
+def _sort_key(value: Any) -> tuple[int, Any]:
+    """Convert a field value into a total-ordering sort key.
+
+    `ls` fields are whatever the info.json files happen to contain, so a
+    single field can hold numbers in one run, strings in another, a list
+    (e.g. `gpu`) in a third and be missing from a fourth. Ranking by type
+    keeps such values comparable instead of raising a TypeError.
+
+    Args:
+        value: Raw (unformatted) field value.
+
+    Returns:
+        (rank, comparable value) pair; missing values rank last.
+    """
+    if value is None:
+        return (_SORT_RANK_MISSING, ())
+    if isinstance(value, (bool, int, float)):
+        return (_SORT_RANK_NUMBER, value)
+    if isinstance(value, str):
+        return (_SORT_RANK_TEXT, _natural_chunks(value))
+    # Lists/dicts and anything else exotic: compare a deterministic
+    # serialization rather than blowing up.
+    return (
+        _SORT_RANK_OTHER,
+        _natural_chunks(json.dumps(value, sort_keys=True, default=str)),
+    )
+
+
+def _sort_run_data(
+    run_data_list: List[Dict[str, Any]], sort_by: List[str]
+) -> List[Dict[str, Any]]:
+    """Sort raw (unformatted) run records by the given fields.
+
+    Sorting happens before fields are restricted to `--fields` and before
+    values are formatted, so any field may be used as a sort key -- also
+    one which is not displayed -- and numeric fields sort numerically
+    rather than as their rendered strings.
+
+    Args:
+        run_data_list: Raw run records as loaded from info.json files.
+        sort_by: Field names to sort by, in order of precedence.
+
+    Returns:
+        New list of the same records in sorted order.
+    """
+    # Flatten once per record rather than once per comparison.
+    decorated = [(_flatten_dict(run), run) for run in run_data_list]
+    for field in sort_by:
+        if decorated and all(flat.get(field) is None for flat, _ in decorated):
+            lgr.warning(
+                "No run provides --sort-by field %r, it does not affect the "
+                "ordering.",
+                field,
+            )
+    decorated.sort(key=lambda pair: tuple(_sort_key(pair[0].get(f)) for f in sort_by))
+    return [run for _, run in decorated]
 
 
 def _restrict_row(field_list: List[str], row: Dict[str, Any]) -> OrderedDict[str, Any]:
@@ -283,20 +358,8 @@ def ls(args: argparse.Namespace) -> int:
     info_files = [path for path in args.paths if is_info_file(path)]
     run_data_raw = load_duct_runs(info_files, compiled_filter)
 
-    if sort_by := getattr(args, "sort_by", None):
-        run_data_raw = [
-            item
-            for _, item in sorted(
-                zip(map(_flatten_dict, run_data_raw), run_data_raw),
-                key=lambda x: tuple(
-                    (
-                        x[0].get(k) is None,
-                        _make_sort_value(x[0].get(k)),
-                    )
-                    for k in sort_by
-                ),
-            )
-        ]
+    if args.sort_by:
+        run_data_raw = _sort_run_data(run_data_raw, args.sort_by)
 
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 

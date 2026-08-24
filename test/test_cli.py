@@ -9,7 +9,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 import pytest
 from con_duct import cli
-from con_duct.cli import _create_run_parser
+from con_duct.cli import _create_ls_parser, _create_run_parser
 
 SYSTEM = platform.system()
 
@@ -214,3 +214,23 @@ def test_message_env_variable() -> None:
         parser = _create_run_parser()
         args = parser.parse_args(["-m", "cli message", "echo", "hello"])
         assert args.message == "cli message"
+
+
+def test_ls_sort_by_parsing() -> None:
+    """--sort-by accepts one or more known fields and defaults to None."""
+    parser = _create_ls_parser()
+
+    assert parser.parse_args([]).sort_by is None
+    assert parser.parse_args(["--sort-by", "prefix"]).sort_by == ["prefix"]
+    assert parser.parse_args(["--sort-by", "command", "prefix"]).sort_by == [
+        "command",
+        "prefix",
+    ]
+
+
+def test_ls_sort_by_rejects_unknown_field(capsys: pytest.CaptureFixture) -> None:
+    parser = _create_ls_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--sort-by", "not_a_field"])
+    assert "invalid choice" in capsys.readouterr().err

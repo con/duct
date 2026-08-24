@@ -471,7 +471,9 @@ def _create_ls_parser() -> argparse.ArgumentParser:
         nargs="+",
         metavar="FIELD",
         choices=LS_FIELD_CHOICES,
-        help="Sort results by one or more fields. See --fields for available choices.",
+        help="Sort results by one or more fields (later fields break ties of the "
+        "earlier ones). Runs missing a field are listed last. See --fields for "
+        "available choices. Combine with --reverse for descending order.",
     )
     return parser
 
