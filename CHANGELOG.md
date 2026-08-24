@@ -1,3 +1,28 @@
+# v0.22.0 (Mon Aug 24 2026)
+
+#### 🚀 Enhancement
+
+- Collect more system info [#425](https://github.com/con/duct/pull/425) ([@asmacdo](https://github.com/asmacdo))
+
+#### 🐛 Bug Fix
+
+- Document TTY-detection limitation for goaccess, tqdm, etc. [#427](https://github.com/con/duct/pull/427) ([@asmacdo](https://github.com/asmacdo))
+- [pre-commit.ci] pre-commit autoupdate [#429](https://github.com/con/duct/pull/429) ([@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]) [@asmacdo](https://github.com/asmacdo))
+- Give --eval-filter compilation a single owner [#441](https://github.com/con/duct/pull/441) ([@asmacdo](https://github.com/asmacdo))
+- Address Copilot review on PR #441 [#441](https://github.com/con/duct/pull/441) ([@yarikoptic](https://github.com/yarikoptic))
+- Add --version to all con-duct subcommands [#432](https://github.com/con/duct/pull/432) ([@Copilot](https://github.com/Copilot) [@actions-user](https://github.com/actions-user))
+- fixup: tighten inline plot comments [#435](https://github.com/con/duct/pull/435) ([@asmacdo](https://github.com/asmacdo))
+
+#### Authors: 5
+
+- [@actions-user](https://github.com/actions-user)
+- [@Copilot](https://github.com/Copilot)
+- [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot])
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.21.0 (Thu May 28 2026)
 
 ### Release Notes
