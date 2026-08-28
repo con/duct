@@ -216,7 +216,11 @@ def _flatten_dict(d: Dict[str, Any]) -> Dict[str, Any]:
 _SORT_RANK_NUMBER = 0
 _SORT_RANK_TEXT = 1
 _SORT_RANK_OTHER = 2
-_SORT_RANK_MISSING = 3  # missing/None always sorts last
+_SORT_RANK_MISSING = 3  # valueless always sorts last
+
+# Longest digit run still compared as a number; comfortably wider than any
+# real value and within int()'s parsing limit.
+_MAX_SORT_DIGITS = 18
 
 
 def _natural_chunks(text: str) -> tuple[tuple[int, int, str], ...]:
@@ -233,12 +237,30 @@ def _natural_chunks(text: str) -> tuple[tuple[int, int, str], ...]:
     Returns:
         Tuple of comparable (kind, number, text) chunks.
     """
+    chunks: List[tuple[int, int, str]] = []
     # re.split with a capturing group alternates text, digits, text, ...
-    return tuple(
-        (0, int(part), "") if i % 2 else (1, 0, part)
-        for i, part in enumerate(re.split(r"(\d+)", text))
-        if part
-    )
+    for i, part in enumerate(re.split(r"(\d+)", text)):
+        if not part:
+            continue
+        # Free-form fields (message, command, ...) can hold a digit run far
+        # too long to be a meaningful number -- and int() refuses to parse
+        # more than sys.get_int_max_str_digits() of them anyway -- so those
+        # are compared as text rather than raising ValueError.
+        if i % 2 and len(part) <= _MAX_SORT_DIGITS:
+            chunks.append((0, int(part), ""))
+        else:
+            chunks.append((1, 0, part))
+    return tuple(chunks)
+
+
+def _has_value(value: Any) -> bool:
+    """Whether a field value carries anything to order runs by.
+
+    `ensure_compliant_schema()` backfills fields added in later schema
+    versions with "", so an empty string means "not recorded" just as much
+    as a missing key or a JSON null does.
+    """
+    return value is not None and value != ""
 
 
 def _sort_key(value: Any) -> tuple[int, Any]:
@@ -253,11 +275,15 @@ def _sort_key(value: Any) -> tuple[int, Any]:
         value: Raw (unformatted) field value.
 
     Returns:
-        (rank, comparable value) pair; missing values rank last.
+        (rank, comparable value) pair; valueless fields rank last.
     """
-    if value is None:
+    if not _has_value(value):
         return (_SORT_RANK_MISSING, ())
     if isinstance(value, (bool, int, float)):
+        # NaN compares false against everything, which would make the
+        # ordering depend on the input order -- treat it as no value.
+        if value != value:
+            return (_SORT_RANK_MISSING, ())
         return (_SORT_RANK_NUMBER, value)
     if isinstance(value, str):
         return (_SORT_RANK_TEXT, _natural_chunks(value))
@@ -277,7 +303,8 @@ def _sort_run_data(
     Sorting happens before fields are restricted to `--fields` and before
     values are formatted, so any field may be used as a sort key -- also
     one which is not displayed -- and numeric fields sort numerically
-    rather than as their rendered strings.
+    rather than as their rendered strings.  `prefix` breaks any remaining
+    tie, so the order is reproducible across runs.
 
     Args:
         run_data_list: Raw run records as loaded from info.json files.
@@ -289,15 +316,19 @@ def _sort_run_data(
     # Flatten once per record rather than once per comparison.
     decorated = [(_flatten_dict(run), run) for run in run_data_list]
     for field in sort_by:
-        # A field which is absent everywhere and one which is null everywhere
-        # (e.g. "gpu" on a machine without a GPU) are both no-ops for ordering
-        if decorated and all(flat.get(field) is None for flat, _ in decorated):
+        # A field absent everywhere, null everywhere (e.g. "gpu" on a machine
+        # without a GPU) or backfilled with "" is equally a no-op for ordering
+        if decorated and not any(_has_value(flat.get(field)) for flat, _ in decorated):
             lgr.warning(
                 "No run has a value for --sort-by field %r, it does not affect "
                 "the ordering.",
                 field,
             )
-    decorated.sort(key=lambda pair: tuple(_sort_key(pair[0].get(f)) for f in sort_by))
+    # prefix is the only field guaranteed to be unique, so break remaining
+    # ties with it -- otherwise equally-keyed runs come out in the order the
+    # paths were given, which is arbitrary glob order when they were globbed.
+    fields = sort_by if "prefix" in sort_by else [*sort_by, "prefix"]
+    decorated.sort(key=lambda pair: tuple(_sort_key(pair[0].get(f)) for f in fields))
     return [run for _, run in decorated]
 
 

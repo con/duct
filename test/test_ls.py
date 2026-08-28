@@ -649,13 +649,21 @@ def test_ls_sort_by_mixed_types_and_missing_values(tmp_path: Any) -> None:
         _write_run(tmp_path / "run_2_info.json", message=["a", "list"]),
         _write_run(tmp_path / "run_3_info.json", message=1),
         _write_run(tmp_path / "run_4_info.json", message=None),
+        _write_run(tmp_path / "run_5_info.json", message=""),
     ]
 
     prefixes = _ls_prefixes(paths, ["message"], fields=["prefix", "message"])
 
-    # numbers, then text, then other (json serialized), then missing/None
-    assert _basenames(prefixes)[:3] == ["run_3_", "run_0_", "run_2_"]
-    assert sorted(_basenames(prefixes)[3:]) == ["run_1_", "run_4_"]
+    # numbers, then text, then other (json serialized), then the valueless
+    # ones -- among which prefix breaks the tie
+    assert _basenames(prefixes) == [
+        "run_3_",
+        "run_0_",
+        "run_2_",
+        "run_1_",
+        "run_4_",
+        "run_5_",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -664,16 +672,19 @@ def test_ls_sort_by_mixed_types_and_missing_values(tmp_path: Any) -> None:
         pytest.param({}, id="absent"),
         # "gpu" is written as null whenever the machine has no GPU
         pytest.param({"gpu": None}, id="null"),
+        # ensure_compliant_schema() backfills newer fields with ""
+        pytest.param({"gpu": ""}, id="empty"),
     ],
 )
 def test_ls_sort_by_valueless_field_warns(
     fields: Dict[str, Any], tmp_path: Any, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A field no run has a value for warns and leaves the order alone.
+    """A field no run has a value for warns and does not affect the order.
 
-    Both a field absent from every record and one which is null in every
-    record are no-ops for ordering, and both are worth telling the user
-    about.
+    A field absent from every record, null in every record, and backfilled
+    with "" in every record are all no-ops for ordering, and all are worth
+    telling the user about.  Ordering then falls through to the prefix
+    tiebreaker rather than to the arbitrary order of the given paths.
     """
     paths = [
         _write_run(tmp_path / name, **fields)
@@ -683,7 +694,7 @@ def test_ls_sort_by_valueless_field_warns(
     with caplog.at_level(logging.WARNING, logger="con_duct.ls"):
         prefixes = _ls_prefixes(paths, ["gpu"])
 
-    assert _basenames(prefixes) == ["run_b_", "run_a_"]
+    assert _basenames(prefixes) == ["run_a_", "run_b_"]
     assert any(
         "No run has a value" in record.message and "gpu" in record.message
         for record in caplog.records
@@ -750,3 +761,87 @@ def test_natural_chunks_does_not_choke_on_unicode_digits() -> None:
     """Non-ASCII "digits" which int() cannot parse stay text chunks."""
     # "\u00b2" (superscript two) is str.isdigit() but not matched by ``\d``
     assert _natural_chunks("x\u00b2") == ((1, 0, "x\u00b2"),)
+
+
+def test_ls_sort_by_long_digit_run(tmp_path: Any) -> None:
+    """A digit run too long for int() must not blow up the sort.
+
+    Free-form fields hold whatever the user typed, and int() refuses to
+    parse more than sys.get_int_max_str_digits() (4300 by default).
+    """
+    paths = [
+        _write_run(tmp_path / "run_0_info.json", message="9" * 5000),
+        _write_run(tmp_path / "run_1_info.json", message="abc"),
+        _write_run(tmp_path / "run_2_info.json", message="42"),
+    ]
+
+    prefixes = _ls_prefixes(paths, ["message"], fields=["prefix", "message"])
+
+    # 42 is a real number so it sorts first; the oversized run degrades to
+    # text and orders against "abc" as text does
+    assert _basenames(prefixes) == ["run_2_", "run_0_", "run_1_"]
+
+
+def test_ls_sort_by_ties_are_deterministic(tmp_path: Any) -> None:
+    """Runs whose sort field ties come out in prefix order, not input order.
+
+    Without an explicit sort the paths are whatever `glob` returned, which
+    is arbitrary, so equal-keyed runs must not inherit that order.
+    """
+    names = ["run_a_info.json", "run_m_info.json", "run_z_info.json"]
+    paths = [_write_run(tmp_path / name, exit_code=0) for name in names]
+    expected = ["run_a_", "run_m_", "run_z_"]
+
+    assert _basenames(_ls_prefixes(paths, ["exit_code"])) == expected
+    assert _basenames(_ls_prefixes(list(reversed(paths)), ["exit_code"])) == expected
+
+
+def test_ls_sort_by_numeric_non_transformed_field(tmp_path: Any) -> None:
+    """Numeric fields which are displayed as-is also sort numerically."""
+    paths = [
+        _write_run(tmp_path / f"run_{i}_info.json", num_samples=num_samples)
+        for i, num_samples in enumerate([9, 100, 10])
+    ]
+
+    prefixes = _ls_prefixes(paths, ["num_samples"], fields=["prefix", "num_samples"])
+
+    assert _basenames(prefixes) == ["run_0_", "run_2_", "run_1_"]
+
+
+def test_ls_sort_by_applies_after_eval_filter(tmp_path: Any) -> None:
+    """--sort-by orders whatever --eval-filter kept."""
+    paths = [
+        _write_run(tmp_path / f"run_{letter}_info.json", command=f"cmd_{letter}")
+        for letter in ("b", "a", "c")
+    ]
+    args = argparse.Namespace(
+        paths=paths,
+        colors=False,
+        fields=["prefix", "command"],
+        eval_filter="command != 'cmd_b'",
+        format="json",
+        func=ls,
+        reverse=False,
+        sort_by=["command"],
+    )
+    buf = StringIO()
+    with contextlib.redirect_stdout(buf):
+        assert ls(args) == 0
+
+    rows = json.loads(buf.getvalue().strip())
+    assert [row["command"] for row in rows] == ["cmd_a", "cmd_c"]
+
+
+def test_sort_key_treats_nan_as_valueless() -> None:
+    """NaN compares false against everything -- it must not decide order."""
+    assert sorted([3.0, float("nan"), 1.0, 2.0], key=_sort_key)[:3] == [1.0, 2.0, 3.0]
+
+
+@pytest.mark.parametrize("value", [None, ""])
+def test_sort_key_ranks_valueless_last(value: Any) -> None:
+    assert sorted([value, 1, "a"], key=_sort_key) == [1, "a", value]
+
+
+def test_natural_chunks_keeps_oversized_digit_runs_as_text() -> None:
+    digits = "9" * (10**4)
+    assert _natural_chunks(digits) == ((1, 0, digits),)
