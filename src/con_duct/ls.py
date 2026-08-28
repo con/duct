@@ -289,10 +289,12 @@ def _sort_run_data(
     # Flatten once per record rather than once per comparison.
     decorated = [(_flatten_dict(run), run) for run in run_data_list]
     for field in sort_by:
+        # A field which is absent everywhere and one which is null everywhere
+        # (e.g. "gpu" on a machine without a GPU) are both no-ops for ordering
         if decorated and all(flat.get(field) is None for flat, _ in decorated):
             lgr.warning(
-                "No run provides --sort-by field %r, it does not affect the "
-                "ordering.",
+                "No run has a value for --sort-by field %r, it does not affect "
+                "the ordering.",
                 field,
             )
     decorated.sort(key=lambda pair: tuple(_sort_key(pair[0].get(f)) for f in sort_by))

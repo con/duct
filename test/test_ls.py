@@ -658,19 +658,36 @@ def test_ls_sort_by_mixed_types_and_missing_values(tmp_path: Any) -> None:
     assert sorted(_basenames(prefixes)[3:]) == ["run_1_", "run_4_"]
 
 
-def test_ls_sort_by_unknown_field_warns(
-    tmp_path: Any, caplog: pytest.LogCaptureFixture
+@pytest.mark.parametrize(
+    "fields",
+    [
+        pytest.param({}, id="absent"),
+        # "gpu" is written as null whenever the machine has no GPU
+        pytest.param({"gpu": None}, id="null"),
+    ],
+)
+def test_ls_sort_by_valueless_field_warns(
+    fields: Dict[str, Any], tmp_path: Any, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Sorting by a field no run provides warns and leaves the order alone."""
+    """A field no run has a value for warns and leaves the order alone.
+
+    Both a field absent from every record and one which is null in every
+    record are no-ops for ordering, and both are worth telling the user
+    about.
+    """
     paths = [
-        _write_run(tmp_path / name) for name in ("run_b_info.json", "run_a_info.json")
+        _write_run(tmp_path / name, **fields)
+        for name in ("run_b_info.json", "run_a_info.json")
     ]
 
     with caplog.at_level(logging.WARNING, logger="con_duct.ls"):
-        prefixes = _ls_prefixes(paths, ["hostname"])
+        prefixes = _ls_prefixes(paths, ["gpu"])
 
     assert _basenames(prefixes) == ["run_b_", "run_a_"]
-    assert any("hostname" in record.message for record in caplog.records)
+    assert any(
+        "No run has a value" in record.message and "gpu" in record.message
+        for record in caplog.records
+    )
 
 
 @pytest.mark.parametrize("sort_field", LS_FIELD_CHOICES)
