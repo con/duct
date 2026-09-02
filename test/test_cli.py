@@ -236,6 +236,15 @@ def test_ls_sort_by_rejects_unknown_field(capsys: pytest.CaptureFixture) -> None
     assert "invalid choice" in capsys.readouterr().err
 
 
+def test_main_exits_with_the_subcommand_returncode() -> None:
+    """main() hands the subcommand's return code to sys.exit()."""
+    with patch("con_duct.cli.ls", return_value=3):
+        with pytest.raises(SystemExit) as excinfo:
+            cli.main(["ls", "/no/such/file_info.json"])
+
+    assert excinfo.value.code == 3
+
+
 def test_broken_pipe_exits_without_traceback() -> None:
     """`con-duct ls | head` must not end in a BrokenPipeError traceback."""
 
