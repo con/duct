@@ -108,6 +108,9 @@ def _replay_early_logs(log_buffer: List[tuple[str, str]]) -> None:
 
 lgr = logging.getLogger("con-duct")
 
+# What a shell reports for a command killed by SIGPIPE (128 + 13)
+EXIT_BROKEN_PIPE = 141
+
 # Format default config paths as a bulleted list for help text
 _config_paths_list = "\n".join(f"    - {path}" for path in DEFAULT_CONFIG_PATHS_LIST)
 
@@ -498,6 +501,23 @@ def execute(args: argparse.Namespace) -> int:
     return result
 
 
+def _exit_broken_pipe() -> None:
+    """Exit quietly after the reader of our stdout went away.
+
+    Happens routinely for e.g. `con-duct ls | head`. Python flushes stdout
+    while shutting down, which would raise a second BrokenPipeError and print
+    a traceback, so point the file descriptor at /dev/null first -- as the
+    Python docs on SIGPIPE recommend.
+    """
+    try:
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+    except (OSError, ValueError):
+        # stdout is not a real file descriptor (e.g. captured in tests)
+        pass
+    sys.exit(EXIT_BROKEN_PIPE)
+
+
 def duct_entrypoint() -> None:
     """Entry point for the 'duct' command - delegates to 'con-duct run'."""
     os.execvp("con-duct", ["con-duct", "run"] + sys.argv[1:])
@@ -564,7 +584,11 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     setup_logging(args)
     _replay_early_logs(env_log_buffer)
-    sys.exit(execute(args))
+    try:
+        returncode = execute(args)
+    except BrokenPipeError:
+        _exit_broken_pipe()
+    sys.exit(returncode)
 
 
 # To allow users or devs to invoke the `cli.py` directly

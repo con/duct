@@ -9,7 +9,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 import pytest
 from con_duct import cli
-from con_duct.cli import _create_ls_parser, _create_run_parser
+from con_duct.cli import EXIT_BROKEN_PIPE, _create_ls_parser, _create_run_parser
 
 SYSTEM = platform.system()
 
@@ -234,3 +234,32 @@ def test_ls_sort_by_rejects_unknown_field(capsys: pytest.CaptureFixture) -> None
     with pytest.raises(SystemExit):
         parser.parse_args(["--sort-by", "not_a_field"])
     assert "invalid choice" in capsys.readouterr().err
+
+
+def test_broken_pipe_exits_without_traceback() -> None:
+    """`con-duct ls | head` must not end in a BrokenPipeError traceback."""
+
+    def raise_broken_pipe(_args: Any) -> int:
+        raise BrokenPipeError(32, "Broken pipe")
+
+    argv = ["ls", "/no/such/file_info.json"]
+    # do not really point our stdout at /dev/null -- pytest is reading it
+    with patch("con_duct.cli.os.dup2") as mock_dup2:
+        with patch("con_duct.cli.ls", raise_broken_pipe):
+            with pytest.raises(SystemExit) as excinfo:
+                cli.main(argv)
+
+    assert excinfo.value.code == EXIT_BROKEN_PIPE
+    mock_dup2.assert_called_once()
+
+
+def test_broken_pipe_survives_a_stdout_without_fileno() -> None:
+    """Redirecting stdout to /dev/null is best effort, not a second failure."""
+    fake_stdout = MagicMock()
+    fake_stdout.fileno.side_effect = ValueError("no fileno")
+
+    with patch("con_duct.cli.sys.stdout", fake_stdout):
+        with pytest.raises(SystemExit) as excinfo:
+            cli._exit_broken_pipe()
+
+    assert excinfo.value.code == EXIT_BROKEN_PIPE
