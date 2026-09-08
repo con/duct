@@ -586,6 +586,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     _replay_early_logs(env_log_buffer)
     try:
         returncode = execute(args)
+        # Flush here so a pipe closed after the last write surfaces now, not
+        # during interpreter shutdown, where it would be past this except.
+        sys.stdout.flush()
     except BrokenPipeError:
         _exit_broken_pipe()
     sys.exit(returncode)
