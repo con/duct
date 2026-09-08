@@ -211,123 +211,64 @@ def _flatten_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     return dict(items)
 
 
-# Ranks keep values of different types in separate ordering buckets so that
-# they are never compared to each other (which would raise a TypeError).
-_SORT_RANK_NUMBER = 0
-_SORT_RANK_TEXT = 1
-_SORT_RANK_OTHER = 2
-_SORT_RANK_MISSING = 3  # valueless always sorts last
-
-# Longest digit run still compared as a number; comfortably wider than any
-# real value and within int()'s parsing limit.
+# Digit runs longer than this are compared as text: they are not meaningful
+# numbers, and int() refuses to parse more than sys.get_int_max_str_digits().
 _MAX_SORT_DIGITS = 18
+_RANK_MISSING = 3  # valueless always sorts last (before numbers, text, other)
 
 
 def _natural_chunks(text: str) -> tuple[tuple[int, int, str], ...]:
-    """Split `text` into chunks which sort "naturally".
+    """Split text into chunks which sort naturally: 0.9.0 < 0.10.0, run2 < run10.
 
-    Digit runs are compared as numbers and everything else as text, so
-    e.g. version 0.9.0 sorts before 0.10.0 and run2_ before run10_.
-    Every chunk has the same (kind, number, text) shape so that a digit
-    chunk is never compared against a text chunk.
-
-    Args:
-        text: String to split.
-
-    Returns:
-        Tuple of comparable (kind, number, text) chunks.
+    Digit runs are compared as numbers and everything else as text.  Every
+    chunk has the same (kind, number, text) shape so that chunks never
+    cross-compare (which would raise TypeError).
     """
-    chunks: List[tuple[int, int, str]] = []
     # re.split with a capturing group alternates text, digits, text, ...
-    for i, part in enumerate(re.split(r"(\d+)", text)):
-        if not part:
-            continue
-        # Free-form fields (message, command, ...) can hold a digit run far
-        # too long to be a meaningful number -- and int() refuses to parse
-        # more than sys.get_int_max_str_digits() of them anyway -- so those
-        # are compared as text rather than raising ValueError.
-        if i % 2 and len(part) <= _MAX_SORT_DIGITS:
-            chunks.append((0, int(part), ""))
-        else:
-            chunks.append((1, 0, part))
-    return tuple(chunks)
-
-
-def _has_value(value: Any) -> bool:
-    """Whether a field value carries anything to order runs by.
-
-    `ensure_compliant_schema()` backfills fields added in later schema
-    versions with "", so an empty string means "not recorded" just as much
-    as a missing key or a JSON null does.
-    """
-    return value is not None and value != ""
+    return tuple(
+        (0, int(part), "") if i % 2 and len(part) <= _MAX_SORT_DIGITS else (1, 0, part)
+        for i, part in enumerate(re.split(r"(\d+)", text))
+        if part
+    )
 
 
 def _sort_key(value: Any) -> tuple[int, Any]:
-    """Convert a field value into a total-ordering sort key.
+    """Total-ordering key for a raw field value.
 
-    `ls` fields are whatever the info.json files happen to contain, so a
-    single field can hold numbers in one run, strings in another, a list
-    (e.g. `gpu`) in a third and be missing from a fourth. Ranking by type
-    keeps such values comparable instead of raising a TypeError.
-
-    Args:
-        value: Raw (unformatted) field value.
-
-    Returns:
-        (rank, comparable value) pair; valueless fields rank last.
+    A field can hold a number in one run, a string in another, a list (e.g.
+    `gpu`) in a third and be missing from a fourth, so values are ranked by
+    type and only compared within a rank.  None, "" (what
+    `ensure_compliant_schema()` backfills) and NaN all count as no value.
     """
-    if not _has_value(value):
-        return (_SORT_RANK_MISSING, ())
+    if value is None or value == "" or value != value:
+        return (_RANK_MISSING, ())
     if isinstance(value, (bool, int, float)):
-        # NaN compares false against everything, which would make the
-        # ordering depend on the input order -- treat it as no value.
-        if value != value:
-            return (_SORT_RANK_MISSING, ())
-        return (_SORT_RANK_NUMBER, value)
+        return (0, value)
     if isinstance(value, str):
-        return (_SORT_RANK_TEXT, _natural_chunks(value))
-    # Lists/dicts and anything else exotic: compare a deterministic
-    # serialization rather than blowing up.
-    return (
-        _SORT_RANK_OTHER,
-        _natural_chunks(json.dumps(value, sort_keys=True, default=str)),
-    )
+        return (1, _natural_chunks(value))
+    return (2, _natural_chunks(json.dumps(value, sort_keys=True, default=str)))
 
 
 def _sort_run_data(
     run_data_list: List[Dict[str, Any]], sort_by: List[str]
 ) -> List[Dict[str, Any]]:
-    """Sort raw (unformatted) run records by the given fields.
+    """Sort raw run records by `sort_by` fields; later fields break ties.
 
-    Sorting happens before fields are restricted to `--fields` and before
-    values are formatted, so any field may be used as a sort key -- also
-    one which is not displayed -- and numeric fields sort numerically
-    rather than as their rendered strings.  `prefix` breaks any remaining
-    tie, so the order is reproducible across runs.
-
-    Args:
-        run_data_list: Raw run records as loaded from info.json files.
-        sort_by: Field names to sort by, in order of precedence.
-
-    Returns:
-        New list of the same records in sorted order.
+    Runs on the raw records (before `--fields` restriction and formatting)
+    so any field can be a key and numbers sort numerically.  `prefix`, the
+    only unique field, breaks any remaining tie for a reproducible order.
     """
-    # Flatten once per record rather than once per comparison.
     decorated = [(_flatten_dict(run), run) for run in run_data_list]
     for field in sort_by:
-        # A field absent everywhere, null everywhere (e.g. "gpu" on a machine
-        # without a GPU) or backfilled with "" is equally a no-op for ordering
-        if decorated and not any(_has_value(flat.get(field)) for flat, _ in decorated):
+        if decorated and all(
+            _sort_key(flat.get(field))[0] == _RANK_MISSING for flat, _ in decorated
+        ):
             lgr.warning(
                 "No run has a value for --sort-by field %r, it does not affect "
                 "the ordering.",
                 field,
             )
-    # prefix is the only field guaranteed to be unique, so break remaining
-    # ties with it -- otherwise equally-keyed runs come out in the order the
-    # paths were given, which is arbitrary glob order when they were globbed.
-    fields = sort_by if "prefix" in sort_by else [*sort_by, "prefix"]
+    fields = [*sort_by, "prefix"]
     decorated.sort(key=lambda pair: tuple(_sort_key(pair[0].get(f)) for f in fields))
     return [run for _, run in decorated]
 
