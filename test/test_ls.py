@@ -567,52 +567,58 @@ def test_ls_sort_by_none_preserves_input_order(tmp_path: Any) -> None:
     assert _basenames(_ls_prefixes(paths)) == ["run_b_", "run_c_", "run_a_"]
 
 
-def test_ls_sort_by_non_displayed_field(tmp_path: Any) -> None:
-    """--sort-by works for fields which are not in --fields (not displayed)."""
-    # commands in non-alphabetical order, and paths not sorted by command either
-    paths = [
-        _write_run(tmp_path / f"run_{letter}_info.json", command=f"cmd_{letter}")
-        for letter in ("b", "a", "c")
-    ]
+@pytest.mark.parametrize(
+    "field,values,expected",
+    [
+        # raw values sort numerically although the rendered "10.000 sec" would
+        # sort before "9.000 sec"
+        pytest.param(
+            "wall_clock_time",
+            [10.0, 100.0, 9.0],
+            ["run_2_", "run_0_", "run_1_"],
+            id="numeric-transformed",
+        ),
+        pytest.param(
+            "num_samples", [9, 100, 10], ["run_0_", "run_2_", "run_1_"], id="numeric"
+        ),
+        # lexically "0.10.0" < "0.2.0" < "0.9.0", naturally 0.2.0 < 0.9.0 < 0.10.0
+        pytest.param(
+            "schema_version",
+            ["0.10.0", "0.2.0", "0.9.0"],
+            ["run_1_", "run_2_", "run_0_"],
+            id="version-natural",
+        ),
+        # "command" is not among the displayed fields (see _ls_prefixes)
+        pytest.param(
+            "command",
+            ["cmd_b", "cmd_a", "cmd_c"],
+            ["run_1_", "run_0_", "run_2_"],
+            id="text-not-displayed",
+        ),
+        # a digit run int() refuses to parse (> sys.get_int_max_str_digits(),
+        # 4300 by default) degrades to text instead of killing the sort
+        pytest.param(
+            "message",
+            ["9" * 5000, "abc", "42"],
+            ["run_2_", "run_0_", "run_1_"],
+            id="oversized-digit-run",
+        ),
+    ],
+)
+def test_ls_sort_by_field(
+    field: str, values: list[Any], expected: list[str], tmp_path: Any
+) -> None:
+    """Runs come out ordered by the raw value of the field, whatever its type."""
+    paths = []
+    for i, value in enumerate(values):
+        record = {field: value}
+        if field == "wall_clock_time":
+            record = {"execution_summary": record}
+        paths.append(_write_run(tmp_path / f"run_{i}_info.json", **record))
 
-    # "command" is intentionally NOT among the displayed fields
-    prefixes = _ls_prefixes(paths, ["command"], fields=["prefix"])
+    prefixes = _ls_prefixes(paths, [field], fields=["prefix", field])
 
-    assert _basenames(prefixes) == ["run_a_", "run_b_", "run_c_"]
-
-
-def test_ls_sort_by_numeric_field_is_not_lexical(tmp_path: Any) -> None:
-    """Numeric fields sort numerically, not as their rendered strings.
-
-    Sorting happens on the raw values, so 9 sorts before 10 even though the
-    formatted values ("10.000 sec" vs "9.000 sec") would sort the other way.
-    """
-    paths = [
-        _write_run(
-            tmp_path / f"run_{i}_info.json",
-            execution_summary={"wall_clock_time": wall_clock_time},
-        )
-        for i, wall_clock_time in enumerate([10.0, 100.0, 9.0])
-    ]
-
-    prefixes = _ls_prefixes(
-        paths, ["wall_clock_time"], fields=["prefix", "wall_clock_time"]
-    )
-
-    assert _basenames(prefixes) == ["run_2_", "run_0_", "run_1_"]
-
-
-def test_ls_sort_by_version_is_natural(tmp_path: Any) -> None:
-    """Version-like strings sort by their numeric components, not lexically."""
-    paths = [
-        _write_run(tmp_path / f"run_{i}_info.json", schema_version=schema_version)
-        for i, schema_version in enumerate(["0.10.0", "0.2.0", "0.9.0"])
-    ]
-
-    prefixes = _ls_prefixes(paths, ["schema_version"])
-
-    # lexically "0.10.0" < "0.2.0" < "0.9.0", naturally 0.2.0 < 0.9.0 < 0.10.0
-    assert _basenames(prefixes) == ["run_1_", "run_2_", "run_0_"]
+    assert _basenames(prefixes) == expected
 
 
 def test_ls_sort_by_multiple_fields(tmp_path: Any) -> None:
@@ -666,6 +672,20 @@ def test_ls_sort_by_mixed_types_and_missing_values(tmp_path: Any) -> None:
     ]
 
 
+def test_ls_sort_by_ties_are_deterministic(tmp_path: Any) -> None:
+    """Runs whose sort field ties come out in prefix order, not input order.
+
+    Without an explicit sort the paths are whatever `glob` returned, which
+    is arbitrary, so equal-keyed runs must not inherit that order.
+    """
+    names = ["run_a_info.json", "run_m_info.json", "run_z_info.json"]
+    paths = [_write_run(tmp_path / name, exit_code=0) for name in names]
+    expected = ["run_a_", "run_m_", "run_z_"]
+
+    assert _basenames(_ls_prefixes(paths, ["exit_code"])) == expected
+    assert _basenames(_ls_prefixes(list(reversed(paths)), ["exit_code"])) == expected
+
+
 @pytest.mark.parametrize(
     "fields",
     [
@@ -681,10 +701,8 @@ def test_ls_sort_by_valueless_field_warns(
 ) -> None:
     """A field no run has a value for warns and does not affect the order.
 
-    A field absent from every record, null in every record, and backfilled
-    with "" in every record are all no-ops for ordering, and all are worth
-    telling the user about.  Ordering then falls through to the prefix
-    tiebreaker rather than to the arbitrary order of the given paths.
+    Ordering then falls through to the prefix tiebreaker rather than to the
+    arbitrary order of the given paths.
     """
     paths = [
         _write_run(tmp_path / name, **fields)
@@ -699,6 +717,30 @@ def test_ls_sort_by_valueless_field_warns(
         "No run has a value" in record.message and "gpu" in record.message
         for record in caplog.records
     )
+
+
+def test_ls_sort_by_applies_after_eval_filter(tmp_path: Any) -> None:
+    """--sort-by orders whatever --eval-filter kept."""
+    paths = [
+        _write_run(tmp_path / f"run_{letter}_info.json", command=f"cmd_{letter}")
+        for letter in ("b", "a", "c")
+    ]
+    args = argparse.Namespace(
+        paths=paths,
+        colors=False,
+        fields=["prefix", "command"],
+        eval_filter="command != 'cmd_b'",
+        format="json",
+        func=ls,
+        reverse=False,
+        sort_by=["command"],
+    )
+    buf = StringIO()
+    with contextlib.redirect_stdout(buf):
+        assert ls(args) == 0
+
+    rows = json.loads(buf.getvalue().strip())
+    assert [row["command"] for row in rows] == ["cmd_a", "cmd_c"]
 
 
 @pytest.mark.parametrize("sort_field", LS_FIELD_CHOICES)
@@ -736,6 +778,9 @@ def test_ls_sort_by_each_field(sort_field: str, tmp_path: Any) -> None:
     assert _basenames(prefixes) == expected, f"sort_by={sort_field!r}"
 
 
+_NAN = float("nan")
+
+
 @pytest.mark.parametrize(
     "values,expected",
     [
@@ -746,6 +791,11 @@ def test_ls_sort_by_each_field(sort_field: str, tmp_path: Any) -> None:
         (["0.10.0", "0.9.0", "0.2.0"], ["0.2.0", "0.9.0", "0.10.0"]),
         # numbers before text before other before missing
         (["b", None, 1, ["a"]], [1, "b", ["a"], None]),
+        # None and "" (what ensure_compliant_schema backfills) are equally
+        # valueless and keep their relative (input) order
+        ([None, 1, "", "a"], [1, "a", None, ""]),
+        # NaN compares false against everything -- it must not decide order
+        ([3.0, _NAN, 1.0, 2.0], [1.0, 2.0, 3.0, _NAN]),
     ],
 )
 def test_sort_key_orders_values(values: list[Any], expected: list[Any]) -> None:
@@ -757,91 +807,16 @@ def test_sort_key_handles_non_serializable_values() -> None:
     assert _sort_key(object())[0] == _sort_key([1])[0]
 
 
-def test_natural_chunks_does_not_choke_on_unicode_digits() -> None:
-    """Non-ASCII "digits" which int() cannot parse stay text chunks."""
-    # "\u00b2" (superscript two) is str.isdigit() but not matched by ``\d``
-    assert _natural_chunks("x\u00b2") == ((1, 0, "x\u00b2"),)
-
-
-def test_ls_sort_by_long_digit_run(tmp_path: Any) -> None:
-    """A digit run too long for int() must not blow up the sort.
-
-    Free-form fields hold whatever the user typed, and int() refuses to
-    parse more than sys.get_int_max_str_digits() (4300 by default).
-    """
-    paths = [
-        _write_run(tmp_path / "run_0_info.json", message="9" * 5000),
-        _write_run(tmp_path / "run_1_info.json", message="abc"),
-        _write_run(tmp_path / "run_2_info.json", message="42"),
-    ]
-
-    prefixes = _ls_prefixes(paths, ["message"], fields=["prefix", "message"])
-
-    # 42 is a real number so it sorts first; the oversized run degrades to
-    # text and orders against "abc" as text does
-    assert _basenames(prefixes) == ["run_2_", "run_0_", "run_1_"]
-
-
-def test_ls_sort_by_ties_are_deterministic(tmp_path: Any) -> None:
-    """Runs whose sort field ties come out in prefix order, not input order.
-
-    Without an explicit sort the paths are whatever `glob` returned, which
-    is arbitrary, so equal-keyed runs must not inherit that order.
-    """
-    names = ["run_a_info.json", "run_m_info.json", "run_z_info.json"]
-    paths = [_write_run(tmp_path / name, exit_code=0) for name in names]
-    expected = ["run_a_", "run_m_", "run_z_"]
-
-    assert _basenames(_ls_prefixes(paths, ["exit_code"])) == expected
-    assert _basenames(_ls_prefixes(list(reversed(paths)), ["exit_code"])) == expected
-
-
-def test_ls_sort_by_numeric_non_transformed_field(tmp_path: Any) -> None:
-    """Numeric fields which are displayed as-is also sort numerically."""
-    paths = [
-        _write_run(tmp_path / f"run_{i}_info.json", num_samples=num_samples)
-        for i, num_samples in enumerate([9, 100, 10])
-    ]
-
-    prefixes = _ls_prefixes(paths, ["num_samples"], fields=["prefix", "num_samples"])
-
-    assert _basenames(prefixes) == ["run_0_", "run_2_", "run_1_"]
-
-
-def test_ls_sort_by_applies_after_eval_filter(tmp_path: Any) -> None:
-    """--sort-by orders whatever --eval-filter kept."""
-    paths = [
-        _write_run(tmp_path / f"run_{letter}_info.json", command=f"cmd_{letter}")
-        for letter in ("b", "a", "c")
-    ]
-    args = argparse.Namespace(
-        paths=paths,
-        colors=False,
-        fields=["prefix", "command"],
-        eval_filter="command != 'cmd_b'",
-        format="json",
-        func=ls,
-        reverse=False,
-        sort_by=["command"],
-    )
-    buf = StringIO()
-    with contextlib.redirect_stdout(buf):
-        assert ls(args) == 0
-
-    rows = json.loads(buf.getvalue().strip())
-    assert [row["command"] for row in rows] == ["cmd_a", "cmd_c"]
-
-
-def test_sort_key_treats_nan_as_valueless() -> None:
-    """NaN compares false against everything -- it must not decide order."""
-    assert sorted([3.0, float("nan"), 1.0, 2.0], key=_sort_key)[:3] == [1.0, 2.0, 3.0]
-
-
-@pytest.mark.parametrize("value", [None, ""])
-def test_sort_key_ranks_valueless_last(value: Any) -> None:
-    assert sorted([value, 1, "a"], key=_sort_key) == [1, "a", value]
-
-
-def test_natural_chunks_keeps_oversized_digit_runs_as_text() -> None:
-    digits = "9" * (10**4)
-    assert _natural_chunks(digits) == ((1, 0, digits),)
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("run10", ((1, 0, "run"), (0, 10, ""))),
+        # "\u00b2" (superscript two) is str.isdigit() but not matched by ``\d``,
+        # and int() cannot parse it
+        ("x\u00b2", ((1, 0, "x\u00b2"),)),
+        # too long for int() -- stays a text chunk
+        ("9" * 10**4, ((1, 0, "9" * 10**4),)),
+    ],
+)
+def test_natural_chunks(text: str, expected: tuple[Any, ...]) -> None:
+    assert _natural_chunks(text) == expected
