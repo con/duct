@@ -211,6 +211,68 @@ def _flatten_dict(d: Dict[str, Any]) -> Dict[str, Any]:
     return dict(items)
 
 
+# Digit runs longer than this are compared as text: they are not meaningful
+# numbers, and int() refuses to parse more than sys.get_int_max_str_digits().
+_MAX_SORT_DIGITS = 18
+_RANK_MISSING = 3  # valueless always sorts last (before numbers, text, other)
+
+
+def _natural_chunks(text: str) -> tuple[tuple[int, int, str], ...]:
+    """Split text into chunks which sort naturally: 0.9.0 < 0.10.0, run2 < run10.
+
+    Digit runs are compared as numbers and everything else as text.  Every
+    chunk has the same (kind, number, text) shape so that chunks never
+    cross-compare (which would raise TypeError).
+    """
+    # re.split with a capturing group alternates text, digits, text, ...
+    return tuple(
+        (0, int(part), "") if i % 2 and len(part) <= _MAX_SORT_DIGITS else (1, 0, part)
+        for i, part in enumerate(re.split(r"(\d+)", text))
+        if part
+    )
+
+
+def _sort_key(value: Any) -> tuple[int, Any]:
+    """Total-ordering key for a raw field value.
+
+    A field can hold a number in one run, a string in another, a list (e.g.
+    `gpu`) in a third and be missing from a fourth, so values are ranked by
+    type and only compared within a rank.  None, "" (what
+    `ensure_compliant_schema()` backfills) and NaN all count as no value.
+    """
+    if value is None or value == "" or value != value:
+        return (_RANK_MISSING, ())
+    if isinstance(value, (bool, int, float)):
+        return (0, value)
+    if isinstance(value, str):
+        return (1, _natural_chunks(value))
+    return (2, _natural_chunks(json.dumps(value, sort_keys=True, default=str)))
+
+
+def _sort_run_data(
+    run_data_list: List[Dict[str, Any]], sort_by: List[str]
+) -> List[Dict[str, Any]]:
+    """Sort raw run records by `sort_by` fields; later fields break ties.
+
+    Runs on the raw records (before `--fields` restriction and formatting)
+    so any field can be a key and numbers sort numerically.  `prefix`, the
+    only unique field, breaks any remaining tie for a reproducible order.
+    """
+    decorated = [(_flatten_dict(run), run) for run in run_data_list]
+    for field in sort_by:
+        if decorated and all(
+            _sort_key(flat.get(field))[0] == _RANK_MISSING for flat, _ in decorated
+        ):
+            lgr.warning(
+                "No run has a value for --sort-by field %r, it does not affect "
+                "the ordering.",
+                field,
+            )
+    fields = [*sort_by, "prefix"]
+    decorated.sort(key=lambda pair: tuple(_sort_key(pair[0].get(f)) for f in fields))
+    return [run for _, run in decorated]
+
+
 def _restrict_row(field_list: List[str], row: Dict[str, Any]) -> OrderedDict[str, Any]:
     restricted: OrderedDict[str, Any] = OrderedDict()
     # prefix is the "primary key", its the only field guaranteed to be unique.
@@ -302,6 +364,10 @@ def ls(args: argparse.Namespace) -> int:
     )
     info_files = [path for path in args.paths if is_info_file(path)]
     run_data_raw = load_duct_runs(info_files, compiled_filter)
+
+    if args.sort_by:
+        run_data_raw = _sort_run_data(run_data_raw, args.sort_by)
+
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
     if args.reverse:
