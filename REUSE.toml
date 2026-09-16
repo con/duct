@@ -1,29 +1,16 @@
 version = 1
 
+# Catch-all first; a later annotation wins for files it also matches, so the
+# src/ block below overrides this one with the dual copyright.
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2024-2026 Center for Open Neuroscience"
+SPDX-License-Identifier = "MIT"
+
 [[annotations]]
 path = "src/con_duct/**"
 SPDX-FileCopyrightText = [
     "2019-2021 brainlife",
     "2024-2026 Center for Open Neuroscience",
 ]
-SPDX-License-Identifier = "MIT"
-
-[[annotations]]
-path = [
-    ".autorc",
-    ".github/**",
-    ".gitignore",
-    ".pre-commit-config.yaml",
-    ".update-readme-help.py",
-    "CHANGELOG.md",
-    "CLAUDE.md",
-    "CONTRIBUTING.rst",
-    "MANIFEST.in",
-    "README.md",
-    "demo/**",
-    "pyproject.toml",
-    "test/**",
-    "tox.ini",
-]
-SPDX-FileCopyrightText = "2024-2026 Center for Open Neuroscience"
 SPDX-License-Identifier = "MIT"
