@@ -204,8 +204,10 @@ class TestPlotMatplotlib:
     def test_matplotlib_plot_non_interactive_backend(
         self,
         _mock_get_backend: MagicMock,
+        caplog: Any,
     ) -> None:
-        """Test that plotting without output in non-interactive backend returns error."""
+        """Test that plotting without output in non-interactive backend returns error,
+        and that the error lists known interactive backends to try."""
         import matplotlib.backends
 
         if not hasattr(matplotlib.backends, "backend_registry"):
@@ -222,6 +224,7 @@ class TestPlotMatplotlib:
         )
         result = cli.execute(args)
         assert result == 1
+        assert "tkagg" in caplog.text
 
     @patch("matplotlib.get_backend", return_value="Agg")
     def test_matplotlib_plot_non_interactive_backend_with_get_backend(

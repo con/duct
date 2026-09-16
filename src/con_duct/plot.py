@@ -291,8 +291,10 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                 current_backend,
             )
             lgr.error(
-                "Either set environment variable MPLBACKEND to an interactive backend or "
-                "use --output to save the plot to a file instead."
+                "Either set environment variable MPLBACKEND to an interactive backend "
+                "(one of: %s -- whichever has its GUI toolkit installed) or "
+                "use --output to save the plot to a file instead.",
+                ", ".join(sorted(interactive_backends)),
             )
             lgr.error(
                 "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
