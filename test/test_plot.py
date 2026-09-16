@@ -269,6 +269,7 @@ class TestPlotMatplotlib:
         result = cli.execute(args)
         assert result == 0
         mock_show.assert_called_once()
+        _mock_load_backend_module.assert_called_once_with("tkagg")
 
     @patch(
         "matplotlib.backends.backend_registry.load_backend_module",
@@ -280,7 +281,7 @@ class TestPlotMatplotlib:
         self,
         _mock_get_backend: MagicMock,
         mock_show: MagicMock,
-        _mock_load_backend_module: MagicMock,
+        mock_load_backend_module: MagicMock,
         caplog: Any,
     ) -> None:
         """A backend that reports as interactive but fails to import (e.g. a
@@ -297,6 +298,7 @@ class TestPlotMatplotlib:
         result = cli.execute(args)
         assert result == 1
         mock_show.assert_not_called()
+        mock_load_backend_module.assert_called_once_with("tkagg")
         assert "Failed to initialize matplotlib backend" in caplog.text
         assert "--output" in caplog.text
 
