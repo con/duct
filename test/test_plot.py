@@ -246,12 +246,14 @@ class TestPlotMatplotlib:
         result = cli.execute(args)
         assert result == 1
 
+    @patch("matplotlib.backends.backend_registry.load_backend_module")
     @patch("matplotlib.pyplot.show")
     @patch("matplotlib.get_backend", return_value="tkagg")
     def test_matplotlib_plot_interactive_backend_with_get_backend(
         self,
         _mock_get_backend: MagicMock,
         mock_show: MagicMock,
+        _mock_load_backend_module: MagicMock,
     ) -> None:
         """Test that plotting without output in interactive backend calls plt.show() successfully."""
 
@@ -267,6 +269,36 @@ class TestPlotMatplotlib:
         result = cli.execute(args)
         assert result == 0
         mock_show.assert_called_once()
+
+    @patch(
+        "matplotlib.backends.backend_registry.load_backend_module",
+        side_effect=ImportError("No module named 'tkinter'"),
+    )
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="tkagg")
+    def test_matplotlib_plot_backend_fails_to_load(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        _mock_load_backend_module: MagicMock,
+        caplog: Any,
+    ) -> None:
+        """A backend that reports as interactive but fails to import (e.g. a
+        broken tkinter install) should fail with guidance, not plt.show()."""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        result = cli.execute(args)
+        assert result == 1
+        mock_show.assert_not_called()
+        assert "Failed to initialize matplotlib backend" in caplog.text
+        assert "--output" in caplog.text
 
     @patch(
         "builtins.__import__", side_effect=ImportError("No module named 'matplotlib'")

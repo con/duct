@@ -271,6 +271,54 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                 "If plotting fails, use --output to save to a file instead."
             )
 
+    # When displaying interactively, check (and actually try to load) the
+    # backend up front -- before doing any of the data loading/plotting
+    # work below -- so a bad backend fails fast with actionable guidance
+    # instead of a raw traceback from deep inside matplotlib.
+    if args.output is None and backend_registry is not None:
+        try:
+            # get_backend() added in 3.10
+            current_backend = matplotlib.get_backend()  # type: ignore[attr-defined]
+        except AttributeError:
+            # matplotlib 3.9.x: use rcParams instead
+            current_backend = matplotlib.rcParams["backend"]  # type: ignore[attr-defined]
+        interactive_backends = backend_registry.list_builtin(BackendFilter.INTERACTIVE)
+
+        if current_backend not in interactive_backends:
+            lgr.error(
+                "Cannot display plot: your current matplotlib backend is %s "
+                "which is a not a known interactive backend.",
+                current_backend,
+            )
+            lgr.error(
+                "Either set environment variable MPLBACKEND to an interactive backend or "
+                "use --output to save the plot to a file instead."
+            )
+            lgr.error(
+                "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
+            )
+            return 1
+
+        # The backend name being "interactive" doesn't mean it will actually
+        # load -- e.g. a broken/incomplete Python installation can be missing
+        # tkinter even though TkAgg is a known interactive backend. Try to
+        # load the module now, while we can still give a helpful message.
+        try:
+            backend_registry.load_backend_module(current_backend)
+        except ImportError as e:
+            lgr.error(
+                "Failed to initialize matplotlib backend %r: %s",
+                current_backend,
+                e,
+            )
+            lgr.error(
+                "This is typically an issue with your Python/GUI-toolkit "
+                "installation rather than con-duct itself. Try a different "
+                "interactive backend by setting MPLBACKEND, or use --output "
+                "to save the plot to a file instead of displaying it."
+            )
+            return 1
+
     # Handle info.json files by determining the path to usage file
     arg_path = Path(args.file_path)
     file_path = arg_path
@@ -427,38 +475,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             "Successfully rendered input file: %s to output %s", file_path, args.output
         )
     else:
-        # Check if the current backend can display plots interactively
-        if backend_registry is not None:
-            # matplotlib >= 3.9: Use backend registry to check if backend is interactive
-            try:
-                # get_backend() added in 3.10
-                current_backend = matplotlib.get_backend()  # type: ignore[attr-defined]
-            except AttributeError:
-                # matplotlib 3.9.x: use rcParams instead
-                current_backend = matplotlib.rcParams["backend"]  # type: ignore[attr-defined]
-            interactive_backends = backend_registry.list_builtin(
-                BackendFilter.INTERACTIVE
-            )
-
-            if current_backend in interactive_backends:
-                plt.show()
-            else:
-                lgr.error(
-                    "Cannot display plot: your current matplotlib backend is %s "
-                    "which is a not a known interactive backend.",
-                    current_backend,
-                )
-                lgr.error(
-                    "Either set environment variable MPLBACKEND to an interactive backend or "
-                    "use --output to save the plot to a file instead."
-                )
-                lgr.error(
-                    "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
-                )
-                return 1
-        else:
-            # matplotlib < 3.9: Cannot check backend interactivity, just try plt.show()
-            # mypy thinks this is unreachable but import fails on old matplotlib
-            plt.show()  # type: ignore[unreachable]
+        # Backend interactivity (and loadability) was already verified above.
+        plt.show()
 
     return 0
