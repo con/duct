@@ -389,6 +389,37 @@ class TestPlotMatplotlib:
         assert "--output" in caplog.text
 
     @patch(
+        "matplotlib.backends.backend_registry.load_backend_module",
+        side_effect=RuntimeError("The WebAgg backend requires Tornado."),
+    )
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="webagg")
+    def test_matplotlib_plot_backend_fails_to_load_non_import_error(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        mock_load_backend_module: MagicMock,
+        caplog: Any,
+    ) -> None:
+        """Some backends (e.g. webagg without tornado) raise RuntimeError,
+        not ImportError, when their dependency is missing -- that must be
+        caught with guidance too, not leak as a raw traceback."""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        result = cli.execute(args)
+        assert result == 1
+        mock_show.assert_not_called()
+        mock_load_backend_module.assert_called_once_with("webagg")
+        assert "Failed to initialize matplotlib backend" in caplog.text
+
+    @patch(
         "builtins.__import__", side_effect=ImportError("No module named 'matplotlib'")
     )
     def test_matplotlib_plot_missing_dependency(self, _mock_import: MagicMock) -> None:

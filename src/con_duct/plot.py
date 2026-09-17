@@ -396,7 +396,10 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             # still give a helpful message.
             try:
                 backend_registry.load_backend_module(current_backend)
-            except ImportError as e:
+            except Exception as e:
+                # Backends report a missing dependency inconsistently -- e.g.
+                # webagg raises RuntimeError (not ImportError) when tornado
+                # is missing -- so we can't narrow this to ImportError alone.
                 lgr.error(
                     "Failed to initialize matplotlib backend %r: %s",
                     current_backend,
