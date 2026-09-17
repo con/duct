@@ -201,17 +201,20 @@ class TestPlotMatplotlib:
         side_effect=AttributeError("get_backend not available"),
     )
     @patch.dict("matplotlib.rcParams", {"backend": "Agg"})
-    def test_matplotlib_plot_non_interactive_backend(
+    def test_matplotlib_plot_non_interactive_backend_pinned(
         self,
         _mock_get_backend: MagicMock,
+        monkeypatch: Any,
         caplog: Any,
     ) -> None:
-        """Test that plotting without output in non-interactive backend returns error,
-        and that the error lists known interactive backends to try."""
+        """A non-interactive backend the user pinned via MPLBACKEND is
+        reported as an error (listing known interactive backends to try)
+        rather than silently overridden."""
         import matplotlib.backends
 
         if not hasattr(matplotlib.backends, "backend_registry"):
             pytest.skip("requires backend_registry (matplotlib >= 3.9)")
+        monkeypatch.setenv("MPLBACKEND", "Agg")
 
         args = argparse.Namespace(
             command="plot",
@@ -227,15 +230,17 @@ class TestPlotMatplotlib:
         assert "tkagg" in caplog.text
 
     @patch("matplotlib.get_backend", return_value="Agg")
-    def test_matplotlib_plot_non_interactive_backend_with_get_backend(
+    def test_matplotlib_plot_non_interactive_backend_pinned_with_get_backend(
         self,
         _mock_get_backend: MagicMock,
+        monkeypatch: Any,
     ) -> None:
-        """Test that plotting without output in non-interactive backend returns error using get_backend."""
+        """Same as above, exercising the get_backend() (matplotlib >= 3.10) path."""
         import matplotlib.backends
 
         if not hasattr(matplotlib.backends, "backend_registry"):
             pytest.skip("requires backend_registry (matplotlib >= 3.9)")
+        monkeypatch.setenv("MPLBACKEND", "Agg")
 
         args = argparse.Namespace(
             command="plot",
@@ -248,6 +253,84 @@ class TestPlotMatplotlib:
         )
         result = cli.execute(args)
         assert result == 1
+
+    @patch("matplotlib.backends.backend_registry.load_backend_module")
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="Agg")
+    def test_matplotlib_plot_auto_probes_when_unpinned(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        mock_load_backend_module: MagicMock,
+        monkeypatch: Any,
+        caplog: Any,
+    ) -> None:
+        """When MPLBACKEND isn't set and the resolved backend is
+        non-interactive, con-duct should probe the builtin interactive
+        backends itself and use the first one that loads."""
+        import matplotlib.backends
+
+        if not hasattr(matplotlib.backends, "backend_registry"):
+            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
+        monkeypatch.delenv("MPLBACKEND", raising=False)
+        caplog.set_level("INFO")
+
+        def fake_load(name: str) -> None:
+            if name != "qtagg":
+                raise ImportError(f"No module for {name}")
+
+        mock_load_backend_module.side_effect = fake_load
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        with patch("matplotlib.use") as mock_use:
+            result = cli.execute(args)
+        assert result == 0
+        mock_use.assert_called_once_with("qtagg")
+        mock_show.assert_called_once()
+        assert "Auto-selected matplotlib backend" in caplog.text
+
+    @patch("matplotlib.backends.backend_registry.load_backend_module")
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="Agg")
+    def test_matplotlib_plot_auto_probe_all_fail(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        mock_load_backend_module: MagicMock,
+        monkeypatch: Any,
+        caplog: Any,
+    ) -> None:
+        """When MPLBACKEND isn't set and none of the builtin interactive
+        backends can be loaded, fail with guidance rather than a
+        traceback."""
+        import matplotlib.backends
+
+        if not hasattr(matplotlib.backends, "backend_registry"):
+            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
+        monkeypatch.delenv("MPLBACKEND", raising=False)
+        mock_load_backend_module.side_effect = ImportError("nope")
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        result = cli.execute(args)
+        assert result == 1
+        mock_show.assert_not_called()
+        assert "tried all known interactive" in caplog.text
 
     @patch("matplotlib.backends.backend_registry.load_backend_module")
     @patch("matplotlib.pyplot.show")

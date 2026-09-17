@@ -15,6 +15,7 @@ import argparse
 from datetime import datetime
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from con_duct._constants import SUFFIXES
@@ -35,6 +36,30 @@ CPU_MODE_PS_CPU_TIMEPOINT = "ps-cpu-timepoint"
 CPU_MODES = (CPU_MODE_PS_PCPU, CPU_MODE_PS_CPU_TIMEPOINT)
 
 lgr = logging.getLogger(__name__)
+
+# Order in which to probe built-in interactive backends when the user hasn't
+# pinned one via MPLBACKEND: native GUI toolkits first (matching matplotlib's
+# own auto-backend preference), then the browser-based/cairo variants
+# matplotlib's own auto-fallback doesn't consider on its own.
+_INTERACTIVE_BACKEND_PROBE_ORDER = (
+    "macosx",
+    "qtagg",
+    "qt5agg",
+    "gtk4agg",
+    "gtk3agg",
+    "tkagg",
+    "wxagg",
+    "wx",
+    "webagg",
+    "notebook",
+    "nbagg",
+    "qtcairo",
+    "qt5cairo",
+    "gtk4cairo",
+    "gtk3cairo",
+    "tkcairo",
+    "wxcairo",
+)
 
 _TIME_UNITS = [
     ("s", 1),
@@ -235,6 +260,35 @@ def _load_host_memory_total(file_path: Path) -> Optional[int]:
         return None
 
 
+def _find_working_interactive_backend(
+    backend_registry: Any, interactive_backends: List[str]
+) -> Optional[str]:
+    """Return the name of the first interactive backend that actually loads.
+
+    Tries backends in ``_INTERACTIVE_BACKEND_PROBE_ORDER`` (falling back to
+    any other builtin interactive backend not in that list) and returns as
+    soon as one imports successfully. Returns ``None`` if none of them load
+    in this environment.
+    """
+    ordered = list(_INTERACTIVE_BACKEND_PROBE_ORDER) + sorted(
+        set(interactive_backends) - set(_INTERACTIVE_BACKEND_PROBE_ORDER)
+    )
+    for candidate in ordered:
+        if candidate not in interactive_backends:
+            continue
+        try:
+            backend_registry.load_backend_module(candidate)
+        except Exception as e:
+            # Backends report a missing dependency inconsistently -- e.g.
+            # webagg raises RuntimeError (not ImportError) when tornado is
+            # missing. We're only probing for *something* that works, so
+            # any failure here just means "skip this candidate".
+            lgr.debug("Backend %r failed to load: %s", candidate, e)
+            continue
+        return candidate
+    return None
+
+
 def matplotlib_plot(args: argparse.Namespace) -> int:
     try:
         import matplotlib
@@ -285,41 +339,76 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         interactive_backends = backend_registry.list_builtin(BackendFilter.INTERACTIVE)
 
         if current_backend not in interactive_backends:
-            lgr.error(
-                "Cannot display plot: your current matplotlib backend is %s "
-                "which is a not a known interactive backend.",
-                current_backend,
-            )
-            lgr.error(
-                "Either set environment variable MPLBACKEND to an interactive backend "
-                "(one of: %s -- whichever has its GUI toolkit installed) or "
-                "use --output to save the plot to a file instead.",
-                ", ".join(sorted(interactive_backends)),
-            )
-            lgr.error(
-                "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
-            )
-            return 1
+            if os.environ.get("MPLBACKEND"):
+                # The user pinned this backend explicitly -- report it
+                # rather than silently overriding their choice.
+                lgr.error(
+                    "Cannot display plot: MPLBACKEND is set to %s which is "
+                    "not a known interactive backend.",
+                    current_backend,
+                )
+                lgr.error(
+                    "Either set MPLBACKEND to an interactive backend "
+                    "(one of: %s -- whichever has its GUI toolkit installed) "
+                    "or use --output to save the plot to a file instead.",
+                    ", ".join(sorted(interactive_backends)),
+                )
+                lgr.error(
+                    "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
+                )
+                return 1
 
-        # The backend name being "interactive" doesn't mean it will actually
-        # load -- e.g. a broken/incomplete Python installation can be missing
-        # tkinter even though TkAgg is a known interactive backend. Try to
-        # load the module now, while we can still give a helpful message.
-        try:
-            backend_registry.load_backend_module(current_backend)
-        except ImportError as e:
-            lgr.error(
-                "Failed to initialize matplotlib backend %r: %s",
-                current_backend,
-                e,
+            # MPLBACKEND wasn't pinned -- probe the builtin interactive
+            # backends ourselves (a wider net than matplotlib's own
+            # auto-fallback, which skips e.g. webagg) and use the first one
+            # that actually loads in this environment, instead of just
+            # reporting whatever matplotlib itself gave up on.
+            working_backend = _find_working_interactive_backend(
+                backend_registry, interactive_backends
             )
-            lgr.error(
-                "This is typically an issue with your Python/GUI-toolkit "
-                "installation rather than con-duct itself. Try a different "
-                "interactive backend by setting MPLBACKEND, or use --output "
-                "to save the plot to a file instead of displaying it."
+            if working_backend is None:
+                lgr.error(
+                    "Cannot display plot: tried all known interactive "
+                    "matplotlib backends (%s) and none of them could be "
+                    "loaded in this environment.",
+                    ", ".join(sorted(interactive_backends)),
+                )
+                lgr.error(
+                    "Install a GUI toolkit (e.g. python3-tk for Tk, "
+                    "PyQt5/PySide6 for Qt) or use --output to save the plot "
+                    "to a file instead."
+                )
+                lgr.error(
+                    "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
+                )
+                return 1
+
+            lgr.info(
+                "Auto-selected matplotlib backend %r for interactive display.",
+                working_backend,
             )
-            return 1
+            matplotlib.use(working_backend)
+        else:
+            # The backend name being "interactive" doesn't mean it will
+            # actually load -- e.g. a broken/incomplete Python installation
+            # can be missing tkinter even though TkAgg is a known
+            # interactive backend. Try to load the module now, while we can
+            # still give a helpful message.
+            try:
+                backend_registry.load_backend_module(current_backend)
+            except ImportError as e:
+                lgr.error(
+                    "Failed to initialize matplotlib backend %r: %s",
+                    current_backend,
+                    e,
+                )
+                lgr.error(
+                    "This is typically an issue with your Python/GUI-toolkit "
+                    "installation rather than con-duct itself. Try a different "
+                    "interactive backend by setting MPLBACKEND, or use --output "
+                    "to save the plot to a file instead of displaying it."
+                )
+                return 1
 
     # Handle info.json files by determining the path to usage file
     arg_path = Path(args.file_path)
