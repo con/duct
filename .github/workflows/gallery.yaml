@@ -1,0 +1,156 @@
+---
+name: Gallery Compatibility
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 6 * * *'
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  gallery:
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Check out con/duct repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out con/duct-gallery repository
+        uses: actions/checkout@v4
+        with:
+          repository: con/duct-gallery
+          path: duct-gallery
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install con-duct with all extras
+        run: python -m pip install --upgrade ".[all]"
+
+      - name: Run con-duct ls against gallery logs
+        run: |
+          con-duct ls duct-gallery/logs/*/example_output_info.json
+
+      - name: Run con-duct plot against gallery logs and save images
+        run: |
+          mkdir -p gallery-plots
+          for info_file in duct-gallery/logs/*/example_output_info.json; do
+            name=$(basename "$(dirname "$info_file")")
+            con-duct plot "$info_file" --output "gallery-plots/${name}.png"
+          done
+
+      - name: Upload plot images as artifact
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery-plots
+          path: gallery-plots/*.png
+          if-no-files-found: warn
+
+  comment-plots:
+    runs-on: ubuntu-latest
+    needs: gallery
+    # Only post comments on non-fork PRs where we have write access
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download plot images
+        uses: actions/download-artifact@v4
+        with:
+          name: gallery-plots
+          path: gallery-plots
+
+      - name: Push plots to PR preview branch
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="gallery-pr-${PR_NUMBER}"
+          git checkout --orphan "$BRANCH"
+          git rm -rf --cached .
+          cp gallery-plots/*.png .
+          git add -f ./*.png
+          git commit -m "Gallery plots for PR #${PR_NUMBER} (${HEAD_SHA:0:7})"
+          git push -f origin "$BRANCH"
+
+      - name: Build comment body
+        id: build-comment
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          BRANCH="gallery-pr-${PR_NUMBER}"
+          RAW_BASE="https://raw.githubusercontent.com/${REPO}/${BRANCH}"
+          {
+            echo 'body<<ENDOFCOMMENT'
+            echo '<!-- gallery-plots -->'
+            echo '## Gallery Compatibility: Generated Plots'
+            echo ''
+            echo 'Plots generated from [con/duct-gallery](https://github.com/con/duct-gallery) log examples using this PR'"'"'s version of `con-duct`.'
+            echo ''
+            echo '<details>'
+            echo '<summary>📊 Click to expand gallery plots</summary>'
+            echo ''
+            for png in gallery-plots/*.png; do
+              name=$(basename "$png" .png)
+              echo "### ${name}"
+              echo ''
+              echo "![${name}](${RAW_BASE}/${name}.png)"
+              echo ''
+            done
+            echo '</details>'
+            echo 'ENDOFCOMMENT'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find existing gallery comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- gallery-plots -->'
+
+      - name: Post or update gallery plots comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.build-comment.outputs.body }}
+          edit-mode: replace
+
+# vim:set et sts=2:
