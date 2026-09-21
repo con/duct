@@ -9,10 +9,9 @@ from unittest.mock import MagicMock, Mock, mock_open, patch
 import pytest
 
 pytest.importorskip("matplotlib")
+import matplotlib.backends  # noqa: E402
 from con_duct import cli, plot  # noqa: E402
 from con_duct._formatter import FILESIZE_UNITS  # noqa: E402
-
-import matplotlib.backends  # noqa: E402
 
 # matplotlib < 3.9 has no backend_registry module at all, so any @patch(...)
 # decorator naming it (e.g. "matplotlib.backends.backend_registry.foo") blows
