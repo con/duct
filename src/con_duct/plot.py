@@ -274,8 +274,6 @@ def _find_working_interactive_backend(
         set(interactive_backends) - set(_INTERACTIVE_BACKEND_PROBE_ORDER)
     )
     for candidate in ordered:
-        if candidate not in interactive_backends:
-            continue
         try:
             backend_registry.load_backend_module(candidate)
         except Exception as e:
