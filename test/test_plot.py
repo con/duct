@@ -12,6 +12,19 @@ pytest.importorskip("matplotlib")
 from con_duct import cli, plot  # noqa: E402
 from con_duct._formatter import FILESIZE_UNITS  # noqa: E402
 
+import matplotlib.backends  # noqa: E402
+
+# matplotlib < 3.9 has no backend_registry module at all, so any @patch(...)
+# decorator naming it (e.g. "matplotlib.backends.backend_registry.foo") blows
+# up while pytest is still setting up the test call -- before a pytest.skip()
+# in the test body would ever run. Tests that decorate it must instead be
+# skipped via this marker, which pytest evaluates at collection time and
+# never calls the decorated function at all.
+requires_backend_registry = pytest.mark.skipif(
+    not hasattr(matplotlib.backends, "backend_registry"),
+    reason="requires backend_registry (matplotlib >= 3.9)",
+)
+
 
 @pytest.mark.parametrize(
     "min_ratio,span_seconds,expected_unit",
@@ -196,6 +209,7 @@ class TestPlotMatplotlib:
         assert cli.execute(args) == 1
         mock_plot_save.assert_not_called()
 
+    @requires_backend_registry
     @patch(
         "matplotlib.get_backend",
         side_effect=AttributeError("get_backend not available"),
@@ -210,10 +224,6 @@ class TestPlotMatplotlib:
         """A non-interactive backend the user pinned via MPLBACKEND is
         reported as an error (listing known interactive backends to try)
         rather than silently overridden."""
-        import matplotlib.backends
-
-        if not hasattr(matplotlib.backends, "backend_registry"):
-            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
         monkeypatch.setenv("MPLBACKEND", "Agg")
 
         args = argparse.Namespace(
@@ -229,6 +239,7 @@ class TestPlotMatplotlib:
         assert result == 1
         assert "tkagg" in caplog.text
 
+    @requires_backend_registry
     @patch("matplotlib.get_backend", return_value="Agg")
     def test_matplotlib_plot_non_interactive_backend_pinned_with_get_backend(
         self,
@@ -236,10 +247,6 @@ class TestPlotMatplotlib:
         monkeypatch: Any,
     ) -> None:
         """Same as above, exercising the get_backend() (matplotlib >= 3.10) path."""
-        import matplotlib.backends
-
-        if not hasattr(matplotlib.backends, "backend_registry"):
-            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
         monkeypatch.setenv("MPLBACKEND", "Agg")
 
         args = argparse.Namespace(
@@ -254,6 +261,7 @@ class TestPlotMatplotlib:
         result = cli.execute(args)
         assert result == 1
 
+    @requires_backend_registry
     @patch("matplotlib.backends.backend_registry.load_backend_module")
     @patch("matplotlib.pyplot.show")
     @patch("matplotlib.get_backend", return_value="Agg")
@@ -297,6 +305,7 @@ class TestPlotMatplotlib:
         mock_show.assert_called_once()
         assert "Auto-selected matplotlib backend" in caplog.text
 
+    @requires_backend_registry
     @patch("matplotlib.backends.backend_registry.load_backend_module")
     @patch("matplotlib.pyplot.show")
     @patch("matplotlib.get_backend", return_value="Agg")
@@ -332,6 +341,7 @@ class TestPlotMatplotlib:
         mock_show.assert_not_called()
         assert "tried all known interactive" in caplog.text
 
+    @requires_backend_registry
     @patch("matplotlib.backends.backend_registry.load_backend_module")
     @patch("matplotlib.pyplot.show")
     @patch("matplotlib.get_backend", return_value="tkagg")
@@ -357,6 +367,7 @@ class TestPlotMatplotlib:
         mock_show.assert_called_once()
         _mock_load_backend_module.assert_called_once_with("tkagg")
 
+    @requires_backend_registry
     @patch(
         "matplotlib.backends.backend_registry.load_backend_module",
         side_effect=ImportError("No module named 'tkinter'"),
@@ -388,6 +399,7 @@ class TestPlotMatplotlib:
         assert "Failed to initialize matplotlib backend" in caplog.text
         assert "--output" in caplog.text
 
+    @requires_backend_registry
     @patch(
         "matplotlib.backends.backend_registry.load_backend_module",
         side_effect=RuntimeError("The WebAgg backend requires Tornado."),
