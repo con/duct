@@ -278,7 +278,7 @@ class TestPlotMatplotlib:
         monkeypatch.delenv("MPLBACKEND", raising=False)
         caplog.set_level("INFO")
 
-        def fake_use(name: str, **kwargs: Any) -> None:
+        def fake_use(name: str) -> None:
             if name != "qtagg":
                 raise ImportError(f"No module for {name}")
 
@@ -314,7 +314,7 @@ class TestPlotMatplotlib:
         uncaught later in matplotlib.use()."""
         monkeypatch.delenv("MPLBACKEND", raising=False)
 
-        def fake_use(name: str, **kwargs: Any) -> None:
+        def fake_use(name: str) -> None:
             if name == "macosx":
                 raise ImportError(
                     "Cannot load backend 'macosx' which requires the 'macosx' "
