@@ -37,6 +37,13 @@ CPU_MODES = (CPU_MODE_PS_PCPU, CPU_MODE_PS_CPU_TIMEPOINT)
 
 lgr = logging.getLogger(__name__)
 
+_NO_BACKEND_HINT = (
+    "Usually this means there is no display (e.g. ssh without X forwarding) "
+    "or no GUI toolkit installed. Use --output to save to a file, install a "
+    "GUI toolkit (e.g. PyQt6, or python3-tk from your OS), or install tornado "
+    "to view in a browser via webagg."
+)
+
 # Order in which to probe built-in interactive backends when the user hasn't
 # pinned one via MPLBACKEND: native GUI toolkits first (matching matplotlib's
 # own auto-backend preference), then the browser-based/cairo variants
@@ -354,16 +361,11 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                 # current_backend would then show "agg", not their choice)
                 # rather than silently overriding it.
                 lgr.error(
-                    "Cannot display plot: MPLBACKEND=%s could not be used here.",
+                    "Cannot display plot: MPLBACKEND=%s could not be used here. "
+                    "Unset it to let con-duct try other backends.",
                     mplbackend,
                 )
-                lgr.error(
-                    "Usually this means there is no display (e.g. ssh without X "
-                    "forwarding) or no GUI toolkit installed. Use --output to save "
-                    "to a file, install a GUI toolkit (e.g. PyQt6, or python3-tk "
-                    "from your OS), or unset MPLBACKEND and install tornado to "
-                    "view in a browser via webagg."
-                )
+                lgr.error(_NO_BACKEND_HINT)
                 lgr.error(
                     "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
                 )
@@ -380,13 +382,7 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                     "Cannot display plot: no interactive matplotlib backend "
                     "could be used here."
                 )
-                lgr.error(
-                    "Usually this means there is no display (e.g. ssh without X "
-                    "forwarding) or no GUI toolkit installed. Use --output to save "
-                    "to a file, install a GUI toolkit (e.g. PyQt6, or python3-tk "
-                    "from your OS), or install tornado to view in a browser via "
-                    "webagg."
-                )
+                lgr.error(_NO_BACKEND_HINT)
                 lgr.error(
                     "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
                 )
