@@ -5,7 +5,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any, List, Tuple
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import MagicMock, Mock, call, mock_open, patch
 import pytest
 
 pytest.importorskip("matplotlib")
@@ -261,32 +261,26 @@ class TestPlotMatplotlib:
         assert result == 1
 
     @requires_backend_registry
-    @patch("matplotlib.backends.backend_registry.load_backend_module")
     @patch("matplotlib.pyplot.show")
     @patch("matplotlib.get_backend", return_value="Agg")
     def test_matplotlib_plot_auto_probes_when_unpinned(
         self,
         _mock_get_backend: MagicMock,
         mock_show: MagicMock,
-        mock_load_backend_module: MagicMock,
         monkeypatch: Any,
         caplog: Any,
     ) -> None:
         """When MPLBACKEND isn't set and the resolved backend is
         non-interactive, con-duct should probe the builtin interactive
-        backends itself and use the first one that loads."""
-        import matplotlib.backends
-
-        if not hasattr(matplotlib.backends, "backend_registry"):
-            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
+        backends itself (by actually switching to each, not just importing
+        its module -- see test_matplotlib_plot_auto_probe_skips_headless_only_failure
+        for why) and use the first one that works."""
         monkeypatch.delenv("MPLBACKEND", raising=False)
         caplog.set_level("INFO")
 
-        def fake_load(name: str) -> None:
+        def fake_use(name: str, **kwargs: Any) -> None:
             if name != "qtagg":
                 raise ImportError(f"No module for {name}")
-
-        mock_load_backend_module.side_effect = fake_load
 
         args = argparse.Namespace(
             command="plot",
@@ -297,34 +291,66 @@ class TestPlotMatplotlib:
             min_ratio=3.0,
             cpu="ps-pcpu",
         )
-        with patch("matplotlib.use") as mock_use:
+        with patch("matplotlib.use", side_effect=fake_use) as mock_use:
             result = cli.execute(args)
         assert result == 0
-        mock_use.assert_called_once_with("qtagg")
+        mock_use.assert_called_with("qtagg")
         mock_show.assert_called_once()
         assert "Auto-selected matplotlib backend" in caplog.text
 
     @requires_backend_registry
-    @patch("matplotlib.backends.backend_registry.load_backend_module")
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="Agg")
+    def test_matplotlib_plot_auto_probe_skips_headless_only_failure(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        monkeypatch: Any,
+    ) -> None:
+        """A candidate whose *module* imports fine but that matplotlib still
+        refuses to switch to (e.g. a GUI backend over SSH with no display --
+        switch_backend raises ImportError there even though the module
+        loaded) must be skipped, not reported as working and left to crash
+        uncaught later in matplotlib.use()."""
+        monkeypatch.delenv("MPLBACKEND", raising=False)
+
+        def fake_use(name: str, **kwargs: Any) -> None:
+            if name == "macosx":
+                raise ImportError(
+                    "Cannot load backend 'macosx' which requires the 'macosx' "
+                    "interactive framework, as 'headless' is currently running"
+                )
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        with patch("matplotlib.use", side_effect=fake_use) as mock_use:
+            result = cli.execute(args)
+        assert result == 0
+        assert mock_use.call_args_list[0] == call("macosx")
+        assert mock_use.call_args_list[-1] != call("macosx")
+        mock_show.assert_called_once()
+
+    @requires_backend_registry
     @patch("matplotlib.pyplot.show")
     @patch("matplotlib.get_backend", return_value="Agg")
     def test_matplotlib_plot_auto_probe_all_fail(
         self,
         _mock_get_backend: MagicMock,
         mock_show: MagicMock,
-        mock_load_backend_module: MagicMock,
         monkeypatch: Any,
         caplog: Any,
     ) -> None:
         """When MPLBACKEND isn't set and none of the builtin interactive
         backends can be loaded, fail with guidance rather than a
         traceback."""
-        import matplotlib.backends
-
-        if not hasattr(matplotlib.backends, "backend_registry"):
-            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
         monkeypatch.delenv("MPLBACKEND", raising=False)
-        mock_load_backend_module.side_effect = ImportError("nope")
 
         args = argparse.Namespace(
             command="plot",
@@ -335,7 +361,8 @@ class TestPlotMatplotlib:
             min_ratio=3.0,
             cpu="ps-pcpu",
         )
-        result = cli.execute(args)
+        with patch("matplotlib.use", side_effect=ImportError("nope")):
+            result = cli.execute(args)
         assert result == 1
         mock_show.assert_not_called()
         assert "tried all known interactive" in caplog.text

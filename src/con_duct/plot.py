@@ -260,27 +260,36 @@ def _load_host_memory_total(file_path: Path) -> Optional[int]:
         return None
 
 
-def _find_working_interactive_backend(
-    backend_registry: Any, interactive_backends: List[str]
-) -> Optional[str]:
-    """Return the name of the first interactive backend that actually loads.
+def _find_working_interactive_backend(interactive_backends: List[str]) -> Optional[str]:
+    """Switch to and return the name of the first interactive backend that
+    actually works, leaving matplotlib switched to it. Returns ``None`` if
+    none of them work in this environment.
+
+    Uses ``matplotlib.use()`` (not just ``backend_registry.load_backend_module``)
+    for each candidate, since a backend's *module* can import fine (e.g.
+    tkinter present) while matplotlib still refuses to switch to it -- e.g.
+    over SSH with no display, ``switch_backend`` raises ``ImportError``
+    because the backend's required GUI framework can't run in a "headless"
+    session. Only ``matplotlib.use()`` performs that check; probing with
+    ``load_backend_module`` alone would report such a backend as "working"
+    and then crash uncaught later when it's actually switched to.
 
     Tries backends in ``_INTERACTIVE_BACKEND_PROBE_ORDER`` (falling back to
-    any other builtin interactive backend not in that list) and returns as
-    soon as one imports successfully. Returns ``None`` if none of them load
-    in this environment.
+    any other builtin interactive backend not in that list).
     """
+    import matplotlib
+
     ordered = list(_INTERACTIVE_BACKEND_PROBE_ORDER) + sorted(
         set(interactive_backends) - set(_INTERACTIVE_BACKEND_PROBE_ORDER)
     )
     for candidate in ordered:
         try:
-            backend_registry.load_backend_module(candidate)
+            matplotlib.use(candidate)
         except Exception as e:
-            # Backends report a missing dependency inconsistently -- e.g.
-            # webagg raises RuntimeError (not ImportError) when tornado is
-            # missing. We're only probing for *something* that works, so
-            # any failure here just means "skip this candidate".
+            # Backends fail for inconsistent reasons -- e.g. webagg raises
+            # RuntimeError (not ImportError) when tornado is missing. We're
+            # only probing for *something* that works, so any failure here
+            # just means "skip this candidate".
             lgr.debug("Backend %r failed to load: %s", candidate, e)
             continue
         return candidate
@@ -337,13 +346,17 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
         interactive_backends = backend_registry.list_builtin(BackendFilter.INTERACTIVE)
 
         if current_backend not in interactive_backends:
-            if os.environ.get("MPLBACKEND"):
-                # The user pinned this backend explicitly -- report it
-                # rather than silently overriding their choice.
+            mplbackend = os.environ.get("MPLBACKEND")
+            if mplbackend:
+                # The user pinned this backend explicitly -- report what
+                # they actually set (matplotlib may have already silently
+                # resolved away from it, e.g. over SSH with no display --
+                # current_backend would then show "agg", not their choice)
+                # rather than silently overriding it.
                 lgr.error(
                     "Cannot display plot: MPLBACKEND is set to %s which is "
                     "not a known interactive backend.",
-                    current_backend,
+                    mplbackend,
                 )
                 lgr.error(
                     "Either set MPLBACKEND to an interactive backend "
@@ -359,11 +372,9 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             # MPLBACKEND wasn't pinned -- probe the builtin interactive
             # backends ourselves (a wider net than matplotlib's own
             # auto-fallback, which skips e.g. webagg) and use the first one
-            # that actually loads in this environment, instead of just
+            # that actually works in this environment, instead of just
             # reporting whatever matplotlib itself gave up on.
-            working_backend = _find_working_interactive_backend(
-                backend_registry, interactive_backends
-            )
+            working_backend = _find_working_interactive_backend(interactive_backends)
             if working_backend is None:
                 lgr.error(
                     "Cannot display plot: tried all known interactive "
@@ -385,7 +396,6 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                 "Auto-selected matplotlib backend %r for interactive display.",
                 working_backend,
             )
-            matplotlib.use(working_backend)
         else:
             # The backend name being "interactive" doesn't mean it will
             # actually load -- e.g. a broken/incomplete Python installation
