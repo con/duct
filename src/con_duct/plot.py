@@ -354,15 +354,15 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
                 # current_backend would then show "agg", not their choice)
                 # rather than silently overriding it.
                 lgr.error(
-                    "Cannot display plot: MPLBACKEND is set to %s which is "
-                    "not a known interactive backend.",
+                    "Cannot display plot: MPLBACKEND=%s could not be used here.",
                     mplbackend,
                 )
                 lgr.error(
-                    "Either set MPLBACKEND to an interactive backend "
-                    "(one of: %s -- whichever has its GUI toolkit installed) "
-                    "or use --output to save the plot to a file instead.",
-                    ", ".join(sorted(interactive_backends)),
+                    "Usually this means there is no display (e.g. ssh without X "
+                    "forwarding) or no GUI toolkit installed. Use --output to save "
+                    "to a file, install a GUI toolkit (e.g. PyQt6, or python3-tk "
+                    "from your OS), or unset MPLBACKEND and install tornado to "
+                    "view in a browser via webagg."
                 )
                 lgr.error(
                     "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"
@@ -377,15 +377,15 @@ def matplotlib_plot(args: argparse.Namespace) -> int:
             working_backend = _find_working_interactive_backend(interactive_backends)
             if working_backend is None:
                 lgr.error(
-                    "Cannot display plot: tried all known interactive "
-                    "matplotlib backends (%s) and none of them could be "
-                    "loaded in this environment.",
-                    ", ".join(sorted(interactive_backends)),
+                    "Cannot display plot: no interactive matplotlib backend "
+                    "could be used here."
                 )
                 lgr.error(
-                    "Install a GUI toolkit (e.g. python3-tk for Tk, "
-                    "PyQt5/PySide6 for Qt) or use --output to save the plot "
-                    "to a file instead."
+                    "Usually this means there is no display (e.g. ssh without X "
+                    "forwarding) or no GUI toolkit installed. Use --output to save "
+                    "to a file, install a GUI toolkit (e.g. PyQt6, or python3-tk "
+                    "from your OS), or install tornado to view in a browser via "
+                    "webagg."
                 )
                 lgr.error(
                     "For more info: https://matplotlib.org/stable/users/explain/figure/backends.html"

@@ -221,8 +221,8 @@ class TestPlotMatplotlib:
         caplog: Any,
     ) -> None:
         """A non-interactive backend the user pinned via MPLBACKEND is
-        reported as an error (listing known interactive backends to try)
-        rather than silently overridden."""
+        reported as an error naming what they set, rather than silently
+        overridden."""
         monkeypatch.setenv("MPLBACKEND", "Agg")
 
         args = argparse.Namespace(
@@ -236,7 +236,8 @@ class TestPlotMatplotlib:
         )
         result = cli.execute(args)
         assert result == 1
-        assert "tkagg" in caplog.text
+        assert "MPLBACKEND=Agg" in caplog.text
+        assert "webagg" in caplog.text
 
     @requires_backend_registry
     @patch("matplotlib.get_backend", return_value="Agg")
@@ -365,7 +366,8 @@ class TestPlotMatplotlib:
             result = cli.execute(args)
         assert result == 1
         mock_show.assert_not_called()
-        assert "tried all known interactive" in caplog.text
+        assert "no interactive matplotlib backend" in caplog.text
+        assert "webagg" in caplog.text
 
     @requires_backend_registry
     @patch("matplotlib.backends.backend_registry.load_backend_module")
