@@ -326,17 +326,22 @@ class TestLS(unittest.TestCase):
             assert exit_code == 0
         return buf.getvalue().strip()
 
+    @staticmethod
+    def _extract_prefixes(result: str) -> list[str]:
+        """Helper function to extract "Prefix:" field values from ls() output."""
+        return [
+            line.split(":", 1)[1].strip()
+            for line in result.splitlines()
+            if line.startswith("Prefix:")
+        ]
+
     def test_ls_sanity(self) -> None:
         """Basic sanity test to ensure ls() runs without crashing."""
         just_file1 = ["file1_info.json"]
         result = self._run_ls(just_file1, "summaries")
 
         assert "Prefix:" in result
-        prefixes = [
-            line.split(":", 1)[1].strip()
-            for line in result.splitlines()
-            if line.startswith("Prefix:")
-        ]
+        prefixes = self._extract_prefixes(result)
         assert len(prefixes) == 1
         assert any("file1" in p for p in prefixes)
 
@@ -356,11 +361,7 @@ class TestLS(unittest.TestCase):
         result = self._run_ls(paths, "summaries", args)
 
         assert "Prefix:" in result
-        prefixes = [
-            line.split(":", 1)[1].strip()
-            for line in result.splitlines()
-            if line.startswith("Prefix:")
-        ]
+        prefixes = self._extract_prefixes(result)
         assert len(prefixes) == 1
         assert any("file1" in p for p in prefixes)
         # filter_this == 'no'
@@ -370,11 +371,7 @@ class TestLS(unittest.TestCase):
         result = self._run_ls([], "summaries")
 
         assert "Prefix:" in result
-        prefixes = [
-            line.split(":", 1)[1].strip()
-            for line in result.splitlines()
-            if line.startswith("Prefix:")
-        ]
+        prefixes = self._extract_prefixes(result)
         assert len(prefixes) == 1
         assert any("default_logpath" in p for p in prefixes)
 
@@ -389,11 +386,7 @@ class TestLS(unittest.TestCase):
         result = self._run_ls(files_1_and_2, "summaries")
 
         assert "Prefix:" in result
-        prefixes = [
-            line.split(":", 1)[1].strip()
-            for line in result.splitlines()
-            if line.startswith("Prefix:")
-        ]
+        prefixes = self._extract_prefixes(result)
         assert len(prefixes) == 2
         assert any("file1" in p for p in prefixes)
         assert any("file2" in p for p in prefixes)
@@ -404,11 +397,7 @@ class TestLS(unittest.TestCase):
         result = self._run_ls(files_1_2_3, "summaries")
 
         assert "Prefix:" in result
-        prefixes = [
-            line.split(":", 1)[1].strip()
-            for line in result.splitlines()
-            if line.startswith("Prefix:")
-        ]
+        prefixes = self._extract_prefixes(result)
         assert len(prefixes) == 2
         assert any("file1" in p for p in prefixes)
         assert any("file2" in p for p in prefixes)
@@ -421,11 +410,7 @@ class TestLS(unittest.TestCase):
         result = self._run_ls(all_files, "summaries")
 
         assert "Prefix:" in result
-        prefixes = [
-            line.split(":", 1)[1].strip()
-            for line in result.splitlines()
-            if line.startswith("Prefix:")
-        ]
+        prefixes = self._extract_prefixes(result)
         assert len(prefixes) == 2
         assert any("file1" in p for p in prefixes)
         assert any("file2" in p for p in prefixes)
