@@ -206,6 +206,7 @@ def test_aggregation_averages(mock_log_paths: mock.MagicMock) -> None:
     report.update_from_sample(sample2)
     report.update_from_sample(sample2)
     report.update_from_sample(sample2)
+    current_sample = _current_sample(report)
     assert current_sample.averages.num_samples == 6
     assert report.full_run_stats.averages.num_samples == 6
     assert current_sample.averages.rss == (stat0.rss + stat1.rss + stat2.rss * 4) / 6.0
