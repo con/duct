@@ -9,6 +9,7 @@ from typing import List, Optional
 from con_duct import __version__
 from con_duct._duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
 from con_duct._duct_main import execute as duct_execute
+from con_duct._formatter import validate_summary_format
 from con_duct._models import Outputs, RecordTypes, SessionMode
 from con_duct.ls import LS_FIELD_CHOICES, ls
 from con_duct.plot import CPU_MODE_PS_PCPU, CPU_MODES, matplotlib_plot
@@ -247,6 +248,22 @@ def setup_logging(args: argparse.Namespace) -> None:
         )
 
 
+def _summary_format_type(summary_format: str) -> str:
+    """argparse ``type`` for --summary-format: reject a bad template before the run.
+
+    argparse also applies this to the string default, so a bad
+    DUCT_SUMMARY_FORMAT (from the environment or a .env file) is caught too.
+    """
+    try:
+        return validate_summary_format(summary_format)
+    except Exception as e:
+        # Any failure to render known-good placeholder values is a bad template
+        raise argparse.ArgumentTypeError(
+            f"{summary_format!r}: {type(e).__name__}: {e} "
+            "(set via --summary-format, DUCT_SUMMARY_FORMAT, or a .env file)"
+        ) from e
+
+
 def _create_run_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser for the 'run' command."""
     parser = argparse.ArgumentParser(
@@ -276,7 +293,7 @@ def _create_run_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--summary-format",
-        type=str,
+        type=_summary_format_type,
         default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
         help="Output template to use when printing the summary following execution. "
         "Accepts custom conversion flags: "

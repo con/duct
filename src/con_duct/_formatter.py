@@ -177,3 +177,39 @@ class SummaryFormatter(string.Formatter):
         if conversion:
             return self.convert_field(value_, conversion)
         return value_
+
+
+# One non-None value per Report.execution_summary key, typed as a finished run
+# with 2+ samples produces them, so a format that renders these renders a run.
+VALIDATE_SUMMARY_PLACEHOLDERS: dict[str, Any] = {
+    "exit_code": 0,
+    "command": "cmd arg",
+    "logs_prefix": ".duct/logs/prefix_",
+    "wall_clock_time": 1.0,
+    "peak_rss": 1,
+    "average_rss": 1.0,
+    "peak_vsz": 1,
+    "average_vsz": 1.0,
+    "peak_pmem": 1.0,
+    "average_pmem": 1.0,
+    "peak_pcpu": 1.0,
+    "average_pcpu": 1.0,
+    "num_samples": 2,
+    "num_reports": 1,
+    "start_time": 1.0,
+    "end_time": 2.0,
+    "working_directory": "/",
+}
+
+
+def validate_summary_format(summary_format: str) -> str:
+    """Render ``summary_format`` against placeholder values, raising if it is invalid.
+
+    Args:
+        summary_format (str): Template as given to --summary-format.
+
+    Returns:
+        str: ``summary_format`` unchanged, so this can serve as an argparse ``type``.
+    """
+    SummaryFormatter().format(summary_format, **VALIDATE_SUMMARY_PLACEHOLDERS)
+    return summary_format
