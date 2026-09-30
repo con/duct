@@ -5,20 +5,19 @@ We use `auto <https://intuit.github.io/auto/>`_ (triggered via GitHub Actions)
 to generate the changelog and automatically release the project.  Changelog
 entries are generated from pull request titles and classified using pull
 request labels.  Every PR should therefore have a label; unlabelled PRs are
-treated as though they had the "patch" label by default.
+treated as though they had the "semver-patch" label by default.
 
-The following pull request labels are recognized:
+The following pull request labels are recognized (see ``.autorc``):
 
-* major: Increment the major version when merged
-* minor: Increment the minor version when merged
-* patch: Increment the patch version when merged
-* skip-release: Preserve the current version when merged
+* semver-major: Increment the major version when merged
+* semver-minor: Increment the minor version when merged
+* semver-patch: Increment the patch version when merged
 * release: Create a release when this PR is merged
-* internal: Changes only affect the internal API
-* documentation: Changes only affect the documentation
-* tests: Add or improve existing tests
-* dependencies: Update one or more dependencies version
-* performance: Improve performance of an existing feature
+* semver-internal: Changes only affect the internal API
+* semver-documentation: Changes only affect the documentation
+* semver-tests: Add or improve existing tests
+* semver-dependencies: Update one or more dependencies version
+* semver-performance: Improve performance of an existing feature
 
 
 Precommit
