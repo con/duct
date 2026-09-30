@@ -108,6 +108,14 @@ def test_summary_formatter_none_replacement() -> None:
     assert out == "test -"
 
 
+def test_summary_formatter_spec_mismatch_raises() -> None:
+    formatter = SummaryFormatter()
+    with pytest.raises(ValueError):
+        formatter.format("{value:.2d}", value=123456)
+    # None never reaches the spec, so it still renders
+    assert formatter.format("{value:.2d}", value=None) == "-"
+
+
 def test_summary_formatter_S_e2e() -> None:
     formatter = SummaryFormatter()
     one_arg = {"big_num": 100000}
@@ -353,7 +361,8 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
     )
     assert f"Rendering: {GREEN}nan{STOP}" == report.execution_summary_formatted
 
-    # or if we really provide bad formatting, e.g. the opposite order of conversion and formatting
+    # Python's {field!conv:spec} order: the colored conversion yields a str,
+    # which the float spec cannot format
     report = Report(
         "_cmd",
         [],
@@ -363,7 +372,11 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
         clobber=False,
         colors=colors,
     )
-    assert f"Rendering: {GREEN}nan{STOP}" == report.execution_summary_formatted
+    if colors:
+        with pytest.raises(ValueError):
+            _ = report.execution_summary_formatted
+    else:
+        assert "Rendering: nan" == report.execution_summary_formatted
 
 
 def test_summary_formatter_P_e2e() -> None:

@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 from datetime import datetime
-import logging
 import string
 from typing import Any
-
-lgr = logging.getLogger("con-duct")
-
 
 # Decimal (SI) byte units shared by SummaryFormatter.naturalsize (run
 # summary) and the plot axis formatter, so "kB" means the same thing in
@@ -165,15 +161,7 @@ class SummaryFormatter(string.Formatter):
             format_spec, conversion = format_spec.split("!", 1)
         else:
             conversion = None
-        try:
-            value_ = super().format_field(value, format_spec)
-        except ValueError as exc:
-            lgr.warning(
-                "Falling back to `str` formatting for %r due to exception: %s",
-                value,
-                exc,
-            )
-            return str(value)
+        value_ = super().format_field(value, format_spec)
         if conversion:
             return self.convert_field(value_, conversion)
         return value_
@@ -205,11 +193,17 @@ VALIDATE_SUMMARY_PLACEHOLDERS: dict[str, Any] = {
 def validate_summary_format(summary_format: str) -> str:
     """Render ``summary_format`` against placeholder values, raising if it is invalid.
 
+    Renders with colors both off and on: the custom conversions return colored
+    strings, so e.g. ``{wall_clock_time!X:.3f}`` fails only with colors.
+
     Args:
         summary_format (str): Template as given to --summary-format.
 
     Returns:
         str: ``summary_format`` unchanged, so this can serve as an argparse ``type``.
     """
-    SummaryFormatter().format(summary_format, **VALIDATE_SUMMARY_PLACEHOLDERS)
+    for enable_colors in (False, True):
+        SummaryFormatter(enable_colors=enable_colors).format(
+            summary_format, **VALIDATE_SUMMARY_PLACEHOLDERS
+        )
     return summary_format
