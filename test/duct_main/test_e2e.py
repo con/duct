@@ -102,9 +102,10 @@ def test_session_modes(temp_output_dir: str, duct_cmd: str, session_mode: str) -
 def test_session_mode_behavior_difference(temp_output_dir: str, duct_cmd: str) -> None:
     """Test that new-session and current-session modes behave differently."""
 
-    # Start a unique background process in the current session
+    # Start a unique background process in the current session. It must outlive
+    # both duct runs however slow they are (the finally block stops it).
     background_process = subprocess.Popen(
-        ["python", "-c", "print('DUCT_TEST_MARKER'); import time; time.sleep(10)"],
+        ["python", "-c", "print('DUCT_TEST_MARKER'); import time; time.sleep(600)"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
