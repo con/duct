@@ -15,18 +15,32 @@ class SigIntHandler:
     Handler of SIGINT signals received by the process running duct.
     """
 
-    def __init__(self, pid: int) -> None:
-        """
+    def __init__(self) -> None:
+        # Installed before the command starts; SIGINTs are only counted
+        # until attach() says which process to forward them to.
+        self.pid: Optional[int] = None
+        self.sigcount: int = 0
+
+    def attach(self, pid: int) -> None:
+        """Start forwarding SIGINTs to the command.
+
         Parameters
         ----------
         pid : int
-            The PID of the process monitored by duct
+            The PID of the process monitored by duct. A SIGINT that arrived
+            while it was being started is acted on now.
         """
-        self.pid: int = pid
-        self.sigcount: int = 0
+        self.pid = pid
+        if self.sigcount:
+            self._act()
 
     def __call__(self, _sig: int, _frame: Optional[FrameType]) -> None:
         self.sigcount += 1
+        if self.pid is not None:
+            self._act()
+
+    def _act(self) -> None:
+        assert self.pid is not None
         # Act before logging: the handler can interrupt duct mid-write to
         # stderr, and a failed log write must not stop the signal.
         if self.sigcount == 1:

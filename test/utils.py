@@ -6,7 +6,8 @@ import shlex
 import subprocess
 from typing import Any
 
-# duct logs this right after installing its SIGINT handler (_duct_main.execute).
+# duct logs this right after attaching its SIGINT handler to the command
+# (_duct_main.execute).
 # Anchored on the log format so the wrapped command's echoed stderr can't match.
 DUCT_READY = re.compile(r"\] con-duct: duct \S+ is executing ")
 
@@ -51,7 +52,7 @@ def start_duct(duct_cmd: str, args: list[str]) -> subprocess.Popen[str]:
     """Start duct as a subprocess and return once it is ready for signals.
 
     Reads duct's stderr until the log line emitted just after the SIGINT
-    handler is installed. The caller should finish with ``communicate()``,
+    handler is attached to the command. The caller should finish with ``communicate()``,
     which drains the rest of stderr and waits for duct to exit.
 
     Args:

@@ -65,6 +65,11 @@ def execute(
             sample_interval,
         )
 
+    # Install before any command exists so no SIGINT can kill duct and orphan
+    # the command; until attach() the handler only counts them.
+    sigint_handler = SigIntHandler()
+    signal.signal(signal.SIGINT, sigint_handler)
+
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
     try:
         log_paths.prepare_paths(clobber, capture_outputs)
@@ -99,6 +104,12 @@ def execute(
     )
     files_to_close.append(report.usage_file)
 
+    if sigint_handler.sigcount:
+        safe_close_files(files_to_close)
+        remove_files(log_paths, assert_empty=True)
+        lgr.info("Received SIGINT before starting %r, not starting it", command)
+        return 128 + signal.SIGINT
+
     report.start_time = time.time()
     try:
         report.process = process = subprocess.Popen(
@@ -118,7 +129,7 @@ def execute(
         lgr.error("%s: command not found", command)
         return 127  # seems what zsh and bash return then
 
-    signal.signal(signal.SIGINT, SigIntHandler(process.pid))
+    sigint_handler.attach(process.pid)
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
