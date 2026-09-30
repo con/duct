@@ -314,3 +314,20 @@ setsid bash -c "your command here" > out.log 2>&1
 ```
 
 If the symptom reproduces under `setsid`, develop and test the non-interactive flag set there; the command will then behave the same way under duct.
+
+### My command's output only appears when it finishes
+
+duct captures the command's output through pipes, so the command does not see a terminal (see the FAQ above).
+Many programs then buffer their stdout and write it out in large blocks or only at exit, just as they do under `cmd | tee log`; stderr usually stays live, so the two streams also lose their interleaving on the terminal.
+The captured `_stdout` log is complete either way.
+duct cannot change this without altering the command's environment, but the command can be told to flush as it goes [[ref: con/duct#218](https://github.com/con/duct/issues/218)]:
+
+| Program | Fix |
+|---|---|
+| Python | `duct python -u script.py`, or `PYTHONUNBUFFERED=1 duct python script.py` |
+| C programs using stdio (`grep`, `sed`, `awk`, most coreutils), including pipelines inside `bash -c` | `duct stdbuf -oL <cmd>` (on macOS, `gstdbuf` from Homebrew coreutils) |
+| Perl | add `$\| = 1;` near the top of the script (turns on autoflush for STDOUT); for a script you can't edit, use the next row |
+| Anything else | `duct unbuffer <cmd>` (from `expect`) or `duct script -qefc "<cmd>" /dev/null` |
+
+`stdbuf` only affects programs that use C stdio; it has no effect on Python or Perl, which buffer on their own, nor on statically linked or setuid binaries, or programs that set their own buffering.
+`unbuffer` and `script` run the command on a pseudo-terminal, so it behaves as if interactive: colors, progress bars, and other escape codes will then end up in the captured logs.
