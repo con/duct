@@ -238,3 +238,41 @@ def test_signal_int(
         with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
             info_data = json.loads(info.read())
         assert info_data["execution_summary"]["exit_code"] == 128 + signal.SIGINT
+
+
+def _wait_for_lines(path: Path, n: int, proc: subprocess.Popen[str]) -> None:
+    """Wait until *path* has *n* lines, failing if duct exits first."""
+    while not path.exists() or len(path.read_text().splitlines()) < n:
+        assert proc.poll() is None, f"duct exited before {path.name} had {n} lines"
+        time.sleep(0.01)
+
+
+# @pytest.mark.flaky(reruns=5)  # disabled: the test waits for each step instead of sleeping
+@pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
+def test_signal_kill(
+    temp_output_dir: str, tmp_path: Path, duct_cmd: str, fail_time: float | None
+) -> None:
+    progress = tmp_path / "signal_ignorer.progress"
+    args = ["-p", temp_output_dir]
+    if fail_time is not None:
+        args.append(f"--fail-time={fail_time}")
+    script = TEST_SCRIPT_DIR / "signal_ignorer.py"
+    proc = start_duct(duct_cmd, [*args, str(script), str(progress)])
+
+    _wait_for_lines(progress, 1, proc)  # "ready": the command ignores SIGINT now
+    # duct forwards the first two; each must arrive before the next is sent,
+    # since pending SIGINTs merge into one
+    for received in (2, 3):
+        os.kill(proc.pid, signal.SIGINT)
+        _wait_for_lines(progress, received, proc)
+    os.kill(proc.pid, signal.SIGINT)  # third: duct kills the command
+    proc.communicate()
+
+    assert proc.returncode == 128 + signal.SIGKILL
+
+    if fail_time is None or fail_time != 0:
+        assert_files(temp_output_dir, LOG_FILES, exists=False)
+    else:
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+        assert info_data["execution_summary"]["exit_code"] == 128 + signal.SIGKILL
