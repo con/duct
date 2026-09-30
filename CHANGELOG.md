@@ -1,3 +1,28 @@
+# v0.23.0 (Wed Sep 30 2026)
+
+#### 🚀 Enhancement
+
+- plot: fail fast with guidance when interactive backend fails to load [#449](https://github.com/con/duct/pull/449) ([@claude](https://github.com/claude) [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot]) [@yarikoptic-gitmate](https://github.com/yarikoptic-gitmate))
+- Add --sort-by option to ls command for flexible result ordering [#446](https://github.com/con/duct/pull/446) ([@Copilot](https://github.com/Copilot) [@claude](https://github.com/claude) [@asmacdo](https://github.com/asmacdo) [@yarikoptic](https://github.com/yarikoptic))
+- merge: resolve conflict with main (compiled_filter refactor) [#434](https://github.com/con/duct/pull/434) (198982749+Copilot@users.noreply.github.com)
+
+#### 🐛 Bug Fix
+
+- REUSE.toml: cover every file with a catch-all annotation [#448](https://github.com/con/duct/pull/448) ([@asmacdo](https://github.com/asmacdo))
+- Add REUSE compliance for license/copyright annotation [#419](https://github.com/con/duct/pull/419) ([@Copilot](https://github.com/Copilot))
+
+#### Authors: 7
+
+- [@Copilot](https://github.com/Copilot)
+- [@pre-commit-ci[bot]](https://github.com/pre-commit-ci[bot])
+- Austin Macdonald ([@asmacdo](https://github.com/asmacdo))
+- Claude ([@claude](https://github.com/claude))
+- copilot-swe-agent[bot] (198982749+Copilot@users.noreply.github.com)
+- GitMate for @yarikoptic ([@yarikoptic-gitmate](https://github.com/yarikoptic-gitmate))
+- Yaroslav Halchenko ([@yarikoptic](https://github.com/yarikoptic))
+
+---
+
 # v0.22.0 (Mon Aug 24 2026)
 
 #### 🚀 Enhancement
