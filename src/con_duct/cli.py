@@ -248,6 +248,10 @@ def setup_logging(args: argparse.Namespace) -> None:
         )
 
 
+# Python's {field!conv:spec} order; duct's conversions only compose as {field:spec!conv}
+CONVERSION_BEFORE_SPEC = re.compile(r"\{(\w+)!(\w):([^}]*)\}")
+
+
 def _summary_format_type(summary_format: str) -> str:
     """argparse ``type`` for --summary-format: reject a bad template before the run.
 
@@ -258,9 +262,15 @@ def _summary_format_type(summary_format: str) -> str:
         return validate_summary_format(summary_format)
     except Exception as e:
         # Any failure to render known-good placeholder values is a bad template
+        msg = f"{summary_format!r}: {type(e).__name__}: {e}"
+        if m := CONVERSION_BEFORE_SPEC.search(summary_format):
+            field, conversion, spec = m.groups()
+            msg += (
+                "; duct applies conversions after the spec, "
+                f"try {{{field}:{spec}!{conversion}}}"
+            )
         raise argparse.ArgumentTypeError(
-            f"{summary_format!r}: {type(e).__name__}: {e} "
-            "(set via --summary-format, DUCT_SUMMARY_FORMAT, or a .env file)"
+            f"{msg} (set via --summary-format, DUCT_SUMMARY_FORMAT, or a .env file)"
         ) from e
 
 
