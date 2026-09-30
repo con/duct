@@ -27,15 +27,33 @@ class SigIntHandler:
 
     def __call__(self, _sig: int, _frame: Optional[FrameType]) -> None:
         self.sigcount += 1
+        # Act before logging: the handler can interrupt duct mid-write to
+        # stderr, and a failed log write must not stop the signal.
         if self.sigcount == 1:
-            lgr.info("Received SIGINT, passing to command")
             os.kill(self.pid, signal.SIGINT)
+            _log(logging.INFO, "Received SIGINT, passing to command")
         elif self.sigcount == 2:
-            lgr.info("Received second SIGINT, again passing to command")
             os.kill(self.pid, signal.SIGINT)
+            _log(logging.INFO, "Received second SIGINT, again passing to command")
         elif self.sigcount == 3:
-            lgr.warning("Received third SIGINT, forcefully killing command process")
             os.kill(self.pid, signal.SIGKILL)
+            _log(
+                logging.WARNING,
+                "Received third SIGINT, forcefully killing command process",
+            )
         elif self.sigcount >= 4:
-            lgr.critical("Exiting duct, skipping cleanup")
+            _log(logging.CRITICAL, "Exiting duct, skipping cleanup")
             os._exit(1)
+
+
+def _log(level: int, msg: str) -> None:
+    """Log from a signal handler without ever raising.
+
+    If the signal arrived while duct was writing to stderr, logging raises
+    ``RuntimeError: reentrant call`` (even its error report does); drop the
+    message rather than let the error escape the handler.
+    """
+    try:
+        lgr.log(level, msg)
+    except RuntimeError:
+        pass
