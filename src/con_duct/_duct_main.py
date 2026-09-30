@@ -193,5 +193,21 @@ def execute(
         )
         remove_files(log_paths)
     else:
-        lgr.info(report.execution_summary_formatted)
+        try:
+            summary = report.execution_summary_formatted
+        except Exception as e:
+            # The command has already run: keep its exit code and logs
+            lgr.error(
+                "Could not render the summary with %r (%s: %s)%s",
+                summary_format,
+                type(e).__name__,
+                e,
+                (
+                    f"; the execution summary is in {log_paths.info}"
+                    if record_types.has_system_summary()
+                    else ""
+                ),
+            )
+        else:
+            lgr.info(summary)
     return report.process.returncode
