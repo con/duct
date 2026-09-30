@@ -117,6 +117,7 @@ src_paths = ["src"]
 [tool.coverage.run]
 branch = true
 parallel = true
+patch = ["subprocess"]
 
 [tool.coverage.paths]
 source = [
