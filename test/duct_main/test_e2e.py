@@ -3,13 +3,16 @@ import json
 import os
 from pathlib import Path
 import platform
+import signal
 import subprocess
 import time
 import pytest
+from utils import assert_files, start_duct
 from con_duct._constants import SUFFIXES
 
 SYSTEM = platform.system()
 TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
+LOG_FILES = [SUFFIXES[k] for k in ("stdout", "stderr", "info", "usage")]
 # Allow overriding the duct executable for testing external builds (e.g., PyInstaller)
 _DUCT_EXECUTABLES = [
     exe.strip()
@@ -212,3 +215,26 @@ def test_logging_levels(temp_output_dir: str, duct_cmd: str) -> None:
     assert (
         result_none.stderr == ""
     ), f"Expected empty stderr, got: {result_none.stderr!r}"
+
+
+# @pytest.mark.flaky(reruns=5)  # disabled: start_duct waits for duct instead of sleeping
+@pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
+def test_signal_int(
+    temp_output_dir: str, duct_cmd: str, fail_time: float | None
+) -> None:
+    args = ["-p", temp_output_dir]
+    if fail_time is not None:
+        args.append(f"--fail-time={fail_time}")
+    proc = start_duct(duct_cmd, [*args, "sleep", "60"])
+    os.kill(proc.pid, signal.SIGINT)
+    proc.communicate()
+
+    # duct forwards SIGINT to the command and exits with the command's code
+    assert proc.returncode == 128 + signal.SIGINT
+
+    if fail_time is None or fail_time != 0:
+        assert_files(temp_output_dir, LOG_FILES, exists=False)
+    else:
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+        assert info_data["execution_summary"]["exit_code"] == 128 + signal.SIGINT
