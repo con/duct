@@ -40,8 +40,9 @@ lgr = logging.getLogger(__name__)
 _NO_BACKEND_HINT = (
     "Usually this means there is no display (e.g. ssh without X forwarding) "
     "or no GUI toolkit installed. Use --output to save to a file, install a "
-    "GUI toolkit (e.g. PyQt6, or python3-tk from your OS), or install tornado "
-    "to view in a browser via webagg."
+    "GUI toolkit (e.g. PyQt6, or python3-tk from your OS), or run "
+    "`pip install tornado` to view in a browser via webagg (works without a "
+    "display or any GUI toolkit)."
 )
 
 # Order in which to probe built-in interactive backends when the user hasn't
