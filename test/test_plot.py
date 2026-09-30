@@ -5,12 +5,24 @@ import json
 import os
 from pathlib import Path
 from typing import Any, List, Tuple
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import MagicMock, Mock, call, mock_open, patch
 import pytest
 
 pytest.importorskip("matplotlib")
+import matplotlib.backends  # noqa: E402
 from con_duct import cli, plot  # noqa: E402
 from con_duct._formatter import FILESIZE_UNITS  # noqa: E402
+
+# matplotlib < 3.9 has no backend_registry module at all, so any @patch(...)
+# decorator naming it (e.g. "matplotlib.backends.backend_registry.foo") blows
+# up while pytest is still setting up the test call -- before a pytest.skip()
+# in the test body would ever run. Tests that decorate it must instead be
+# skipped via this marker, which pytest evaluates at collection time and
+# never calls the decorated function at all.
+requires_backend_registry = pytest.mark.skipif(
+    not hasattr(matplotlib.backends, "backend_registry"),
+    reason="requires backend_registry (matplotlib >= 3.9)",
+)
 
 
 @pytest.mark.parametrize(
@@ -196,20 +208,22 @@ class TestPlotMatplotlib:
         assert cli.execute(args) == 1
         mock_plot_save.assert_not_called()
 
+    @requires_backend_registry
     @patch(
         "matplotlib.get_backend",
         side_effect=AttributeError("get_backend not available"),
     )
     @patch.dict("matplotlib.rcParams", {"backend": "Agg"})
-    def test_matplotlib_plot_non_interactive_backend(
+    def test_matplotlib_plot_non_interactive_backend_pinned(
         self,
         _mock_get_backend: MagicMock,
+        monkeypatch: Any,
+        caplog: Any,
     ) -> None:
-        """Test that plotting without output in non-interactive backend returns error."""
-        import matplotlib.backends
-
-        if not hasattr(matplotlib.backends, "backend_registry"):
-            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
+        """A non-interactive backend the user pinned via MPLBACKEND is
+        reported as an error naming what they set, rather than silently
+        overridden."""
+        monkeypatch.setenv("MPLBACKEND", "Agg")
 
         args = argparse.Namespace(
             command="plot",
@@ -222,17 +236,18 @@ class TestPlotMatplotlib:
         )
         result = cli.execute(args)
         assert result == 1
+        assert "MPLBACKEND=Agg" in caplog.text
+        assert "webagg" in caplog.text
 
+    @requires_backend_registry
     @patch("matplotlib.get_backend", return_value="Agg")
-    def test_matplotlib_plot_non_interactive_backend_with_get_backend(
+    def test_matplotlib_plot_non_interactive_backend_pinned_with_get_backend(
         self,
         _mock_get_backend: MagicMock,
+        monkeypatch: Any,
     ) -> None:
-        """Test that plotting without output in non-interactive backend returns error using get_backend."""
-        import matplotlib.backends
-
-        if not hasattr(matplotlib.backends, "backend_registry"):
-            pytest.skip("requires backend_registry (matplotlib >= 3.9)")
+        """Same as above, exercising the get_backend() (matplotlib >= 3.10) path."""
+        monkeypatch.setenv("MPLBACKEND", "Agg")
 
         args = argparse.Namespace(
             command="plot",
@@ -246,12 +261,123 @@ class TestPlotMatplotlib:
         result = cli.execute(args)
         assert result == 1
 
+    @requires_backend_registry
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="Agg")
+    def test_matplotlib_plot_auto_probes_when_unpinned(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        monkeypatch: Any,
+        caplog: Any,
+    ) -> None:
+        """When MPLBACKEND isn't set and the resolved backend is
+        non-interactive, con-duct should probe the builtin interactive
+        backends itself (by actually switching to each, not just importing
+        its module -- see test_matplotlib_plot_auto_probe_skips_headless_only_failure
+        for why) and use the first one that works."""
+        monkeypatch.delenv("MPLBACKEND", raising=False)
+        caplog.set_level("INFO")
+
+        def fake_use(name: str) -> None:
+            if name != "qtagg":
+                raise ImportError(f"No module for {name}")
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        with patch("matplotlib.use", side_effect=fake_use) as mock_use:
+            result = cli.execute(args)
+        assert result == 0
+        mock_use.assert_called_with("qtagg")
+        mock_show.assert_called_once()
+        assert "Auto-selected matplotlib backend" in caplog.text
+
+    @requires_backend_registry
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="Agg")
+    def test_matplotlib_plot_auto_probe_skips_headless_only_failure(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        monkeypatch: Any,
+    ) -> None:
+        """A candidate whose *module* imports fine but that matplotlib still
+        refuses to switch to (e.g. a GUI backend over SSH with no display --
+        switch_backend raises ImportError there even though the module
+        loaded) must be skipped, not reported as working and left to crash
+        uncaught later in matplotlib.use()."""
+        monkeypatch.delenv("MPLBACKEND", raising=False)
+
+        def fake_use(name: str) -> None:
+            if name == "macosx":
+                raise ImportError(
+                    "Cannot load backend 'macosx' which requires the 'macosx' "
+                    "interactive framework, as 'headless' is currently running"
+                )
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        with patch("matplotlib.use", side_effect=fake_use) as mock_use:
+            result = cli.execute(args)
+        assert result == 0
+        assert mock_use.call_args_list[0] == call("macosx")
+        assert mock_use.call_args_list[-1] != call("macosx")
+        mock_show.assert_called_once()
+
+    @requires_backend_registry
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="Agg")
+    def test_matplotlib_plot_auto_probe_all_fail(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        monkeypatch: Any,
+        caplog: Any,
+    ) -> None:
+        """When MPLBACKEND isn't set and none of the builtin interactive
+        backends can be loaded, fail with guidance rather than a
+        traceback."""
+        monkeypatch.delenv("MPLBACKEND", raising=False)
+
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        with patch("matplotlib.use", side_effect=ImportError("nope")):
+            result = cli.execute(args)
+        assert result == 1
+        mock_show.assert_not_called()
+        assert "no interactive matplotlib backend" in caplog.text
+        assert "webagg" in caplog.text
+
+    @requires_backend_registry
+    @patch("matplotlib.backends.backend_registry.load_backend_module")
     @patch("matplotlib.pyplot.show")
     @patch("matplotlib.get_backend", return_value="tkagg")
     def test_matplotlib_plot_interactive_backend_with_get_backend(
         self,
         _mock_get_backend: MagicMock,
         mock_show: MagicMock,
+        _mock_load_backend_module: MagicMock,
     ) -> None:
         """Test that plotting without output in interactive backend calls plt.show() successfully."""
 
@@ -267,6 +393,71 @@ class TestPlotMatplotlib:
         result = cli.execute(args)
         assert result == 0
         mock_show.assert_called_once()
+        _mock_load_backend_module.assert_called_once_with("tkagg")
+
+    @requires_backend_registry
+    @patch(
+        "matplotlib.backends.backend_registry.load_backend_module",
+        side_effect=ImportError("No module named 'tkinter'"),
+    )
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="tkagg")
+    def test_matplotlib_plot_backend_fails_to_load(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        mock_load_backend_module: MagicMock,
+        caplog: Any,
+    ) -> None:
+        """A backend that reports as interactive but fails to import (e.g. a
+        broken tkinter install) should fail with guidance, not plt.show()."""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        result = cli.execute(args)
+        assert result == 1
+        mock_show.assert_not_called()
+        mock_load_backend_module.assert_called_once_with("tkagg")
+        assert "Failed to initialize matplotlib backend" in caplog.text
+        assert "--output" in caplog.text
+
+    @requires_backend_registry
+    @patch(
+        "matplotlib.backends.backend_registry.load_backend_module",
+        side_effect=RuntimeError("The WebAgg backend requires Tornado."),
+    )
+    @patch("matplotlib.pyplot.show")
+    @patch("matplotlib.get_backend", return_value="webagg")
+    def test_matplotlib_plot_backend_fails_to_load_non_import_error(
+        self,
+        _mock_get_backend: MagicMock,
+        mock_show: MagicMock,
+        mock_load_backend_module: MagicMock,
+        caplog: Any,
+    ) -> None:
+        """Some backends (e.g. webagg without tornado) raise RuntimeError,
+        not ImportError, when their dependency is missing -- that must be
+        caught with guidance too, not leak as a raw traceback."""
+        args = argparse.Namespace(
+            command="plot",
+            file_path="test/data/mriqc-example/usage.json",
+            output=None,
+            func=plot.matplotlib_plot,
+            log_level="INFO",
+            min_ratio=3.0,
+            cpu="ps-pcpu",
+        )
+        result = cli.execute(args)
+        assert result == 1
+        mock_show.assert_not_called()
+        mock_load_backend_module.assert_called_once_with("webagg")
+        assert "Failed to initialize matplotlib backend" in caplog.text
 
     @patch(
         "builtins.__import__", side_effect=ImportError("No module named 'matplotlib'")
