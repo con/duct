@@ -40,6 +40,18 @@ class SigIntHandler:
             self._act()
 
     def _act(self) -> None:
+        try:
+            self._forward()
+        except ProcessLookupError:
+            # The command has already exited. Python runs this handler in
+            # the main thread at its next bytecode, which can be only after
+            # the wait for the command returns.
+            _log(
+                logging.WARNING,
+                "Received SIGINT, but the command has already exited",
+            )
+
+    def _forward(self) -> None:
         assert self.pid is not None
         # Act before logging: the handler can interrupt duct mid-write to
         # stderr, and a failed log write must not stop the signal.

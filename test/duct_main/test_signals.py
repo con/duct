@@ -83,6 +83,21 @@ def test_forwards_even_if_logging_fails(
     assert sent == [(1234, signal.SIGINT)]
 
 
+def test_command_already_exited(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def no_such_process(_pid: int, _sig: int) -> None:
+        raise ProcessLookupError(3, "No such process")
+
+    monkeypatch.setattr("con_duct._signals.os.kill", no_such_process)
+    handler = SigIntHandler()
+    handler.attach(1234)
+    handler(signal.SIGINT, None)  # must not raise
+    assert [(r.levelname, r.message) for r in caplog.records] == [
+        ("WARNING", "Received SIGINT, but the command has already exited")
+    ]
+
+
 @pytest.mark.usefixtures("restore_sigint")
 def test_sigint_before_command_starts_does_not_start_it(
     temp_output_dir: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
