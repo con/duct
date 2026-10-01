@@ -71,12 +71,31 @@ def start_duct(duct_cmd: str, args: list[str]) -> subprocess.Popen[str]:
         text=True,
     )
     assert proc.stderr is not None  # for mypy
+    seen = []
     for line in proc.stderr:
         if DUCT_READY.search(line):
             return proc
+        seen.append(line)
     raise RuntimeError(
-        f"duct exited with {proc.wait()} before logging that it is executing"
+        f"duct exited with {proc.wait()} before logging that it is executing; "
+        f"its stderr:\n{''.join(seen)}"
     )
+
+
+def rest_of_stderr(proc: subprocess.Popen[str]) -> str:
+    """What duct wrote to stderr since ``start_duct`` returned, for failure messages.
+
+    Reads to end of file, so only call it once duct has exited.
+
+    Args:
+        proc: A duct process from ``start_duct``
+
+    Returns:
+        The unread remainder of duct's stderr
+    """
+    assert proc.stderr is not None  # for mypy
+    rest: str = proc.stderr.read()
+    return rest
 
 
 class MockStream:

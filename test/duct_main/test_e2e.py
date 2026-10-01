@@ -7,7 +7,7 @@ import signal
 import subprocess
 import time
 import pytest
-from utils import assert_files, start_duct
+from utils import assert_files, rest_of_stderr, start_duct
 from con_duct._constants import SUFFIXES
 
 SYSTEM = platform.system()
@@ -244,7 +244,10 @@ def test_signal_int(
 def _wait_for_lines(path: Path, n: int, proc: subprocess.Popen[str]) -> None:
     """Wait until *path* has *n* lines, failing if duct exits first."""
     while not path.exists() or len(path.read_text().splitlines()) < n:
-        assert proc.poll() is None, f"duct exited before {path.name} had {n} lines"
+        assert proc.poll() is None, (
+            f"duct exited with {proc.returncode} before {path.name} had {n} lines; "
+            f"its stderr:\n{rest_of_stderr(proc)}"
+        )
         time.sleep(0.01)
 
 
