@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import shutil
 import signal
 import subprocess
 import time
@@ -32,7 +33,20 @@ def test_sanity(temp_output_dir: str, duct_cmd: str) -> None:
 
 
 # @pytest.mark.flaky(reruns=3)  # disabled: children live until duct has sampled them
-@pytest.mark.parametrize("mode", ["plain", "subshell", "nohup", "setsid"])
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "plain",
+        "subshell",
+        "nohup",
+        pytest.param(
+            "setsid",
+            marks=pytest.mark.skipif(
+                shutil.which("setsid") is None, reason="needs the setsid command"
+            ),
+        ),
+    ],
+)
 @pytest.mark.parametrize("num_children", [1, 2, 10])
 def test_spawn_children(
     temp_output_dir: str,
@@ -58,11 +72,11 @@ def test_spawn_children(
             pid for line in usage_file for pid in json.loads(line)["processes"]
         }
     child_pids = {f.name for f in started.iterdir()}
+    assert len(child_pids) == num_children
     if mode == "setsid":
-        # Their own session, which duct does not track
+        # Started in their own session, which duct does not track
         assert not child_pids & sampled_pids
     else:
-        assert len(child_pids) == num_children
         assert child_pids <= sampled_pids
 
 
