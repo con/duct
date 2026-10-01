@@ -73,7 +73,6 @@ def test_sanity_green(temp_output_dir: str) -> None:
     assert_expected_files(temp_output_dir)
 
 
-# @pytest.mark.flaky(reruns=5)  # disabled: the command waits until it is sampled
 def test_execution_summary(temp_output_dir: str) -> None:
     # The command exits once duct has sampled it (exit 1 if it never is)
     script = str(TEST_SCRIPT_DIR / "until_sampled.sh")
