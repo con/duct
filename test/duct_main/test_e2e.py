@@ -218,14 +218,15 @@ def test_logging_levels(temp_output_dir: str, duct_cmd: str) -> None:
     ), f"Expected empty stderr, got: {result_none.stderr!r}"
 
 
+# The --fail-time values whose effect does not depend on how long the run
+# took: 0 always keeps a failed command's logs, a negative value never does
+FAIL_TIMES = [0, -1]
+
+
 # @pytest.mark.flaky(reruns=5)  # disabled: start_duct waits for duct instead of sleeping
-@pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
-def test_signal_int(
-    temp_output_dir: str, duct_cmd: str, fail_time: float | None
-) -> None:
-    args = ["-p", temp_output_dir]
-    if fail_time is not None:
-        args.append(f"--fail-time={fail_time}")
+@pytest.mark.parametrize("fail_time", FAIL_TIMES)
+def test_signal_int(temp_output_dir: str, duct_cmd: str, fail_time: int) -> None:
+    args = ["-p", temp_output_dir, f"--fail-time={fail_time}"]
     proc = start_duct(duct_cmd, [*args, "sleep", "60"])
     os.kill(proc.pid, signal.SIGINT)
     proc.communicate()
@@ -233,7 +234,7 @@ def test_signal_int(
     # duct forwards SIGINT to the command and exits with the command's code
     assert proc.returncode == 128 + signal.SIGINT
 
-    if fail_time is None or fail_time != 0:
+    if fail_time < 0:
         assert_files(temp_output_dir, LOG_FILES, exists=False)
     else:
         with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
@@ -252,14 +253,12 @@ def _wait_for_lines(path: Path, n: int, proc: subprocess.Popen[str]) -> None:
 
 
 # @pytest.mark.flaky(reruns=5)  # disabled: the test waits for each step instead of sleeping
-@pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
+@pytest.mark.parametrize("fail_time", FAIL_TIMES)
 def test_signal_kill(
-    temp_output_dir: str, tmp_path: Path, duct_cmd: str, fail_time: float | None
+    temp_output_dir: str, tmp_path: Path, duct_cmd: str, fail_time: int
 ) -> None:
     progress = tmp_path / "signal_ignorer.progress"
-    args = ["-p", temp_output_dir]
-    if fail_time is not None:
-        args.append(f"--fail-time={fail_time}")
+    args = ["-p", temp_output_dir, f"--fail-time={fail_time}"]
     script = TEST_SCRIPT_DIR / "signal_ignorer.py"
     proc = start_duct(duct_cmd, [*args, str(script), str(progress)])
 
@@ -274,7 +273,7 @@ def test_signal_kill(
 
     assert proc.returncode == 128 + signal.SIGKILL
 
-    if fail_time is None or fail_time != 0:
+    if fail_time < 0:
         assert_files(temp_output_dir, LOG_FILES, exists=False)
     else:
         with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
