@@ -3,13 +3,16 @@ import json
 import os
 from pathlib import Path
 import platform
+import signal
 import subprocess
 import time
 import pytest
+from utils import assert_files, rest_of_stderr, start_duct
 from con_duct._constants import SUFFIXES
 
 SYSTEM = platform.system()
 TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
+LOG_FILES = [SUFFIXES[k] for k in ("stdout", "stderr", "info", "usage")]
 # Allow overriding the duct executable for testing external builds (e.g., PyInstaller)
 _DUCT_EXECUTABLES = [
     exe.strip()
@@ -99,9 +102,10 @@ def test_session_modes(temp_output_dir: str, duct_cmd: str, session_mode: str) -
 def test_session_mode_behavior_difference(temp_output_dir: str, duct_cmd: str) -> None:
     """Test that new-session and current-session modes behave differently."""
 
-    # Start a unique background process in the current session
+    # Start a unique background process in the current session. It must outlive
+    # both duct runs however slow they are (the finally block stops it).
     background_process = subprocess.Popen(
-        ["python", "-c", "print('DUCT_TEST_MARKER'); import time; time.sleep(10)"],
+        ["python", "-c", "print('DUCT_TEST_MARKER'); import time; time.sleep(600)"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -212,3 +216,66 @@ def test_logging_levels(temp_output_dir: str, duct_cmd: str) -> None:
     assert (
         result_none.stderr == ""
     ), f"Expected empty stderr, got: {result_none.stderr!r}"
+
+
+# The --fail-time values whose effect does not depend on how long the run
+# took: 0 always keeps a failed command's logs, a negative value never does
+FAIL_TIMES = [0, -1]
+
+
+# @pytest.mark.flaky(reruns=5)  # disabled: start_duct waits for duct instead of sleeping
+@pytest.mark.parametrize("fail_time", FAIL_TIMES)
+def test_signal_int(temp_output_dir: str, duct_cmd: str, fail_time: int) -> None:
+    args = ["-p", temp_output_dir, f"--fail-time={fail_time}"]
+    proc = start_duct(duct_cmd, [*args, "sleep", "60"])
+    os.kill(proc.pid, signal.SIGINT)
+    proc.communicate()
+
+    # duct forwards SIGINT to the command and exits with the command's code
+    assert proc.returncode == 128 + signal.SIGINT
+
+    if fail_time < 0:
+        assert_files(temp_output_dir, LOG_FILES, exists=False)
+    else:
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+        assert info_data["execution_summary"]["exit_code"] == 128 + signal.SIGINT
+
+
+def _wait_for_lines(path: Path, n: int, proc: subprocess.Popen[str]) -> None:
+    """Wait until *path* has *n* lines, failing if duct exits first."""
+    while not path.exists() or len(path.read_text().splitlines()) < n:
+        assert proc.poll() is None, (
+            f"duct exited with {proc.returncode} before {path.name} had {n} lines; "
+            f"its stderr:\n{rest_of_stderr(proc)}"
+        )
+        time.sleep(0.01)
+
+
+# @pytest.mark.flaky(reruns=5)  # disabled: the test waits for each step instead of sleeping
+@pytest.mark.parametrize("fail_time", FAIL_TIMES)
+def test_signal_kill(
+    temp_output_dir: str, tmp_path: Path, duct_cmd: str, fail_time: int
+) -> None:
+    progress = tmp_path / "signal_ignorer.progress"
+    args = ["-p", temp_output_dir, f"--fail-time={fail_time}"]
+    script = TEST_SCRIPT_DIR / "signal_ignorer.py"
+    proc = start_duct(duct_cmd, [*args, str(script), str(progress)])
+
+    _wait_for_lines(progress, 1, proc)  # "ready": the command ignores SIGINT now
+    # duct forwards the first two; each must arrive before the next is sent,
+    # since pending SIGINTs merge into one
+    for received in (2, 3):
+        os.kill(proc.pid, signal.SIGINT)
+        _wait_for_lines(progress, received, proc)
+    os.kill(proc.pid, signal.SIGINT)  # third: duct kills the command
+    proc.communicate()
+
+    assert proc.returncode == 128 + signal.SIGKILL
+
+    if fail_time < 0:
+        assert_files(temp_output_dir, LOG_FILES, exists=False)
+    else:
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+        assert info_data["execution_summary"]["exit_code"] == 128 + signal.SIGKILL
