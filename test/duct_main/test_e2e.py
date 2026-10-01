@@ -3,13 +3,17 @@ import json
 import os
 from pathlib import Path
 import platform
+import shutil
+import signal
 import subprocess
 import time
 import pytest
+from utils import assert_files, rest_of_stderr, start_duct
 from con_duct._constants import SUFFIXES
 
 SYSTEM = platform.system()
 TEST_SCRIPT_DIR = Path(__file__).parent.parent / "data"
+LOG_FILES = [SUFFIXES[k] for k in ("stdout", "stderr", "info", "usage")]
 # Allow overriding the duct executable for testing external builds (e.g., PyInstaller)
 _DUCT_EXECUTABLES = [
     exe.strip()
@@ -28,48 +32,69 @@ def test_sanity(temp_output_dir: str, duct_cmd: str) -> None:
     subprocess.check_output(command, shell=True)
 
 
-@pytest.mark.flaky(reruns=3)
-@pytest.mark.parametrize("mode", ["plain", "subshell", "nohup", "setsid"])
+# @pytest.mark.flaky(reruns=3)  # disabled: children live until duct has sampled them
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "plain",
+        "subshell",
+        "nohup",
+        pytest.param(
+            "setsid",
+            marks=pytest.mark.skipif(
+                shutil.which("setsid") is None, reason="needs the setsid command"
+            ),
+        ),
+    ],
+)
 @pytest.mark.parametrize("num_children", [1, 2, 10])
 def test_spawn_children(
-    temp_output_dir: str, duct_cmd: str, mode: str, num_children: int
+    temp_output_dir: str,
+    tmp_path: Path,
+    duct_cmd: str,
+    mode: str,
+    num_children: int,
 ) -> None:
     duct_prefix = f"{temp_output_dir}log_"
+    usage_path = f"{duct_prefix}{SUFFIXES['usage']}"
+    started = tmp_path / "started"  # each child creates a file named by its pid
+    started.mkdir()
     script_path = TEST_SCRIPT_DIR / "spawn_children.sh"
-    dur = "0.3"
     command = (
-        f"{duct_cmd} -q --s-i 0.001 --r-i 0.01 "
-        f"-p {duct_prefix} {script_path} {mode} {num_children} {dur}"
+        f"{duct_cmd} -q --s-i 0.001 --r-i 0.01 -p {duct_prefix} "
+        f"{script_path} {mode} {num_children} {usage_path} {started}"
     )
+    # Fails (exit 1) if the children were not all sampled within 60 s
     subprocess.check_output(command, shell=True)
 
-    with open(f"{duct_prefix}{SUFFIXES['usage']}") as usage_file:
-        all_samples = [json.loads(line) for line in usage_file]
-
-    # Only count the child sleep processes
-    all_child_pids = set(
-        pid
-        for sample in all_samples
-        for pid, proc in sample["processes"].items()
-        if "sleep" in proc["cmd"]
-    )
-    # Add one pid for the hold-the-door process, see spawn_children.sh line 7
+    with open(usage_path) as usage_file:
+        sampled_pids = {
+            pid for line in usage_file for pid in json.loads(line)["processes"]
+        }
+    child_pids = {f.name for f in started.iterdir()}
+    assert len(child_pids) == num_children
     if mode == "setsid":
-        assert len(all_child_pids) == 1
+        # Started in their own session, which duct does not track
+        assert not child_pids & sampled_pids
     else:
-        assert len(all_child_pids) == num_children + 1
+        assert child_pids <= sampled_pids
 
 
 @pytest.mark.parametrize("session_mode", ["new-session", "current-session"])
 def test_session_modes(temp_output_dir: str, duct_cmd: str, session_mode: str) -> None:
     """Test that both session modes work correctly and collect appropriate data."""
     duct_prefix = f"{temp_output_dir}log_"
-    command = f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode {session_mode} -p {duct_prefix} sleep 0.3"
+    usage_file = Path(f"{duct_prefix}{SUFFIXES['usage']}")
+    info_file = Path(f"{duct_prefix}{SUFFIXES['info']}")
+    # The command exits once duct has sampled it (exit 1 if it never is)
+    script = TEST_SCRIPT_DIR / "until_sampled.sh"
+    command = (
+        f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode {session_mode} "
+        f"-p {duct_prefix} {script} {usage_file}"
+    )
     subprocess.check_output(command, shell=True)
 
     # Check that log files were created
-    usage_file = Path(f"{duct_prefix}{SUFFIXES['usage']}")
-    info_file = Path(f"{duct_prefix}{SUFFIXES['info']}")
 
     assert usage_file.exists(), f"Usage file not created for {session_mode} mode"
     assert info_file.exists(), f"Info file not created for {session_mode} mode"
@@ -93,15 +118,16 @@ def test_session_modes(temp_output_dir: str, duct_cmd: str, session_mode: str) -
 
     assert "execution_summary" in info_data
     assert info_data["execution_summary"]["exit_code"] == 0
-    assert "sleep" in info_data["command"]
+    assert "until_sampled.sh" in info_data["command"]
 
 
 def test_session_mode_behavior_difference(temp_output_dir: str, duct_cmd: str) -> None:
     """Test that new-session and current-session modes behave differently."""
 
-    # Start a unique background process in the current session
+    # Start a unique background process in the current session. It must outlive
+    # both duct runs however slow they are (the finally block stops it).
     background_process = subprocess.Popen(
-        ["python", "-c", "print('DUCT_TEST_MARKER'); import time; time.sleep(10)"],
+        ["python", "-c", "print('DUCT_TEST_MARKER'); import time; time.sleep(600)"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -212,3 +238,66 @@ def test_logging_levels(temp_output_dir: str, duct_cmd: str) -> None:
     assert (
         result_none.stderr == ""
     ), f"Expected empty stderr, got: {result_none.stderr!r}"
+
+
+# The --fail-time values whose effect does not depend on how long the run
+# took: 0 always keeps a failed command's logs, a negative value never does
+FAIL_TIMES = [0, -1]
+
+
+# @pytest.mark.flaky(reruns=5)  # disabled: start_duct waits for duct instead of sleeping
+@pytest.mark.parametrize("fail_time", FAIL_TIMES)
+def test_signal_int(temp_output_dir: str, duct_cmd: str, fail_time: int) -> None:
+    args = ["-p", temp_output_dir, f"--fail-time={fail_time}"]
+    proc = start_duct(duct_cmd, [*args, "sleep", "60"])
+    os.kill(proc.pid, signal.SIGINT)
+    proc.communicate()
+
+    # duct forwards SIGINT to the command and exits with the command's code
+    assert proc.returncode == 128 + signal.SIGINT
+
+    if fail_time < 0:
+        assert_files(temp_output_dir, LOG_FILES, exists=False)
+    else:
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+        assert info_data["execution_summary"]["exit_code"] == 128 + signal.SIGINT
+
+
+def _wait_for_lines(path: Path, n: int, proc: subprocess.Popen[str]) -> None:
+    """Wait until *path* has *n* lines, failing if duct exits first."""
+    while not path.exists() or len(path.read_text().splitlines()) < n:
+        assert proc.poll() is None, (
+            f"duct exited with {proc.returncode} before {path.name} had {n} lines; "
+            f"its stderr:\n{rest_of_stderr(proc)}"
+        )
+        time.sleep(0.01)
+
+
+# @pytest.mark.flaky(reruns=5)  # disabled: the test waits for each step instead of sleeping
+@pytest.mark.parametrize("fail_time", FAIL_TIMES)
+def test_signal_kill(
+    temp_output_dir: str, tmp_path: Path, duct_cmd: str, fail_time: int
+) -> None:
+    progress = tmp_path / "signal_ignorer.progress"
+    args = ["-p", temp_output_dir, f"--fail-time={fail_time}"]
+    script = TEST_SCRIPT_DIR / "signal_ignorer.py"
+    proc = start_duct(duct_cmd, [*args, str(script), str(progress)])
+
+    _wait_for_lines(progress, 1, proc)  # "ready": the command ignores SIGINT now
+    # duct forwards the first two; each must arrive before the next is sent,
+    # since pending SIGINTs merge into one
+    for received in (2, 3):
+        os.kill(proc.pid, signal.SIGINT)
+        _wait_for_lines(progress, received, proc)
+    os.kill(proc.pid, signal.SIGINT)  # third: duct kills the command
+    proc.communicate()
+
+    assert proc.returncode == 128 + signal.SIGKILL
+
+    if fail_time < 0:
+        assert_files(temp_output_dir, LOG_FILES, exists=False)
+    else:
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+        assert info_data["execution_summary"]["exit_code"] == 128 + signal.SIGKILL
