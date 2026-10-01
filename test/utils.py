@@ -55,6 +55,9 @@ def start_duct(duct_cmd: str, args: list[str]) -> subprocess.Popen[str]:
     handler is attached to the command. The caller should finish with ``communicate()``,
     which drains the rest of stderr and waits for duct to exit.
 
+    That line is logged at INFO, so duct is started with ``--log-level=INFO``
+    whatever DUCT_LOG_LEVEL or a .env file says; ``args`` must not lower it.
+
     Args:
         duct_cmd: How to invoke duct, e.g. "duct" or "con-duct run"
         args: Arguments for duct, including the command to run
@@ -63,7 +66,9 @@ def start_duct(duct_cmd: str, args: list[str]) -> subprocess.Popen[str]:
         The running duct process, with its SIGINT handler installed
     """
     proc = subprocess.Popen(
-        [*shlex.split(duct_cmd), *args], stderr=subprocess.PIPE, text=True
+        [*shlex.split(duct_cmd), "--log-level=INFO", *args],
+        stderr=subprocess.PIPE,
+        text=True,
     )
     assert proc.stderr is not None  # for mypy
     for line in proc.stderr:
