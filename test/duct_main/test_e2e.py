@@ -31,36 +31,39 @@ def test_sanity(temp_output_dir: str, duct_cmd: str) -> None:
     subprocess.check_output(command, shell=True)
 
 
-@pytest.mark.flaky(reruns=3)
+# @pytest.mark.flaky(reruns=3)  # disabled: children live until duct has sampled them
 @pytest.mark.parametrize("mode", ["plain", "subshell", "nohup", "setsid"])
 @pytest.mark.parametrize("num_children", [1, 2, 10])
 def test_spawn_children(
-    temp_output_dir: str, duct_cmd: str, mode: str, num_children: int
+    temp_output_dir: str,
+    tmp_path: Path,
+    duct_cmd: str,
+    mode: str,
+    num_children: int,
 ) -> None:
     duct_prefix = f"{temp_output_dir}log_"
+    usage_path = f"{duct_prefix}{SUFFIXES['usage']}"
+    started = tmp_path / "started"  # each child creates a file named by its pid
+    started.mkdir()
     script_path = TEST_SCRIPT_DIR / "spawn_children.sh"
-    dur = "0.3"
     command = (
-        f"{duct_cmd} -q --s-i 0.001 --r-i 0.01 "
-        f"-p {duct_prefix} {script_path} {mode} {num_children} {dur}"
+        f"{duct_cmd} -q --s-i 0.001 --r-i 0.01 -p {duct_prefix} "
+        f"{script_path} {mode} {num_children} {usage_path} {started}"
     )
+    # Fails (exit 1) if the children were not all sampled within 60 s
     subprocess.check_output(command, shell=True)
 
-    with open(f"{duct_prefix}{SUFFIXES['usage']}") as usage_file:
-        all_samples = [json.loads(line) for line in usage_file]
-
-    # Only count the child sleep processes
-    all_child_pids = set(
-        pid
-        for sample in all_samples
-        for pid, proc in sample["processes"].items()
-        if "sleep" in proc["cmd"]
-    )
-    # Add one pid for the hold-the-door process, see spawn_children.sh line 7
+    with open(usage_path) as usage_file:
+        sampled_pids = {
+            pid for line in usage_file for pid in json.loads(line)["processes"]
+        }
+    child_pids = {f.name for f in started.iterdir()}
     if mode == "setsid":
-        assert len(all_child_pids) == 1
+        # Their own session, which duct does not track
+        assert not child_pids & sampled_pids
     else:
-        assert len(all_child_pids) == num_children + 1
+        assert len(child_pids) == num_children
+        assert child_pids <= sampled_pids
 
 
 @pytest.mark.parametrize("session_mode", ["new-session", "current-session"])
