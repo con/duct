@@ -32,7 +32,6 @@ def test_sanity(temp_output_dir: str, duct_cmd: str) -> None:
     subprocess.check_output(command, shell=True)
 
 
-# @pytest.mark.flaky(reruns=3)  # disabled: children live until duct has sampled them
 @pytest.mark.parametrize(
     "mode",
     [
@@ -242,7 +241,6 @@ def test_logging_levels(temp_output_dir: str, duct_cmd: str) -> None:
 FAIL_TIMES = [0, -1]
 
 
-# @pytest.mark.flaky(reruns=5)  # disabled: start_duct waits for duct instead of sleeping
 @pytest.mark.parametrize("fail_time", FAIL_TIMES)
 def test_signal_int(temp_output_dir: str, duct_cmd: str, fail_time: int) -> None:
     args = ["-p", temp_output_dir, f"--fail-time={fail_time}"]
@@ -271,7 +269,6 @@ def _wait_for_lines(path: Path, n: int, proc: subprocess.Popen[str]) -> None:
         time.sleep(0.01)
 
 
-# @pytest.mark.flaky(reruns=5)  # disabled: the test waits for each step instead of sleeping
 @pytest.mark.parametrize("fail_time", FAIL_TIMES)
 def test_signal_kill(
     temp_output_dir: str, tmp_path: Path, duct_cmd: str, fail_time: int
