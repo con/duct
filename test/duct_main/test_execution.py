@@ -120,6 +120,28 @@ def test_sanity_red(
     assert_expected_files(temp_output_dir)
 
 
+@pytest.mark.parametrize(
+    "fail_time,command,logs_kept",
+    [
+        # Failed sooner than the threshold: logs are removed
+        (3, "exit 1", False),  # 3 is the default --fail-time
+        (60, "exit 1", False),
+        # Failed after running longer than the threshold: logs are kept
+        (1, "sleep 1.2; exit 1", True),
+    ],
+)
+def test_fail_time_threshold(
+    temp_output_dir: str, fail_time: int, command: str, logs_kept: bool
+) -> None:
+    assert (
+        run_duct_command(
+            ["sh", "-c", command], output_prefix=temp_output_dir, fail_time=fail_time
+        )
+        == 1
+    )
+    assert_expected_files(temp_output_dir, exists=logs_kept)
+
+
 def test_outputs_full(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     assert (
