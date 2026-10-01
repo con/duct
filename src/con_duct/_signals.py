@@ -4,10 +4,33 @@ from __future__ import annotations
 import logging
 import os
 import signal
+import threading
 from types import FrameType
 from typing import Optional
 
 lgr = logging.getLogger("con-duct")
+
+
+def start_thread(thread: threading.Thread) -> None:
+    """Start a thread that the kernel will never hand a SIGINT to.
+
+    A signal sent to the process is delivered to any one thread that does
+    not block it, but Python runs the handler only in the main thread. If
+    another thread takes a SIGINT, the main thread stays asleep in its wait
+    for the command and the Ctrl-C is not forwarded until the command exits.
+    A new thread inherits its creator's signal mask, so block SIGINT just
+    while starting it. Every thread duct starts must be started this way.
+
+    Parameters
+    ----------
+    thread : threading.Thread
+        The thread to start
+    """
+    old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
+    try:
+        thread.start()
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
 
 
 class SigIntHandler:

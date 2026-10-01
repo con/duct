@@ -3,11 +3,12 @@ from collections.abc import Generator
 import os
 from pathlib import Path
 import signal
+import threading
 from typing import Any
 import pytest
 from utils import run_duct_command
 from con_duct import _signals
-from con_duct._signals import SigIntHandler
+from con_duct._signals import SigIntHandler, start_thread
 from con_duct._tracker import Report
 
 
@@ -96,6 +97,39 @@ def test_command_already_exited(
     assert [(r.levelname, r.message) for r in caplog.records] == [
         ("WARNING", "Received SIGINT, but the command has already exited")
     ]
+
+
+def _sigint_blocked() -> bool:
+    """Whether the calling thread blocks SIGINT."""
+    return signal.SIGINT in signal.pthread_sigmask(signal.SIG_BLOCK, [])
+
+
+def test_start_thread_blocks_sigint_only_in_the_new_thread() -> None:
+    blocked_in_thread: list[bool] = []
+    thread = threading.Thread(
+        target=lambda: blocked_in_thread.append(_sigint_blocked())
+    )
+    start_thread(thread)
+    thread.join()
+    assert blocked_in_thread == [True]
+    assert not _sigint_blocked()
+
+
+@pytest.mark.usefixtures("restore_sigint")
+def test_every_duct_thread_starts_with_sigint_blocked(
+    temp_output_dir: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A thread inherits the mask its creator has at the moment it is started
+    blocked_at_start: list[bool] = []
+    real_start = threading.Thread.start
+
+    def recording_start(self: threading.Thread) -> None:
+        blocked_at_start.append(_sigint_blocked())
+        real_start(self)
+
+    monkeypatch.setattr(threading.Thread, "start", recording_start)
+    assert run_duct_command(["true"], output_prefix=temp_output_dir) == 0
+    assert blocked_at_start and all(blocked_at_start)
 
 
 @pytest.mark.usefixtures("restore_sigint")

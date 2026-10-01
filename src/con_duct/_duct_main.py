@@ -9,7 +9,7 @@ import time
 from typing import IO, TextIO
 from con_duct._models import LogPaths, Outputs, RecordTypes, SessionMode
 from con_duct._output import TailPipe, prepare_outputs, remove_files, safe_close_files
-from con_duct._signals import SigIntHandler
+from con_duct._signals import SigIntHandler, start_thread
 from con_duct._tracker import Report, monitor_process
 
 __version__ = version("con-duct")
@@ -156,15 +156,15 @@ def execute(
         monitoring_thread = threading.Thread(
             target=monitor_process, args=monitoring_args
         )
-        monitoring_thread.start()
+        start_thread(monitoring_thread)
     else:
         monitoring_thread = None
 
     if record_types.has_system_summary():
         env_thread = threading.Thread(target=report.collect_environment)
-        env_thread.start()
+        start_thread(env_thread)
         sys_info_thread = threading.Thread(target=report.get_system_info)
-        sys_info_thread.start()
+        start_thread(sys_info_thread)
     else:
         env_thread, sys_info_thread = None, None
 
