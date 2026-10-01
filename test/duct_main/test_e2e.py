@@ -67,12 +67,17 @@ def test_spawn_children(
 def test_session_modes(temp_output_dir: str, duct_cmd: str, session_mode: str) -> None:
     """Test that both session modes work correctly and collect appropriate data."""
     duct_prefix = f"{temp_output_dir}log_"
-    command = f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode {session_mode} -p {duct_prefix} sleep 0.3"
+    usage_file = Path(f"{duct_prefix}{SUFFIXES['usage']}")
+    info_file = Path(f"{duct_prefix}{SUFFIXES['info']}")
+    # The command exits once duct has sampled it (exit 1 if it never is)
+    script = TEST_SCRIPT_DIR / "until_sampled.sh"
+    command = (
+        f"{duct_cmd} -q --s-i 0.01 --r-i 0.05 --mode {session_mode} "
+        f"-p {duct_prefix} {script} {usage_file}"
+    )
     subprocess.check_output(command, shell=True)
 
     # Check that log files were created
-    usage_file = Path(f"{duct_prefix}{SUFFIXES['usage']}")
-    info_file = Path(f"{duct_prefix}{SUFFIXES['info']}")
 
     assert usage_file.exists(), f"Usage file not created for {session_mode} mode"
     assert info_file.exists(), f"Info file not created for {session_mode} mode"
@@ -96,7 +101,7 @@ def test_session_modes(temp_output_dir: str, duct_cmd: str, session_mode: str) -
 
     assert "execution_summary" in info_data
     assert info_data["execution_summary"]["exit_code"] == 0
-    assert "sleep" in info_data["command"]
+    assert "until_sampled.sh" in info_data["command"]
 
 
 def test_session_mode_behavior_difference(temp_output_dir: str, duct_cmd: str) -> None:
