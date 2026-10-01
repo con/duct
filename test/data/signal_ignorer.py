@@ -29,5 +29,5 @@ if __name__ == "__main__":
     )  # Restart interrupted system calls so we can test multiple SIGINTS
     report("ready")
     t0 = time.time()
-    while time.time() - t0 < 10:
+    while time.time() - t0 < 60:
         time.sleep(0.01)
