@@ -1,16 +1,18 @@
 from __future__ import annotations
 import itertools
 import subprocess
-from typing import Callable
 from unittest.mock import MagicMock, call, patch
 import pytest
 from utils import MockStream
 from con_duct._models import LogPaths, Outputs
 from con_duct._output import prepare_outputs
 
-_STREAMS: list[tuple[str, Callable[[Outputs], bool]]] = [
-    ("stdout", Outputs.has_stdout),
-    ("stderr", Outputs.has_stderr),
+# Spelled out rather than derived from Outputs.has_stdout/has_stderr, which
+# prepare_outputs itself branches on -- a bug there must not shift the
+# expectations along with the behavior.
+_STREAMS: list[tuple[str, frozenset[Outputs]]] = [
+    ("stdout", frozenset({Outputs.ALL, Outputs.STDOUT})),
+    ("stderr", frozenset({Outputs.ALL, Outputs.STDERR})),
 ]
 
 
@@ -41,16 +43,16 @@ def test_prepare_outputs(
     expected_open_calls = []
     expected_tee_calls = []
 
-    for name, has_stream in _STREAMS:
+    for name, enabled_for in _STREAMS:
         actual = actuals[name]
-        if has_stream(capture_outputs):
-            if has_stream(outputs):
+        if capture_outputs in enabled_for:
+            if outputs in enabled_for:
                 expected_tee_calls.append(call(log_paths[name], buffer=buffers[name]))
                 assert actual == mock_tee_stream.return_value
             else:
                 expected_open_calls.append(call(log_paths[name], "w"))
                 assert actual == mock_open.return_value
-        elif has_stream(outputs):
+        elif outputs in enabled_for:
             assert actual is None
         else:
             assert actual == subprocess.DEVNULL
@@ -61,3 +63,4 @@ def test_prepare_outputs(
     if expected_tee_calls:
         mock_tee_stream.assert_has_calls(expected_tee_calls, any_order=True)
     assert mock_tee_stream.call_count == len(expected_tee_calls)
+    assert mock_tee_stream.return_value.start.call_count == len(expected_tee_calls)
