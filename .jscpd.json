@@ -1,0 +1,26 @@
+{
+  "threshold": 0,
+  "reporters": ["console"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.tox/**",
+    "**/.venv/**",
+    "**/venvs/**",
+    "**/__pycache__/**",
+    "**/*.egg-info/**",
+    "**/.eggs/**",
+    "**/.cache/**",
+    "**/.npm/**",
+    "**/.idea/**",
+    "**/.mypy_cache/**",
+    "**/.ruff_cache/**",
+    "**/.pytest_cache/**",
+    "**/.tmp/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/CHANGELOG.md"
+  ],
+  "minTokens": 50,
+  "minLines": 5
+}

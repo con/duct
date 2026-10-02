@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 from unittest.mock import MagicMock, Mock, call, mock_open, patch
 import pytest
 
@@ -91,17 +91,21 @@ def test_formatter_output(
 
 class TestPlotMatplotlib:
 
-    @patch("matplotlib.pyplot.savefig")
-    def test_matplotlib_plot_sanity(self, mock_plot_save: MagicMock) -> None:
-        args = argparse.Namespace(
+    @staticmethod
+    def _plot_args(output: Optional[str] = None) -> argparse.Namespace:
+        return argparse.Namespace(
             command="plot",
             file_path="test/data/mriqc-example/usage.json",
-            output="outfile.png",
+            output=output,
             func=plot.matplotlib_plot,
             log_level="INFO",
             min_ratio=3.0,
             cpu="ps-pcpu",
         )
+
+    @patch("matplotlib.pyplot.savefig")
+    def test_matplotlib_plot_sanity(self, mock_plot_save: MagicMock) -> None:
+        args = self._plot_args(output="outfile.png")
         assert cli.execute(args) == 0
         mock_plot_save.assert_called_once_with("outfile.png")
 
@@ -111,15 +115,7 @@ class TestPlotMatplotlib:
         self, mock_use: MagicMock, mock_plot_save: MagicMock
     ) -> None:
         """Test that Agg backend is used when --output is specified."""
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output="outfile.png",
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args(output="outfile.png")
         assert cli.execute(args) == 0
         mock_use.assert_called_once_with("Agg")
         mock_plot_save.assert_called_once_with("outfile.png")
@@ -225,15 +221,7 @@ class TestPlotMatplotlib:
         overridden."""
         monkeypatch.setenv("MPLBACKEND", "Agg")
 
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output=None,  # No output file specified
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args()
         result = cli.execute(args)
         assert result == 1
         assert "MPLBACKEND=Agg" in caplog.text
@@ -249,15 +237,7 @@ class TestPlotMatplotlib:
         """Same as above, exercising the get_backend() (matplotlib >= 3.10) path."""
         monkeypatch.setenv("MPLBACKEND", "Agg")
 
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output=None,  # No output file specified
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args()
         result = cli.execute(args)
         assert result == 1
 
@@ -283,15 +263,7 @@ class TestPlotMatplotlib:
             if name != "qtagg":
                 raise ImportError(f"No module for {name}")
 
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output=None,
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args()
         with patch("matplotlib.use", side_effect=fake_use) as mock_use:
             result = cli.execute(args)
         assert result == 0
@@ -322,15 +294,7 @@ class TestPlotMatplotlib:
                     "interactive framework, as 'headless' is currently running"
                 )
 
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output=None,
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args()
         with patch("matplotlib.use", side_effect=fake_use) as mock_use:
             result = cli.execute(args)
         assert result == 0
@@ -353,15 +317,7 @@ class TestPlotMatplotlib:
         traceback."""
         monkeypatch.delenv("MPLBACKEND", raising=False)
 
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output=None,
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args()
         with patch("matplotlib.use", side_effect=ImportError("nope")):
             result = cli.execute(args)
         assert result == 1
@@ -381,15 +337,7 @@ class TestPlotMatplotlib:
     ) -> None:
         """Test that plotting without output in interactive backend calls plt.show() successfully."""
 
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output=None,  # No output file specified
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args()
         result = cli.execute(args)
         assert result == 0
         mock_show.assert_called_once()
@@ -411,15 +359,7 @@ class TestPlotMatplotlib:
     ) -> None:
         """A backend that reports as interactive but fails to import (e.g. a
         broken tkinter install) should fail with guidance, not plt.show()."""
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output=None,
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args()
         result = cli.execute(args)
         assert result == 1
         mock_show.assert_not_called()
@@ -444,15 +384,7 @@ class TestPlotMatplotlib:
         """Some backends (e.g. webagg without tornado) raise RuntimeError,
         not ImportError, when their dependency is missing -- that must be
         caught with guidance too, not leak as a raw traceback."""
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output=None,
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args()
         result = cli.execute(args)
         assert result == 1
         mock_show.assert_not_called()
@@ -489,15 +421,7 @@ class TestPlotMatplotlib:
         if hasattr(matplotlib.backends, "backend_registry"):
             monkeypatch.delattr(matplotlib.backends, "backend_registry")
 
-        args = argparse.Namespace(
-            command="plot",
-            file_path="test/data/mriqc-example/usage.json",
-            output=None,
-            func=plot.matplotlib_plot,
-            log_level="INFO",
-            min_ratio=3.0,
-            cpu="ps-pcpu",
-        )
+        args = self._plot_args()
         result = cli.execute(args)
         assert result == 0
         mock_show.assert_called_once()
