@@ -84,6 +84,13 @@ def _assert_current_matches_full_run_averages(
     assert current_sample.averages.pcpu == report.full_run_stats.averages.pcpu
 
 
+def _assert_averages_match_totals(sample: Sample) -> None:
+    assert sample.averages.rss == sample.total_rss
+    assert sample.averages.vsz == sample.total_vsz
+    assert sample.averages.pmem == sample.total_pmem
+    assert sample.averages.pcpu == sample.total_pcpu
+
+
 def _report_with_three_samples(
     mock_log_paths: mock.MagicMock,
 ) -> tuple[Report, Sample, Sample]:
@@ -144,10 +151,7 @@ def test_aggregation_single_sample_sanity(mock_log_paths: mock.MagicMock) -> Non
     assert current_sample.total_pcpu == stat0.pcpu + stat1.pcpu + stat2.pcpu
 
     # With one sample averages should be equal to totals
-    assert current_sample.averages.rss == current_sample.averages.rss
-    assert current_sample.averages.vsz == current_sample.averages.vsz
-    assert current_sample.averages.pmem == current_sample.averages.pmem
-    assert current_sample.averages.pcpu == current_sample.averages.pcpu
+    _assert_averages_match_totals(current_sample)
 
 
 @pytest.mark.parametrize("stat", [stat0, stat1, stat2, stat_big])
@@ -182,10 +186,7 @@ def test_aggregation_single_stat_multiple_samples_sanity(
     _assert_current_matches_full_run_averages(current_sample, report)
 
     # With 3 identical samples, averages should be identical to 1 sample
-    assert current_sample.averages.rss == current_sample.total_rss
-    assert current_sample.averages.vsz == current_sample.total_vsz
-    assert current_sample.averages.pmem == current_sample.total_pmem
-    assert current_sample.averages.pcpu == current_sample.total_pcpu
+    _assert_averages_match_totals(current_sample)
 
 
 @mock.patch("con_duct._duct_main.LogPaths")
