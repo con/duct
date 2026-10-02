@@ -326,3 +326,23 @@ def test_aggregation_no_false_peak(mock_log_paths: mock.MagicMock) -> None:
     report.update_from_sample(sample2)
     assert report.current_sample is not None
     assert report.current_sample.total_pcpu == 100
+
+
+@pytest.mark.parametrize(
+    "first_cmd,second_cmd,expected_cmd",
+    [
+        # Kernel-abbreviated "[name]" is replaced by the full command line
+        ("[python]", "python script.py", "python script.py"),
+        # Otherwise the first-seen command line is kept
+        ("python script.py", "[python]", "python script.py"),
+        ("cmd 1", "cmd 2", "cmd 1"),
+    ],
+)
+def test_aggregation_cmd_change(
+    first_cmd: str, second_cmd: str, expected_cmd: str
+) -> None:
+    first = deepcopy(stat1)
+    first.cmd = first_cmd
+    second = deepcopy(stat2)
+    second.cmd = second_cmd
+    assert first.aggregate(second).cmd == expected_cmd
