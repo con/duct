@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections.abc import Generator
+import logging
 import os
 from pathlib import Path
 import signal
@@ -28,6 +29,16 @@ def restore_sigint() -> Generator[None, None, None]:
     orig = signal.getsignal(signal.SIGINT)
     yield
     signal.signal(signal.SIGINT, orig)
+
+
+@pytest.fixture
+def stderr_locked(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make logging fail as it does when the handler interrupts a stderr write."""
+
+    def reentrant(*_args: Any) -> None:
+        raise RuntimeError("reentrant call inside <_io.BufferedWriter name='<stderr>'>")
+
+    monkeypatch.setattr(_signals.lgr, "log", reentrant)
 
 
 @pytest.mark.parametrize(
@@ -71,17 +82,45 @@ def test_attach_acts_on_earlier_sigints(
     assert sent == [(1234, expected)]
 
 
-def test_forwards_even_if_logging_fails(
-    sent: list[tuple[int, int]], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    def reentrant(*_args: Any) -> None:
-        raise RuntimeError("reentrant call inside <_io.BufferedWriter name='<stderr>'>")
-
-    monkeypatch.setattr(_signals.lgr, "log", reentrant)
+@pytest.mark.usefixtures("stderr_locked")
+def test_forwards_even_if_logging_fails(sent: list[tuple[int, int]]) -> None:
     handler = SigIntHandler()
     handler.attach(1234)
     handler(signal.SIGINT, None)
     assert sent == [(1234, signal.SIGINT)]
+
+
+@pytest.mark.usefixtures("stderr_locked")
+def test_log_falls_back_to_raw_stderr_write(
+    capfd: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="con-duct")
+    _signals._log(logging.INFO, "Received SIGINT, passing to command")
+    assert capfd.readouterr().err == (
+        "\ncon-duct [INFO] (written directly: the signal interrupted a log write): "
+        "Received SIGINT, passing to command\n"
+    )
+
+
+@pytest.mark.usefixtures("stderr_locked")
+def test_log_fallback_respects_log_level(
+    capfd: pytest.CaptureFixture[str], caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.WARNING, logger="con-duct")
+    _signals._log(logging.INFO, "Received SIGINT, passing to command")
+    assert capfd.readouterr().err == ""
+
+
+@pytest.mark.usefixtures("stderr_locked")
+def test_log_fallback_never_raises(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def closed(_fd: int, _data: bytes) -> int:
+        raise OSError(9, "Bad file descriptor")
+
+    caplog.set_level(logging.INFO, logger="con-duct")
+    monkeypatch.setattr("con_duct._signals.os.write", closed)
+    _signals._log(logging.INFO, "Received SIGINT, passing to command")  # must not raise
 
 
 def test_command_already_exited(

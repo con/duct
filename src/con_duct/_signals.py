@@ -99,10 +99,24 @@ def _log(level: int, msg: str) -> None:
     """Log from a signal handler without ever raising.
 
     If the signal arrived while duct was writing to stderr, logging raises
-    ``RuntimeError: reentrant call`` (even its error report does); drop the
-    message rather than let the error escape the handler.
+    ``RuntimeError: reentrant call`` (even its error report does): the
+    buffered writer is held by the write the handler interrupted, which
+    cannot finish until the handler returns. Write the message straight to
+    file descriptor 2 instead, if the log level lets the message through.
+    It does not go through the log format, and it may land in the middle of
+    the log line that was being written, so it starts on a new line and says
+    why it looks different.
     """
     try:
         lgr.log(level, msg)
     except RuntimeError:
-        pass
+        if not lgr.isEnabledFor(level):
+            return
+        try:
+            line = (
+                f"\ncon-duct [{logging.getLevelName(level)}] (written directly: "
+                f"the signal interrupted a log write): {msg}\n"
+            )
+            os.write(2, line.encode())
+        except OSError:
+            pass
