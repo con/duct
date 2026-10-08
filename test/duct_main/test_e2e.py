@@ -111,9 +111,6 @@ def test_session_mode_behavior_difference(temp_output_dir: str, duct_cmd: str) -
     )
 
     try:
-        # Give background process time to start
-        time.sleep(0.1)
-
         new_session_prefix = f"{temp_output_dir}new_"
         current_session_prefix = f"{temp_output_dir}current_"
 
