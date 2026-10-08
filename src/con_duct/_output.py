@@ -9,6 +9,7 @@ import threading
 import time
 from typing import IO, Any, TextIO
 from con_duct._models import LogPaths, Outputs
+from con_duct._signals import start_thread
 
 
 class TailPipe:
@@ -27,7 +28,7 @@ class TailPipe:
         self.stop_event = threading.Event()
         self.infile = open(self.file_path, "rb")
         self.thread = threading.Thread(target=self._tail, daemon=True)
-        self.thread.start()
+        start_thread(self.thread)
 
     def fileno(self) -> int:
         assert self.infile is not None
