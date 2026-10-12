@@ -82,6 +82,23 @@ def test_attach_acts_on_earlier_sigints(
     assert sent == [(1234, expected)]
 
 
+@pytest.mark.usefixtures("restore_sigint")
+def test_sigint_during_attach_is_forwarded_once(sent: list[tuple[int, int]]) -> None:
+    class InterruptOnAttach(SigIntHandler):
+        def __setattr__(self, name: str, value: Any) -> None:
+            super().__setattr__(name, value)
+            if name == "pid" and value is not None:
+                # Deliver a real SIGINT immediately after publishing the PID.
+                signal.raise_signal(signal.SIGINT)
+
+    handler = InterruptOnAttach()
+    signal.signal(signal.SIGINT, handler)
+    handler.attach(1234)
+
+    assert handler.sigcount == 1
+    assert sent == [(1234, signal.SIGINT)]
+
+
 @pytest.mark.usefixtures("stderr_locked")
 def test_forwards_even_if_logging_fails(sent: list[tuple[int, int]]) -> None:
     handler = SigIntHandler()

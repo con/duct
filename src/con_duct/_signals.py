@@ -53,9 +53,15 @@ class SigIntHandler:
             The PID of the process monitored by duct. A SIGINT that arrived
             while it was being started is acted on now.
         """
-        self.pid = pid
-        if self.sigcount:
-            self._act()
+        # A SIGINT after publishing the PID must not be forwarded both by
+        # __call__ and by the pending-signal check below.
+        old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
+        try:
+            self.pid = pid
+            if self.sigcount:
+                self._act()
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
 
     def __call__(self, _sig: int, _frame: Optional[FrameType]) -> None:
         self.sigcount += 1
