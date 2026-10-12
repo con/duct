@@ -72,6 +72,12 @@ jobs:
         name: Install libjpeg on Ubuntu
         run: sudo apt-get install -y libjpeg-dev
 
+      - name: Install setsid on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install util-linux
+          echo "$(brew --prefix util-linux)/bin" >> "$GITHUB_PATH"
+
       - name: Install uv
         if: matrix.toxenv == 'oldestdeps'
         run: python -m pip install uv
