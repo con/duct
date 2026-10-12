@@ -1,6 +1,8 @@
 """Signal handlers for con-duct."""
 
 from __future__ import annotations
+from collections.abc import Iterator
+from contextlib import contextmanager
 import logging
 import os
 import signal
@@ -9,6 +11,20 @@ from types import FrameType
 from typing import Optional
 
 lgr = logging.getLogger("con-duct")
+
+
+@contextmanager
+def _sigint_blocked() -> Iterator[None]:
+    """Block SIGINT in the calling thread, restoring its mask on exit.
+
+    A SIGINT that arrives meanwhile stays pending and is handled once the
+    mask is restored.
+    """
+    old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
+    try:
+        yield
+    finally:
+        signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
 
 
 def start_thread(thread: threading.Thread) -> None:
@@ -26,11 +42,8 @@ def start_thread(thread: threading.Thread) -> None:
     thread : threading.Thread
         The thread to start
     """
-    old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
-    try:
+    with _sigint_blocked():
         thread.start()
-    finally:
-        signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
 
 
 class SigIntHandler:
@@ -55,13 +68,10 @@ class SigIntHandler:
         """
         # A SIGINT after publishing the PID must not be forwarded both by
         # __call__ and by the pending-signal check below.
-        old_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
-        try:
+        with _sigint_blocked():
             self.pid = pid
             if self.sigcount:
                 self._act()
-        finally:
-            signal.pthread_sigmask(signal.SIG_SETMASK, old_mask)
 
     def __call__(self, _sig: int, _frame: Optional[FrameType]) -> None:
         self.sigcount += 1
