@@ -130,25 +130,16 @@ def test_averages_one_sample() -> None:
     assert averages.num_samples == 1
 
 
-def test_averages_two_samples() -> None:
+@pytest.mark.parametrize("num_updates", [1, 2], ids=["two_samples", "three_samples"])
+def test_averages_multiple_samples(num_updates: int) -> None:
     sample = Sample()
     sample.add_pid(1, deepcopy(stat0))
     averages = Averages.from_sample(sample)
     sample2 = Sample()
     sample2.add_pid(2, deepcopy(stat1))
-    averages.update(sample2)
-    assert averages.pcpu == (stat0.pcpu + stat1.pcpu) / 2
-
-
-def test_averages_three_samples() -> None:
-    sample = Sample()
-    sample.add_pid(1, deepcopy(stat0))
-    averages = Averages.from_sample(sample)
-    sample2 = Sample()
-    sample2.add_pid(2, deepcopy(stat1))
-    averages.update(sample2)
-    averages.update(sample2)
-    assert averages.pcpu == (stat0.pcpu + (2 * stat1.pcpu)) / 3
+    for _ in range(num_updates):
+        averages.update(sample2)
+    assert averages.pcpu == (stat0.pcpu + num_updates * stat1.pcpu) / (num_updates + 1)
 
 
 def test_sample_totals() -> None:
@@ -159,6 +150,21 @@ def test_sample_totals() -> None:
     assert sample.total_vsz == stat2.vsz * 2
     assert sample.total_pmem == stat2.pmem * 2
     assert sample.total_pcpu == stat2.pcpu * 2
+
+
+def _make_process_stats(
+    pcpu: float, pmem: float, rss: int, vsz: int, etime: str, cmd: str
+) -> ProcessStats:
+    return ProcessStats(
+        pcpu=pcpu,
+        pmem=pmem,
+        rss=rss,
+        vsz=vsz,
+        timestamp=datetime.now().astimezone().isoformat(),
+        etime=etime,
+        cmd=cmd,
+        stat=Counter(["stat0"]),
+    )
 
 
 @pytest.mark.parametrize(
@@ -176,16 +182,7 @@ def test_process_stats_green(
     pcpu: float, pmem: float, rss: int, vsz: int, etime: str, cmd: str
 ) -> None:
     # Assert does not raise
-    ProcessStats(
-        pcpu=pcpu,
-        pmem=pmem,
-        rss=rss,
-        vsz=vsz,
-        timestamp=datetime.now().astimezone().isoformat(),
-        etime=etime,
-        cmd=cmd,
-        stat=Counter(["stat0"]),
-    )
+    _make_process_stats(pcpu, pmem, rss, vsz, etime, cmd)
 
 
 @pytest.mark.parametrize(
@@ -202,16 +199,7 @@ def test_process_stats_red(
     pcpu: float, pmem: float, rss: int, vsz: int, etime: str, cmd: str
 ) -> None:
     with pytest.raises(AssertionError):
-        ProcessStats(
-            pcpu=pcpu,
-            pmem=pmem,
-            rss=rss,
-            vsz=vsz,
-            timestamp=datetime.now().astimezone().isoformat(),
-            etime=etime,
-            cmd=cmd,
-            stat=Counter(["stat0"]),
-        )
+        _make_process_stats(pcpu, pmem, rss, vsz, etime, cmd)
 
 
 @mock.patch("con_duct._tracker.LogPaths")

@@ -10,6 +10,7 @@ build/
 dist/
 venvs/
 .DS_Store
+.tmp/
 
 # Produced by versioningit
 src/con_duct/_version.py
