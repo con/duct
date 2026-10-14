@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 from datetime import datetime
-import logging
 import string
 from typing import Any
-
-lgr = logging.getLogger("con-duct")
-
 
 # Decimal (SI) byte units shared by SummaryFormatter.naturalsize (run
 # summary) and the plot axis formatter, so "kB" means the same thing in
@@ -165,15 +161,49 @@ class SummaryFormatter(string.Formatter):
             format_spec, conversion = format_spec.split("!", 1)
         else:
             conversion = None
-        try:
-            value_ = super().format_field(value, format_spec)
-        except ValueError as exc:
-            lgr.warning(
-                "Falling back to `str` formatting for %r due to exception: %s",
-                value,
-                exc,
-            )
-            return str(value)
+        value_ = super().format_field(value, format_spec)
         if conversion:
             return self.convert_field(value_, conversion)
         return value_
+
+
+# One non-None value per Report.execution_summary key, typed as a finished run
+# with 2+ samples produces them, so a format that renders these renders a run.
+VALIDATE_SUMMARY_PLACEHOLDERS: dict[str, Any] = {
+    "exit_code": 0,
+    "command": "cmd arg",
+    "logs_prefix": ".duct/logs/prefix_",
+    "wall_clock_time": 1.0,
+    "peak_rss": 1,
+    "average_rss": 1.0,
+    "peak_vsz": 1,
+    "average_vsz": 1.0,
+    "peak_pmem": 1.0,
+    "average_pmem": 1.0,
+    "peak_pcpu": 1.0,
+    "average_pcpu": 1.0,
+    "num_samples": 2,
+    "num_reports": 1,
+    "start_time": 1.0,
+    "end_time": 2.0,
+    "working_directory": "/",
+}
+
+
+def validate_summary_format(summary_format: str) -> str:
+    """Render ``summary_format`` against placeholder values, raising if it is invalid.
+
+    Renders with colors both off and on: the custom conversions return colored
+    strings, so e.g. ``{wall_clock_time!X:.3f}`` fails only with colors.
+
+    Args:
+        summary_format (str): Template as given to --summary-format.
+
+    Returns:
+        str: ``summary_format`` unchanged, so this can serve as an argparse ``type``.
+    """
+    for enable_colors in (False, True):
+        SummaryFormatter(enable_colors=enable_colors).format(
+            summary_format, **VALIDATE_SUMMARY_PLACEHOLDERS
+        )
+    return summary_format

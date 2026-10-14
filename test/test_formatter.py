@@ -1,7 +1,14 @@
+from collections import Counter
 import os
 from unittest import mock
 import pytest
-from con_duct._formatter import SummaryFormatter
+from con_duct._duct_main import EXECUTION_SUMMARY_FORMAT
+from con_duct._formatter import (
+    VALIDATE_SUMMARY_PLACEHOLDERS,
+    SummaryFormatter,
+    validate_summary_format,
+)
+from con_duct._models import ProcessStats, Sample
 from con_duct._tracker import Report
 
 GREEN_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.GREEN
@@ -99,6 +106,14 @@ def test_summary_formatter_none_replacement() -> None:
     formatter = SummaryFormatter()
     out = formatter.format(valid_format_string, **one_arg)
     assert out == "test -"
+
+
+def test_summary_formatter_spec_mismatch_raises() -> None:
+    formatter = SummaryFormatter()
+    with pytest.raises(ValueError):
+        formatter.format("{value:.2d}", value=123456)
+    # None never reaches the spec, so it still renders
+    assert formatter.format("{value:.2d}", value=None) == "-"
 
 
 def test_summary_formatter_S_e2e() -> None:
@@ -346,7 +361,8 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
     )
     assert f"Rendering: {GREEN}nan{STOP}" == report.execution_summary_formatted
 
-    # or if we really provide bad formatting, e.g. the opposite order of conversion and formatting
+    # Python's {field!conv:spec} order: the colored conversion yields a str,
+    # which the float spec cannot format
     report = Report(
         "_cmd",
         [],
@@ -356,7 +372,11 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
         clobber=False,
         colors=colors,
     )
-    assert f"Rendering: {GREEN}nan{STOP}" == report.execution_summary_formatted
+    if colors:
+        with pytest.raises(ValueError):
+            _ = report.execution_summary_formatted
+    else:
+        assert "Rendering: nan" == report.execution_summary_formatted
 
 
 def test_summary_formatter_P_e2e() -> None:
@@ -494,3 +514,45 @@ def test_summary_formatter_T_duration_formats(duration: float, expected: str) ->
     formatter = SummaryFormatter()
     result = formatter.format("{duration!T}", duration=duration)
     assert result == expected
+
+
+def test_validate_summary_format_accepts_default() -> None:
+    assert validate_summary_format(EXECUTION_SUMMARY_FORMAT) == EXECUTION_SUMMARY_FORMAT
+
+
+@mock.patch("con_duct._duct_main.LogPaths")
+def test_validate_summary_placeholders_match_a_real_summary(
+    mock_log_paths: mock.MagicMock,
+) -> None:
+    """Placeholders must have the keys and types of a finished run's summary.
+
+    Otherwise validation is looser or stricter than the post-run render,
+    e.g. an int placeholder where runs produce floats would accept ``{x:d}``.
+    """
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report("_cmd", ["arg"], mock_log_paths, "", os.getcwd())
+    report.process = mock.MagicMock(returncode=0)
+    report.start_time = 1727221840.0
+    report.end_time = report.start_time + 2.5
+    for pcpu, rss in ((10.0, 1000), (30.0, 3000)):
+        sample = Sample()
+        sample.add_pid(
+            1,
+            ProcessStats(
+                pcpu=pcpu,
+                pmem=1.5,
+                rss=rss,
+                vsz=rss * 2,
+                timestamp="2024-06-11T10:09:37-04:00",
+                etime="00:01",
+                stat=Counter(["S"]),
+                cmd="_cmd arg",
+            ),
+        )
+        report.update_from_sample(sample)
+
+    summary = report.execution_summary
+    assert summary.keys() == VALIDATE_SUMMARY_PLACEHOLDERS.keys()
+    assert {k: type(v) for k, v in summary.items()} == {
+        k: type(v) for k, v in VALIDATE_SUMMARY_PLACEHOLDERS.items()
+    }
