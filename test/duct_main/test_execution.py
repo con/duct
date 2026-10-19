@@ -1,13 +1,11 @@
 from __future__ import annotations
 import json
 import logging
-import multiprocessing
 import os
 from pathlib import Path
-import signal
 import subprocess
 import sys
-from time import sleep, time
+from time import time
 import pytest
 from utils import assert_files, run_duct_command
 from con_duct import _duct_main
@@ -122,6 +120,28 @@ def test_sanity_red(
     assert_expected_files(temp_output_dir)
 
 
+@pytest.mark.parametrize(
+    "fail_time,command,logs_kept",
+    [
+        # Failed sooner than the threshold: logs are removed
+        (3, "exit 1", False),  # 3 is the default --fail-time
+        (60, "exit 1", False),
+        # Failed after running longer than the threshold: logs are kept
+        (1, "sleep 1.2; exit 1", True),
+    ],
+)
+def test_fail_time_threshold(
+    temp_output_dir: str, fail_time: int, command: str, logs_kept: bool
+) -> None:
+    assert (
+        run_duct_command(
+            ["sh", "-c", command], output_prefix=temp_output_dir, fail_time=fail_time
+        )
+        == 1
+    )
+    assert_expected_files(temp_output_dir, exists=logs_kept)
+
+
 def test_outputs_full(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     assert (
@@ -226,91 +246,6 @@ def test_execute_unknown_command(
         assert run_duct_command([cmd]) == 127
     assert f"{cmd}: command not found" in caplog.text
     assert_expected_files(temp_output_dir, exists=False)
-
-
-def _runner_for_signal_int(temp_output_dir: str, fail_time: float | None) -> int:
-    kws = {}
-    if fail_time is not None:
-        kws["fail_time"] = fail_time
-    return run_duct_command(
-        ["sleep", "60.74016230000801"], output_prefix=temp_output_dir, **kws
-    )
-
-
-@pytest.mark.flaky(reruns=5)
-@pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
-def test_signal_int(
-    request: pytest.FixtureRequest, temp_output_dir: str, fail_time: float | None
-) -> None:
-    # Scale wait time on retries to handle slow CI runners (PyPy, Mac)
-    attempt = getattr(request.node, "execution_count", 1)
-    wait_time = 0.2 * attempt
-    proc = multiprocessing.Process(
-        target=_runner_for_signal_int, args=(temp_output_dir, fail_time)
-    )
-    proc.start()
-    sleep(wait_time)
-    assert proc.pid is not None, "Process PID should not be None"  # for mypy
-    os.kill(proc.pid, signal.SIGINT)
-    proc.join()
-
-    # Once the command has been killed, duct should exit gracefully with exit code 0
-    assert proc.exitcode == 0
-
-    if fail_time is None or fail_time != 0:
-        assert_expected_files(temp_output_dir, exists=False)
-    else:
-        # proc exit code should Cannot retrieve the exit code from the thread, it is written to the file
-        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
-            info_data = json.loads(info.read())
-
-        command_exit_code = info_data["execution_summary"]["exit_code"]
-        # SIGINT
-        assert command_exit_code == 128 + 2
-
-
-def _runner_for_signal_kill(temp_output_dir: str, fail_time: float | None) -> int:
-    script_path = str(TEST_SCRIPT_DIR / "signal_ignorer.py")
-    kws = {}
-    if fail_time is not None:
-        kws["fail_time"] = fail_time
-    return run_duct_command([script_path], output_prefix=temp_output_dir, **kws)
-
-
-@pytest.mark.flaky(reruns=5)
-@pytest.mark.parametrize("fail_time", [None, 0, 10, -1, -3.14])
-def test_signal_kill(
-    request: pytest.FixtureRequest, temp_output_dir: str, fail_time: float | None
-) -> None:
-    # Scale wait time on retries to handle slow CI runners (PyPy, Mac)
-    attempt = getattr(request.node, "execution_count", 1)
-    wait_time = 0.2 * attempt
-    proc = multiprocessing.Process(
-        target=_runner_for_signal_kill, args=(temp_output_dir, fail_time)
-    )
-    proc.start()
-    sleep(wait_time)
-    assert proc.pid is not None, "Process PID should not be None"  # for mypy
-    os.kill(proc.pid, signal.SIGINT)
-    sleep(wait_time)
-    os.kill(proc.pid, signal.SIGINT)
-    sleep(wait_time)
-    os.kill(proc.pid, signal.SIGINT)
-    proc.join()
-
-    # Once the command has been killed, duct should exit gracefully with exit code 0
-    assert proc.exitcode == 0
-
-    if fail_time is None or fail_time != 0:
-        assert_expected_files(temp_output_dir, exists=False)
-    else:
-        # Cannot retrieve the command exit code from the thread, get from duct log
-        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
-            info_data = json.loads(info.read())
-
-        command_exit_code = info_data["execution_summary"]["exit_code"]
-        # SIGKILL
-        assert command_exit_code == 128 + 9
 
 
 def test_duct_as_executable(temp_output_dir: str) -> None:

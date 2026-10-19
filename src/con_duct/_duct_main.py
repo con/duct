@@ -9,7 +9,7 @@ import time
 from typing import IO, TextIO
 from con_duct._models import LogPaths, Outputs, RecordTypes, SessionMode
 from con_duct._output import TailPipe, prepare_outputs, remove_files, safe_close_files
-from con_duct._signals import SigIntHandler
+from con_duct._signals import SigIntHandler, start_thread
 from con_duct._tracker import Report, monitor_process
 
 __version__ = version("con-duct")
@@ -65,6 +65,11 @@ def execute(
             sample_interval,
         )
 
+    # Install before any command exists so no SIGINT can kill duct and orphan
+    # the command; until attach() the handler only counts them.
+    sigint_handler = SigIntHandler()
+    signal.signal(signal.SIGINT, sigint_handler)
+
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
     try:
         log_paths.prepare_paths(clobber, capture_outputs)
@@ -99,6 +104,12 @@ def execute(
     )
     files_to_close.append(report.usage_file)
 
+    if sigint_handler.sigcount:
+        safe_close_files(files_to_close)
+        remove_files(log_paths, assert_empty=True)
+        lgr.info("Received SIGINT before starting %r, not starting it", command)
+        return 128 + signal.SIGINT
+
     report.start_time = time.time()
     try:
         report.process = process = subprocess.Popen(
@@ -118,7 +129,7 @@ def execute(
         lgr.error("%s: command not found", command)
         return 127  # seems what zsh and bash return then
 
-    signal.signal(signal.SIGINT, SigIntHandler(process.pid))
+    sigint_handler.attach(process.pid)
     lgr.info("duct %s is executing %r...", __version__, full_command)
     lgr.info("Log files will be written to %s", log_paths.prefix)
     try:
@@ -145,15 +156,15 @@ def execute(
         monitoring_thread = threading.Thread(
             target=monitor_process, args=monitoring_args
         )
-        monitoring_thread.start()
+        start_thread(monitoring_thread)
     else:
         monitoring_thread = None
 
     if record_types.has_system_summary():
         env_thread = threading.Thread(target=report.collect_environment)
-        env_thread.start()
+        start_thread(env_thread)
         sys_info_thread = threading.Thread(target=report.get_system_info)
-        sys_info_thread.start()
+        start_thread(sys_info_thread)
     else:
         env_thread, sys_info_thread = None, None
 
