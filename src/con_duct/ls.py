@@ -3,10 +3,11 @@ from collections import OrderedDict
 import glob
 import json
 import logging
+from pathlib import Path
 import re
 from types import CodeType, ModuleType
 from typing import Any, Dict, List, Optional
-from con_duct._constants import __schema_version__
+from con_duct._constants import SUFFIXES, __schema_version__
 from con_duct._duct_main import DUCT_OUTPUT_PREFIX
 from con_duct._formatter import SummaryFormatter
 from con_duct._utils import parse_version
@@ -32,6 +33,7 @@ VALUE_TRANSFORMATION_MAP: Dict[str, str] = {
     "average_vsz": "{value!S}",
     "end_time": "{value:.2f!N}",
     "exit_code": "{value!E}",
+    "logs_size": "{value!S}",
     "memory_total": "{value!S}",
     "peak_pcpu": "{value:.2f!N}%",
     "peak_pmem": "{value:.2f!N}%",
@@ -79,6 +81,7 @@ NON_TRANSFORMED_FIELDS: List[str] = [
 LS_FIELD_CHOICES: List[str] = (
     list(VALUE_TRANSFORMATION_MAP.keys()) + NON_TRANSFORMED_FIELDS
 )
+COMPUTED_FIELDS: List[str] = ["logs_size"]
 MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
@@ -103,9 +106,37 @@ def compile_eval_filter(eval_filter: Optional[str]) -> Optional[CodeType]:
         ) from exc
 
 
+def compute_logs_size(prefix: str) -> Optional[int]:
+    """Compute total size in bytes of the log files of a session prefix.
+
+    Only duct's own files (the prefix plus each of SUFFIXES) are counted, so
+    the files of a session whose prefix extends this one are not included.
+    Symlinks are followed, so a file counts with the size of its target.
+
+    Returns:
+        The total, or None when the size of some file is unknown: a broken
+        symlink (e.g. a git-annex file whose content is not present locally),
+        or a file that cannot be accessed (which also emits a WARNING).
+    """
+    total = 0
+    for suffix in SUFFIXES.values():
+        path = Path(prefix + suffix)
+        try:
+            if path.is_file():
+                total += path.stat().st_size
+            elif path.is_symlink() and not path.exists():
+                lgr.debug("Content of %s is not present, size unknown", path)
+                return None
+        except OSError as e:
+            lgr.warning("Could not get size of %s: %s", path, e)
+            return None
+    return total
+
+
 def load_duct_runs(
     info_files: List[str],
     eval_filter: Optional[CodeType] = None,
+    compute_size: bool = False,
 ) -> List[Dict[str, Any]]:
     """Load the given info.json files, keeping those matching `eval_filter`.
 
@@ -113,6 +144,7 @@ def load_duct_runs(
         info_files: Paths to `info.json` files to load.
         eval_filter: Filter expression already compiled by
             `compile_eval_filter()`; `None` keeps every run.
+        compute_size: Add the computed `logs_size` field to each run.
     """
     loaded: List[Dict[str, Any]] = []
     for info_file in info_files:
@@ -130,6 +162,8 @@ def load_duct_runs(
                     )
                     continue
                 ensure_compliant_schema(this)
+                if compute_size:
+                    this["logs_size"] = compute_logs_size(this["prefix"])
                 if eval_filter is not None and not (
                     eval_results := eval(eval_filter, _flatten_dict(this), dict(re=re))
                 ):
@@ -363,7 +397,14 @@ def ls(args: argparse.Namespace) -> int:
         enable_colors=False if args.format == "pyout" else args.colors
     )
     info_files = [path for path in args.paths if is_info_file(path)]
-    run_data_raw = load_duct_runs(info_files, compiled_filter)
+    compute_size = (
+        "logs_size" in args.fields
+        or "logs_size" in (args.sort_by or [])
+        or (args.eval_filter is not None and "logs_size" in args.eval_filter)
+    )
+    run_data_raw = load_duct_runs(
+        info_files, compiled_filter, compute_size=compute_size
+    )
 
     if args.sort_by:
         run_data_raw = _sort_run_data(run_data_raw, args.sort_by)
