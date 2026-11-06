@@ -886,6 +886,21 @@ def test_ls_sort_by_each_computed_field(sort_field: str, tmp_path: Any) -> None:
     assert _basenames(prefixes) == ["run_1_", "run_0_", "run_2_"]
 
 
+def test_ls_sort_by_computed_field_not_in_fields(tmp_path: Any) -> None:
+    """A computed --sort-by field is computed even when not shown."""
+    # (exit_code, stdout bytes): logs_size breaks the exit_code tie of run_0
+    # and run_2, so the order differs from the prefix tie-break
+    runs = [(0, 10), (1, 1), (0, 2)]
+    paths = []
+    for i, (exit_code, size) in enumerate(runs):
+        paths.append(_write_run(tmp_path / f"run_{i}_info.json", exit_code=exit_code))
+        (tmp_path / f"run_{i}_stdout").write_bytes(b"x" * size)
+
+    prefixes = _ls_prefixes(paths, ["exit_code", "logs_size"])
+
+    assert _basenames(prefixes) == ["run_2_", "run_0_", "run_1_"]
+
+
 _NAN = float("nan")
 
 

@@ -388,8 +388,10 @@ def ls(args: argparse.Namespace) -> int:
         enable_colors=False if args.format == "pyout" else args.colors
     )
     info_files = [path for path in args.paths if is_info_file(path)]
-    compute_size = "logs_size" in args.fields or (
-        args.eval_filter is not None and "logs_size" in args.eval_filter
+    compute_size = (
+        "logs_size" in args.fields
+        or "logs_size" in (args.sort_by or [])
+        or (args.eval_filter is not None and "logs_size" in args.eval_filter)
     )
     run_data_raw = load_duct_runs(
         info_files, compiled_filter, compute_size=compute_size
