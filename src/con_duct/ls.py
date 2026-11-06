@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 from types import CodeType, ModuleType
 from typing import Any, Dict, List, Optional
-from con_duct._constants import __schema_version__
+from con_duct._constants import SUFFIXES, __schema_version__
 from con_duct._duct_main import DUCT_OUTPUT_PREFIX
 from con_duct._formatter import SummaryFormatter
 from con_duct._utils import parse_version
@@ -107,10 +107,11 @@ def compile_eval_filter(eval_filter: Optional[str]) -> Optional[CodeType]:
 
 
 def compute_logs_size(prefix: str) -> Optional[int]:
-    """Compute total size in bytes of all files for a given session prefix.
+    """Compute total size in bytes of the log files of a session prefix.
 
+    Only duct's own files (the prefix plus each of SUFFIXES) are counted, so
+    the files of a session whose prefix extends this one are not included.
     Symlinks are followed, so a file counts with the size of its target.
-    Directories matching the prefix are excluded.
 
     Returns:
         The total, or None when the size of some file is unknown: a broken
@@ -118,16 +119,16 @@ def compute_logs_size(prefix: str) -> Optional[int]:
         or a file that cannot be accessed (which also emits a WARNING).
     """
     total = 0
-    for path_str in glob.glob(glob.escape(prefix) + "*"):
-        path = Path(path_str)
+    for suffix in SUFFIXES.values():
+        path = Path(prefix + suffix)
         try:
             if path.is_file():
                 total += path.stat().st_size
             elif path.is_symlink() and not path.exists():
-                lgr.debug("Content of %s is not present, size unknown", path_str)
+                lgr.debug("Content of %s is not present, size unknown", path)
                 return None
         except OSError as e:
-            lgr.warning("Could not get size of %s: %s", path_str, e)
+            lgr.warning("Could not get size of %s: %s", path, e)
             return None
     return total
 

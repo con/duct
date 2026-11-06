@@ -294,18 +294,19 @@ def test_ls_exits_cleanly_on_bad_filter(
 
 
 def test_compute_logs_size_sums_all_files() -> None:
-    """Test that compute_logs_size sums sizes of all files with the given prefix."""
+    """compute_logs_size sums duct's own files for the prefix, and only those."""
     with tempfile.TemporaryDirectory() as tmpdir:
         prefix = os.path.join(tmpdir, "run_")
-        # Use arbitrary suffixes; compute_logs_size globs all files with the prefix
-        for suffix, content in [("a", b"hello"), ("b", b"world!"), ("c", b"{}...")]:
+        contents = [b"hello", b"world!", b"{}..."]
+        for suffix, content in zip(["stdout", "stderr", "info.json"], contents):
             with open(f"{prefix}{suffix}", "wb") as f:
                 f.write(content)
-        # Create a subdirectory matching the prefix — it must NOT be counted
-        subdir = f"{prefix}subdir"
-        os.makedirs(subdir, exist_ok=True)
-        expected = sum(len(c) for c in [b"hello", b"world!", b"{}..."])
-        assert compute_logs_size(prefix) == expected
+        # not duct's files: a session whose prefix extends this one, and an
+        # unrelated file sharing the prefix
+        for name in ["run_extra_stdout", "run_extra_info.json", "run_notes.txt"]:
+            with open(os.path.join(tmpdir, name), "wb") as f:
+                f.write(b"x" * 100)
+        assert compute_logs_size(prefix) == sum(len(c) for c in contents)
         # Non-existent prefix returns 0
         assert compute_logs_size(os.path.join(tmpdir, "nonexistent_")) == 0
 
@@ -317,17 +318,15 @@ def test_compute_logs_size_warns_on_inaccessible_file(
     with tempfile.TemporaryDirectory() as tmpdir:
         prefix = os.path.join(tmpdir, "run_")
         # Two files: one accessible, one that raises PermissionError on stat
-        accessible_content = b"accessible"
-        inaccessible_content = b"nope"
-        with open(f"{prefix}ok", "wb") as f:
-            f.write(accessible_content)
-        with open(f"{prefix}bad", "wb") as f:
-            f.write(inaccessible_content)
+        with open(f"{prefix}stdout", "wb") as f:
+            f.write(b"accessible")
+        with open(f"{prefix}stderr", "wb") as f:
+            f.write(b"nope")
 
         original_stat = Path.stat
 
         def failing_stat(self: Path, **kwargs: Any) -> Any:
-            if self.name == "run_bad":
+            if self.name == "run_stderr":
                 raise PermissionError("denied")
             return original_stat(self, **kwargs)
 
@@ -336,19 +335,18 @@ def test_compute_logs_size_warns_on_inaccessible_file(
                 total = compute_logs_size(prefix)
 
     assert total is None
-    assert "run_bad" in caplog.text
+    assert "run_stderr" in caplog.text
     assert any(r.levelname == "WARNING" for r in caplog.records)
 
 
 def test_compute_logs_size_follows_symlinks(tmp_path: Any) -> None:
     """A symlinked file counts with its target's size, as e.g. a git-annex
-    file with its content present; a symlinked directory is excluded."""
+    file with its content present."""
     objects = tmp_path / "objects"
     objects.mkdir()
     (objects / "content").write_bytes(b"x" * 1000)
     (tmp_path / "run_info.json").write_bytes(b"x" * 5)
     (tmp_path / "run_stdout").symlink_to(objects / "content")
-    (tmp_path / "run_dir").symlink_to(objects)
 
     assert compute_logs_size(str(tmp_path / "run_")) == 1005
 
