@@ -313,7 +313,7 @@ def test_compute_logs_size_sums_all_files() -> None:
 def test_compute_logs_size_warns_on_inaccessible_file(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """compute_logs_size should warn but still count accessible files."""
+    """An inaccessible file warns and makes the total unknown."""
     with tempfile.TemporaryDirectory() as tmpdir:
         prefix = os.path.join(tmpdir, "run_")
         # Two files: one accessible, one that raises PermissionError on stat
@@ -335,9 +335,31 @@ def test_compute_logs_size_warns_on_inaccessible_file(
             with caplog.at_level(logging.WARNING, logger="con_duct.ls"):
                 total = compute_logs_size(prefix)
 
-    assert total == len(accessible_content)
+    assert total is None
     assert "run_bad" in caplog.text
     assert any(r.levelname == "WARNING" for r in caplog.records)
+
+
+def test_compute_logs_size_follows_symlinks(tmp_path: Any) -> None:
+    """A symlinked file counts with its target's size, as e.g. a git-annex
+    file with its content present; a symlinked directory is excluded."""
+    objects = tmp_path / "objects"
+    objects.mkdir()
+    (objects / "content").write_bytes(b"x" * 1000)
+    (tmp_path / "run_info.json").write_bytes(b"x" * 5)
+    (tmp_path / "run_stdout").symlink_to(objects / "content")
+    (tmp_path / "run_dir").symlink_to(objects)
+
+    assert compute_logs_size(str(tmp_path / "run_")) == 1005
+
+
+def test_compute_logs_size_unknown_on_broken_symlink(tmp_path: Any) -> None:
+    """A broken symlink, as e.g. a git-annex file whose content is not
+    present, makes the total unknown rather than silently partial."""
+    (tmp_path / "run_info.json").write_bytes(b"x" * 5)
+    (tmp_path / "run_stdout").symlink_to(tmp_path / "objects" / "gone")
+
+    assert compute_logs_size(str(tmp_path / "run_")) is None
 
 
 class TestLS(unittest.TestCase):

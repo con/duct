@@ -106,12 +106,16 @@ def compile_eval_filter(eval_filter: Optional[str]) -> Optional[CodeType]:
         ) from exc
 
 
-def compute_logs_size(prefix: str) -> int:
+def compute_logs_size(prefix: str) -> Optional[int]:
     """Compute total size in bytes of all files for a given session prefix.
 
-    Directories and broken symlinks matching the prefix are excluded.
-    Files that cannot be accessed (e.g. due to permissions) emit a WARNING
-    and are skipped; the sizes of accessible files are still summed.
+    Symlinks are followed, so a file counts with the size of its target.
+    Directories matching the prefix are excluded.
+
+    Returns:
+        The total, or None when the size of some file is unknown: a broken
+        symlink (e.g. a git-annex file whose content is not present locally),
+        or a file that cannot be accessed (which also emits a WARNING).
     """
     total = 0
     for path_str in glob.glob(glob.escape(prefix) + "*"):
@@ -119,8 +123,12 @@ def compute_logs_size(prefix: str) -> int:
         try:
             if path.is_file():
                 total += path.stat().st_size
+            elif path.is_symlink() and not path.exists():
+                lgr.debug("Content of %s is not present, size unknown", path_str)
+                return None
         except OSError as e:
             lgr.warning("Could not get size of %s: %s", path_str, e)
+            return None
     return total
 
 
