@@ -286,8 +286,10 @@ def test_broken_pipe_survives_a_stdout_without_fileno() -> None:
         "{wall_clock_time:d}",  # spec invalid for a float
         "{start_time:%Y}",  # spec invalid for a float
         "{average_rss:,d}",  # float on real runs, so d is invalid
-        "{peak_rss.foo}",  # AttributeError
-        "{peak_rss[0]}",  # TypeError
+        "{peak_rss.foo}",  # attribute access
+        "{peak_rss[0]}",  # index access
+        "{command[0]}",  # index access, even though a str supports it
+        "{working_directory.__class__}",  # attribute access, even though it exists
         "{wall_clock_time!X:.3f}",  # fails only with colors
     ],
 )

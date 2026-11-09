@@ -193,6 +193,10 @@ VALIDATE_SUMMARY_PLACEHOLDERS: dict[str, Any] = {
 def validate_summary_format(summary_format: str) -> str:
     """Render ``summary_format`` against placeholder values, raising if it is invalid.
 
+    Rejects attribute and index access (``{command[0]}``, ``{peak_rss.real}``):
+    whether those render can depend on the value, not only its type, so a
+    placeholder cannot vouch for them.
+
     Renders with colors both off and on: the custom conversions return colored
     strings, so e.g. ``{wall_clock_time!X:.3f}`` fails only with colors.
 
@@ -202,6 +206,11 @@ def validate_summary_format(summary_format: str) -> str:
     Returns:
         str: ``summary_format`` unchanged, so this can serve as an argparse ``type``.
     """
+    for _, field_name, _, _ in string.Formatter().parse(summary_format):
+        if field_name and ("." in field_name or "[" in field_name):
+            raise ValueError(
+                f"{{{field_name}}} uses attribute or index access, which is not supported"
+            )
     for enable_colors in (False, True):
         SummaryFormatter(enable_colors=enable_colors).format(
             summary_format, **VALIDATE_SUMMARY_PLACEHOLDERS

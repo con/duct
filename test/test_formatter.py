@@ -520,6 +520,16 @@ def test_validate_summary_format_accepts_default() -> None:
     assert validate_summary_format(EXECUTION_SUMMARY_FORMAT) == EXECUTION_SUMMARY_FORMAT
 
 
+@pytest.mark.parametrize(
+    "summary_format", ["{command[0]}", "{peak_rss.real:>5}", "x {command[20]!S}"]
+)
+def test_validate_summary_format_rejects_attribute_and_index_access(
+    summary_format: str,
+) -> None:
+    with pytest.raises(ValueError, match="attribute or index access"):
+        validate_summary_format(summary_format)
+
+
 @mock.patch("con_duct._duct_main.LogPaths")
 def test_validate_summary_placeholders_match_a_real_summary(
     mock_log_paths: mock.MagicMock,
