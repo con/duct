@@ -207,7 +207,7 @@ def execute(
         try:
             summary = report.execution_summary_formatted
         except Exception as e:
-            # The command has already run: keep its exit code and logs
+            # Don't raise: the command already ran, so return its exit code rather than a traceback
             lgr.error(
                 "Could not render the summary with %r (%s: %s)%s",
                 summary_format,
