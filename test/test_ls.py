@@ -360,6 +360,25 @@ def test_compute_logs_size_unknown_on_broken_symlink(tmp_path: Any) -> None:
     assert compute_logs_size(str(tmp_path / "run_")) is None
 
 
+def test_compute_logs_size_skips_missing_files(tmp_path: Any) -> None:
+    """A file the run did not write (e.g. --capture-outputs none) adds 0."""
+    (tmp_path / "run_info.json").write_bytes(b"x" * 5)
+
+    assert compute_logs_size(str(tmp_path / "run_")) == 5
+
+
+def test_compute_logs_size_unknown_on_non_regular_file(
+    tmp_path: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Something other than a regular file at a log path makes the total
+    unknown and is reported."""
+    (tmp_path / "run_info.json").write_bytes(b"x" * 5)
+    (tmp_path / "run_stdout").mkdir()
+
+    assert compute_logs_size(str(tmp_path / "run_")) is None
+    assert "is not a regular file" in caplog.text
+
+
 class TestLS(unittest.TestCase):
     def setUp(self) -> None:
         """Create a temporary directory and test files."""

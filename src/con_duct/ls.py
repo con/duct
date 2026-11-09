@@ -122,10 +122,17 @@ def compute_logs_size(prefix: str) -> Optional[int]:
     for suffix in SUFFIXES.values():
         path = Path(prefix + suffix)
         try:
-            if path.is_file():
-                total += path.stat().st_size
-            elif path.is_symlink() and not path.exists():
+            if path.is_symlink() and not path.exists():
+                # e.g. a git-annex file whose content is not present locally
                 lgr.debug("Content of %s is not present, size unknown", path)
+                return None
+            elif path.is_file():
+                # follows symlinks: annexed content counts with its target's size
+                total += path.stat().st_size
+            elif not path.exists():
+                pass  # not written by this run (e.g. --capture-outputs none)
+            else:
+                lgr.warning("%s is not a regular file, size unknown", path)
                 return None
         except OSError as e:
             lgr.warning("Could not get size of %s: %s", path, e)
