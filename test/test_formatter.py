@@ -548,14 +548,18 @@ def test_validate_summary_format_accepts_without_values(summary_format: str) -> 
         ("{0}", "positional"),
         ("{a!Q}", r"unknown conversion !Q"),
         ("{a:.3f!Q}", r"unknown conversion !Q"),
-        ("{a:.2f", "unmatched"),
-        ("a}", "Single '}'"),
+        # Syntax errors come from string.Formatter.parse, whose wording
+        # differs between interpreters (CPython vs PyPy)
+        ("{a:.2f", None),
+        ("a}", None),
         ("{a[0]}", "attribute or index access"),
         ("{a.real:>5}", "attribute or index access"),
         ("x {a[20]!S}", "attribute or index access"),
     ],
 )
-def test_validate_summary_format_rejects(summary_format: str, match: str) -> None:
+def test_validate_summary_format_rejects(
+    summary_format: str, match: str | None
+) -> None:
     with pytest.raises(ValueError, match=match):
         validate_summary_format(summary_format, ["b", "a"])
 
