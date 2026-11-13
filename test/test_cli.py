@@ -9,6 +9,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 import pytest
 from con_duct import cli
+from con_duct._tracker import summary_field_names
 from con_duct.cli import EXIT_BROKEN_PIPE, _create_ls_parser, _create_run_parser
 
 SYSTEM = platform.system()
@@ -333,3 +334,8 @@ def test_summary_format_unknown_field_lists_known(
     with pytest.raises(SystemExit):
         parser.parse_args(["--summary-format", "{peak_rs}", "echo"])
     assert "known fields: average_pcpu, average_pmem" in capsys.readouterr().err
+
+
+def test_summary_format_help_lists_fields() -> None:
+    help_text = " ".join(_create_run_parser().format_help().split())
+    assert f"Available fields: {', '.join(summary_field_names())}." in help_text

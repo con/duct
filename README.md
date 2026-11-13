@@ -187,12 +187,27 @@ options:
                         .duct/logs/{datetime}-{pid}_)
   --summary-format SUMMARY_FORMAT
                         Output template to use when printing the summary
-                        following execution. Accepts custom conversion flags:
-                        !S: Converts filesizes to human readable units, green
-                        if measured, red if None. !E: Colors exit code, green
-                        if falsey, red if truthy, and red if None. !X: Colors
+                        following execution, in Python str.format syntax.
+                        Available fields: exit_code, command, logs_prefix,
+                        wall_clock_time, peak_rss, average_rss, peak_vsz,
+                        average_vsz, peak_pmem, average_pmem, peak_pcpu,
+                        average_pcpu, num_samples, num_reports, start_time,
+                        end_time, working_directory. Accepts custom conversion
+                        flags, written after the format spec
+                        ({field:spec!conv}, e.g. {wall_clock_time:.3f!X}): !S:
+                        Converts filesizes to human readable units, green if
+                        measured, red if None. !E: Colors exit code, green if
+                        falsey, red if truthy, and red if None. !X: Colors
                         green if truthy, red if falsey. !N: Colors green if
-                        not None, red if None (default: Summary: Exit Code:
+                        not None, red if None. !P: Formats as a percentage.
+                        !T: Formats seconds as a duration (e.g. 1m 5.0s). !D:
+                        Formats a timestamp as a date and time. Unknown fields
+                        and malformed templates are rejected before the
+                        command runs. A format spec or conversion that does
+                        not suit a field's value (e.g. {peak_rss:.2d}) can
+                        only fail after the run: duct then logs an error
+                        instead of printing the summary, and the command's
+                        exit code is unaffected. (default: Summary: Exit Code:
                         {exit_code!E} Command: {command} Log files location:
                         {logs_prefix} Wall Clock Time: {wall_clock_time:.3f}
                         sec Memory Peak Usage (RSS): {peak_rss!S} Memory
