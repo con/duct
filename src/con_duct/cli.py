@@ -9,7 +9,9 @@ from typing import List, Optional
 from con_duct import __version__
 from con_duct._duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
 from con_duct._duct_main import execute as duct_execute
+from con_duct._formatter import validate_summary_format
 from con_duct._models import Outputs, RecordTypes, SessionMode
+from con_duct._tracker import summary_field_names
 from con_duct.ls import LS_FIELD_CHOICES, ls
 from con_duct.plot import CPU_MODE_PS_PCPU, CPU_MODES, matplotlib_plot
 from con_duct.pprint_json import pprint_json
@@ -247,6 +249,21 @@ def setup_logging(args: argparse.Namespace) -> None:
         )
 
 
+def _summary_format_type(summary_format: str) -> str:
+    """argparse ``type`` for --summary-format: reject a bad template before the run.
+
+    argparse also applies this to the string default, so a bad
+    DUCT_SUMMARY_FORMAT (from the environment or a .env file) is caught too.
+    """
+    try:
+        return validate_summary_format(summary_format, summary_field_names())
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(
+            f"{summary_format!r}: {e} "
+            "(set via --summary-format, DUCT_SUMMARY_FORMAT, or a .env file)"
+        ) from e
+
+
 def _create_run_parser() -> argparse.ArgumentParser:
     """Create and configure the argument parser for the 'run' command."""
     parser = argparse.ArgumentParser(
@@ -276,14 +293,24 @@ def _create_run_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--summary-format",
-        type=str,
+        type=_summary_format_type,
         default=os.getenv("DUCT_SUMMARY_FORMAT", EXECUTION_SUMMARY_FORMAT),
-        help="Output template to use when printing the summary following execution. "
-        "Accepts custom conversion flags: "
+        help="Output template to use when printing the summary following execution, "
+        "in Python str.format syntax. Available fields: "
+        f"{', '.join(summary_field_names())}. "
+        "Accepts custom conversion flags, written after the format spec "
+        "({field:spec!conv}, e.g. {wall_clock_time:.3f!X}): "
         "!S: Converts filesizes to human readable units, green if measured, red if None. "
         "!E: Colors exit code, green if falsey, red if truthy, and red if None. "
         "!X: Colors green if truthy, red if falsey. "
-        "!N: Colors green if not None, red if None",
+        "!N: Colors green if not None, red if None. "
+        "!P: Formats as a percentage. "
+        "!T: Formats seconds as a duration (e.g. 1m 5.0s). "
+        "!D: Formats a timestamp as a date and time. "
+        "Unknown fields and malformed templates are rejected before the command runs. "
+        "A format spec or conversion that does not suit a field's value "
+        "(e.g. {peak_rss:.2d}) can only fail after the run: duct then logs an error "
+        "instead of printing the summary, and the command's exit code is unaffected.",
     )
     parser.add_argument(
         "--colors",

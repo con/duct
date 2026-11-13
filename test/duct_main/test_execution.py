@@ -10,7 +10,7 @@ import pytest
 from utils import assert_files, run_duct_command
 from con_duct import _duct_main
 from con_duct._constants import SUFFIXES
-from con_duct._models import Outputs
+from con_duct._models import Outputs, RecordTypes
 
 
 def test_sample_less_than_report_interval(temp_output_dir: str) -> None:
@@ -137,6 +137,54 @@ def test_fail_time_threshold(
         == 1
     )
     assert_expected_files(temp_output_dir, exists=logs_kept)
+
+
+@pytest.mark.parametrize(
+    "record_types", [RecordTypes.ALL, RecordTypes.PROCESSES_SAMPLES]
+)
+def test_bad_summary_format_after_run_keeps_exit_code(
+    caplog: pytest.LogCaptureFixture, record_types: RecordTypes, temp_output_dir: str
+) -> None:
+    """execute() skips argparse validation; a render failure must not mask the run."""
+    caplog.set_level("INFO")
+    assert (
+        run_duct_command(
+            ["sh", "-c", "exit 3"],
+            output_prefix=temp_output_dir,
+            fail_time=0,  # keep log files regardless of exit code
+            summary_format="{nonexistent}",
+            record_types=record_types,
+        )
+        == 3
+    )
+    last = caplog.records[-1]
+    assert last.levelname == "ERROR"
+    assert "'{nonexistent}' (KeyError: 'nonexistent')" in last.message
+    has_info = record_types.has_system_summary()
+    assert ("the execution summary is in" in last.message) == has_info
+    # prepare_paths creates every log file; info.json is only filled with a system summary
+    assert (Path(temp_output_dir, SUFFIXES["info"]).stat().st_size > 0) == has_info
+    assert_files(temp_output_dir, [SUFFIXES["stdout"], SUFFIXES["stderr"]])
+
+
+def test_bad_summary_spec_after_run_hints_conversion_order(
+    caplog: pytest.LogCaptureFixture, temp_output_dir: str
+) -> None:
+    """A spec after a duct conversion passes validation but fails on a value."""
+    caplog.set_level("INFO")
+    assert (
+        run_duct_command(
+            ["sh", "-c", "exit 3"],
+            output_prefix=temp_output_dir,
+            fail_time=0,
+            summary_format="{wall_clock_time!X:.3f}",
+            colors=True,
+        )
+        == 3
+    )
+    last = caplog.records[-1]
+    assert last.levelname == "ERROR"
+    assert "try {wall_clock_time:.3f!X}" in last.message
 
 
 def test_outputs_full(temp_output_dir: str) -> None:

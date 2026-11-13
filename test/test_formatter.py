@@ -1,8 +1,15 @@
+from collections import Counter
 import os
 from unittest import mock
 import pytest
-from con_duct._formatter import SummaryFormatter
-from con_duct._tracker import Report
+from con_duct._duct_main import EXECUTION_SUMMARY_FORMAT
+from con_duct._formatter import (
+    SummaryFormatter,
+    conversion_order_hint,
+    validate_summary_format,
+)
+from con_duct._models import ProcessStats, Sample
+from con_duct._tracker import Report, summary_field_names
 
 GREEN_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.GREEN
 RED_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.RED
@@ -99,6 +106,14 @@ def test_summary_formatter_none_replacement() -> None:
     formatter = SummaryFormatter()
     out = formatter.format(valid_format_string, **one_arg)
     assert out == "test -"
+
+
+def test_summary_formatter_spec_mismatch_raises() -> None:
+    formatter = SummaryFormatter()
+    with pytest.raises(ValueError):
+        formatter.format("{value:.2d}", value=123456)
+    # None never reaches the spec, so it still renders
+    assert formatter.format("{value:.2d}", value=None) == "-"
 
 
 def test_summary_formatter_S_e2e() -> None:
@@ -346,7 +361,8 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
     )
     assert f"Rendering: {GREEN}nan{STOP}" == report.execution_summary_formatted
 
-    # or if we really provide bad formatting, e.g. the opposite order of conversion and formatting
+    # Python's {field!conv:spec} order: the colored conversion yields a str,
+    # which the float spec cannot format
     report = Report(
         "_cmd",
         [],
@@ -356,7 +372,11 @@ def test_execution_summary_formatted_wall_clock_time_nowvalid(
         clobber=False,
         colors=colors,
     )
-    assert f"Rendering: {GREEN}nan{STOP}" == report.execution_summary_formatted
+    if colors:
+        with pytest.raises(ValueError):
+            _ = report.execution_summary_formatted
+    else:
+        assert "Rendering: nan" == report.execution_summary_formatted
 
 
 def test_summary_formatter_P_e2e() -> None:
@@ -494,3 +514,93 @@ def test_summary_formatter_T_duration_formats(duration: float, expected: str) ->
     formatter = SummaryFormatter()
     result = formatter.format("{duration!T}", duration=duration)
     assert result == expected
+
+
+def test_validate_summary_format_accepts_default() -> None:
+    assert (
+        validate_summary_format(EXECUTION_SUMMARY_FORMAT, summary_field_names())
+        == EXECUTION_SUMMARY_FORMAT
+    )
+
+
+@pytest.mark.parametrize(
+    "summary_format",
+    [
+        "{peak_rss:.2d}",  # spec invalid for an int
+        "{wall_clock_time!X:.3f}",  # fails only with colors
+        "{exit_code:>5!E}",  # duct's spec-then-conversion order
+        "{command:>{num_samples}}",  # nested field in the spec
+        "{{literal}} {peak_rss!r}",  # escaped braces, Python conversion
+    ],
+)
+def test_validate_summary_format_accepts_without_values(summary_format: str) -> None:
+    """Whether a spec suits a value is only known after the run."""
+    names = summary_field_names()
+    assert validate_summary_format(summary_format, names) == summary_format
+
+
+@pytest.mark.parametrize(
+    "summary_format, match",
+    [
+        ("{nonexistent}", r"unknown field \{nonexistent\}, known fields: a, b"),
+        ("{a:>{nonexistent}}", r"unknown field \{nonexistent\}"),
+        ("{}", "positional"),
+        ("{0}", "positional"),
+        ("{a!Q}", r"unknown conversion !Q"),
+        ("{a:.3f!Q}", r"unknown conversion !Q"),
+        # Syntax errors come from string.Formatter.parse, whose wording
+        # differs between interpreters (CPython vs PyPy)
+        ("{a:.2f", None),
+        ("a}", None),
+        ("{a[0]}", "attribute or index access"),
+        ("{a.real:>5}", "attribute or index access"),
+        ("x {a[20]!S}", "attribute or index access"),
+    ],
+)
+def test_validate_summary_format_rejects(
+    summary_format: str, match: str | None
+) -> None:
+    with pytest.raises(ValueError, match=match):
+        validate_summary_format(summary_format, ["b", "a"])
+
+
+@mock.patch("con_duct._duct_main.LogPaths")
+def test_summary_field_names_match_a_real_summary(
+    mock_log_paths: mock.MagicMock,
+) -> None:
+    """The names read from a Report that never ran are those of a finished run."""
+    mock_log_paths.prefix = "mock_prefix"
+    report = Report("_cmd", ["arg"], mock_log_paths, "", os.getcwd())
+    report.process = mock.MagicMock(returncode=0)
+    report.start_time = 1727221840.0
+    report.end_time = report.start_time + 2.5
+    sample = Sample()
+    sample.add_pid(
+        1,
+        ProcessStats(
+            pcpu=10.0,
+            pmem=1.5,
+            rss=1000,
+            vsz=2000,
+            timestamp="2024-06-11T10:09:37-04:00",
+            etime="00:01",
+            stat=Counter(["S"]),
+            cmd="_cmd arg",
+        ),
+    )
+    report.update_from_sample(sample)
+    assert summary_field_names() == list(report.execution_summary)
+
+
+@pytest.mark.parametrize(
+    "summary_format, hint",
+    [
+        ("{a!X:.3f}", "try {a:.3f!X}"),
+        ("{a:.3f!X}", ""),  # already duct's order
+        ("{a!r:>5}", ""),  # Python's conversion, which composes
+        ("{a!S}", ""),  # no spec
+    ],
+)
+def test_conversion_order_hint(summary_format: str, hint: str) -> None:
+    assert conversion_order_hint(summary_format).endswith(hint)
+    assert bool(conversion_order_hint(summary_format)) == bool(hint)
