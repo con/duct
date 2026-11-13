@@ -7,6 +7,7 @@ import subprocess
 import threading
 import time
 from typing import IO, TextIO
+from con_duct._formatter import conversion_order_hint
 from con_duct._models import LogPaths, Outputs, RecordTypes, SessionMode
 from con_duct._output import TailPipe, prepare_outputs, remove_files, safe_close_files
 from con_duct._signals import SigIntHandler, start_thread
@@ -209,10 +210,11 @@ def execute(
         except Exception as e:
             # Don't raise: the command already ran, so return its exit code rather than a traceback
             lgr.error(
-                "Could not render the summary with %r (%s: %s)%s",
+                "Could not render the summary with %r (%s: %s%s)%s",
                 summary_format,
                 type(e).__name__,
                 e,
+                conversion_order_hint(summary_format),
                 (
                     f"; the execution summary is in {log_paths.info}"
                     if record_types.has_system_summary()

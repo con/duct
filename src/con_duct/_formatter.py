@@ -176,7 +176,8 @@ class SummaryFormatter(string.Formatter):
 
 
 # Conversions SummaryFormatter.convert_field implements, plus Python's own
-SUMMARY_CONVERSIONS = frozenset("SEXNPTD") | frozenset("rsa")
+DUCT_CONVERSIONS = frozenset("SEXNPTD")
+SUMMARY_CONVERSIONS = DUCT_CONVERSIONS | frozenset("rsa")
 
 
 def validate_summary_format(summary_format: str, field_names: Iterable[str]) -> str:
@@ -218,3 +219,23 @@ def validate_summary_format(summary_format: str, field_names: Iterable[str]) -> 
         # A spec can nest replacement fields, e.g. {command:>{num_samples}}
         validate_summary_format(spec, known)
     return summary_format
+
+
+def conversion_order_hint(summary_format: str) -> str:
+    """Suggest duct's ``{field:spec!conv}`` order if the template uses Python's.
+
+    duct's conversions return (possibly colored) strings, so a numeric spec
+    after one, as in ``{wall_clock_time!X:.3f}``, fails on a real value.
+
+    Returns:
+        str: A hint to append to an error message, or "" if there is none.
+    """
+    for _, field_name, format_spec, conversion in string.Formatter().parse(
+        summary_format
+    ):
+        if conversion in DUCT_CONVERSIONS and format_spec:
+            return (
+                "; duct applies its conversions after the spec, "
+                f"try {{{field_name}:{format_spec}!{conversion}}}"
+            )
+    return ""

@@ -167,6 +167,26 @@ def test_bad_summary_format_after_run_keeps_exit_code(
     assert_files(temp_output_dir, [SUFFIXES["stdout"], SUFFIXES["stderr"]])
 
 
+def test_bad_summary_spec_after_run_hints_conversion_order(
+    caplog: pytest.LogCaptureFixture, temp_output_dir: str
+) -> None:
+    """A spec after a duct conversion passes validation but fails on a value."""
+    caplog.set_level("INFO")
+    assert (
+        run_duct_command(
+            ["sh", "-c", "exit 3"],
+            output_prefix=temp_output_dir,
+            fail_time=0,
+            summary_format="{wall_clock_time!X:.3f}",
+            colors=True,
+        )
+        == 3
+    )
+    last = caplog.records[-1]
+    assert last.levelname == "ERROR"
+    assert "try {wall_clock_time:.3f!X}" in last.message
+
+
 def test_outputs_full(temp_output_dir: str) -> None:
     script_path = str(TEST_SCRIPT_DIR / "test_script.py")
     assert (

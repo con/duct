@@ -3,7 +3,11 @@ import os
 from unittest import mock
 import pytest
 from con_duct._duct_main import EXECUTION_SUMMARY_FORMAT
-from con_duct._formatter import SummaryFormatter, validate_summary_format
+from con_duct._formatter import (
+    SummaryFormatter,
+    conversion_order_hint,
+    validate_summary_format,
+)
 from con_duct._models import ProcessStats, Sample
 from con_duct._tracker import Report, summary_field_names
 
@@ -582,3 +586,17 @@ def test_summary_field_names_match_a_real_summary(
     )
     report.update_from_sample(sample)
     assert summary_field_names() == list(report.execution_summary)
+
+
+@pytest.mark.parametrize(
+    "summary_format, hint",
+    [
+        ("{a!X:.3f}", "try {a:.3f!X}"),
+        ("{a:.3f!X}", ""),  # already duct's order
+        ("{a!r:>5}", ""),  # Python's conversion, which composes
+        ("{a!S}", ""),  # no spec
+    ],
+)
+def test_conversion_order_hint(summary_format: str, hint: str) -> None:
+    assert conversion_order_hint(summary_format).endswith(hint)
+    assert bool(conversion_order_hint(summary_format)) == bool(hint)
