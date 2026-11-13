@@ -282,15 +282,10 @@ def test_broken_pipe_survives_a_stdout_without_fileno() -> None:
         "{exit_code!Q}",  # unknown conversion
         "{0}",  # positional field
         "{}",  # auto-numbered positional field
-        "{peak_rss:.2d}",  # spec invalid for an int
-        "{wall_clock_time:d}",  # spec invalid for a float
-        "{start_time:%Y}",  # spec invalid for a float
-        "{average_rss:,d}",  # float on real runs, so d is invalid
         "{peak_rss.foo}",  # attribute access
         "{peak_rss[0]}",  # index access
         "{command[0]}",  # index access, even though a str supports it
         "{working_directory.__class__}",  # attribute access, even though it exists
-        "{wall_clock_time!X:.3f}",  # fails only with colors
     ],
 )
 def test_summary_format_rejected_at_parse_time(
@@ -315,22 +310,26 @@ def test_summary_format_from_env_rejected(capsys: pytest.CaptureFixture) -> None
     assert "DUCT_SUMMARY_FORMAT" in capsys.readouterr().err
 
 
-def test_summary_format_valid_passes_through() -> None:
+@pytest.mark.parametrize(
+    "summary_format",
+    [
+        "{exit_code!E} {peak_rss:.2f} {wall_clock_time!T}",
+        "{peak_rss!S:>10}",  # Python's conversion-first order, fine for a str spec
+        # Specs that do not suit the value pass here and fail after the run
+        "{peak_rss:.2d}",
+        "{wall_clock_time!X:.3f}",
+    ],
+)
+def test_summary_format_valid_passes_through(summary_format: str) -> None:
     parser = _create_run_parser()
-    summary_format = "{exit_code!E} {peak_rss:.2f} {wall_clock_time!T}"
     args = parser.parse_args(["--summary-format", summary_format, "echo"])
     assert args.summary_format == summary_format
 
 
-def test_summary_format_conversion_order_hint(capsys: pytest.CaptureFixture) -> None:
+def test_summary_format_unknown_field_lists_known(
+    capsys: pytest.CaptureFixture,
+) -> None:
     parser = _create_run_parser()
     with pytest.raises(SystemExit):
-        parser.parse_args(["--summary-format", "{wall_clock_time!X:.3f}", "echo"])
-    assert "try {wall_clock_time:.3f!X}" in capsys.readouterr().err
-
-
-def test_summary_format_conversion_order_when_valid() -> None:
-    """Python's conversion-first order is fine when the spec suits a str."""
-    parser = _create_run_parser()
-    args = parser.parse_args(["--summary-format", "{peak_rss!S:>10}", "echo"])
-    assert args.summary_format == "{peak_rss!S:>10}"
+        parser.parse_args(["--summary-format", "{peak_rs}", "echo"])
+    assert "known fields: average_pcpu, average_pmem" in capsys.readouterr().err

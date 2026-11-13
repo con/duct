@@ -3,7 +3,7 @@
 from __future__ import annotations
 from datetime import datetime
 import string
-from typing import Any
+from typing import Any, Iterable
 
 # Decimal (SI) byte units shared by SummaryFormatter.naturalsize (run
 # summary) and the plot axis formatter, so "kB" means the same thing in
@@ -149,6 +149,18 @@ class SummaryFormatter(string.Formatter):
 
         return super().convert_field(value, conversion)
 
+    @staticmethod
+    def split_spec(format_spec: str) -> tuple[str, str | None]:
+        """Split a composite ``spec!conversion`` (e.g. ``.3f!X``) into its parts.
+
+        Returns:
+            tuple: The spec and the conversion, or None if there is none.
+        """
+        if "!" in format_spec and format_spec.index("!") > 1:
+            spec, conversion = format_spec.split("!", 1)
+            return spec, conversion
+        return format_spec, None
+
     def format_field(self, value: Any, format_spec: str) -> Any:
         # TODO: move all the "coloring" into formatting, so we could correctly indent
         # given the format and only then color it up
@@ -156,63 +168,53 @@ class SummaryFormatter(string.Formatter):
         if value is None:
             # TODO: could still use our formatter and make it red or smth like that
             return self.NONE
-        # if it is a composite :format!conversion, we need to split it
-        if "!" in format_spec and format_spec.index("!") > 1:
-            format_spec, conversion = format_spec.split("!", 1)
-        else:
-            conversion = None
+        format_spec, conversion = self.split_spec(format_spec)
         value_ = super().format_field(value, format_spec)
         if conversion:
             return self.convert_field(value_, conversion)
         return value_
 
 
-# One non-None value per Report.execution_summary key, typed as a finished run
-# with 2+ samples produces them, so a format that renders these renders a run.
-VALIDATE_SUMMARY_PLACEHOLDERS: dict[str, Any] = {
-    "exit_code": 0,
-    "command": "cmd arg",
-    "logs_prefix": ".duct/logs/prefix_",
-    "wall_clock_time": 1.0,
-    "peak_rss": 1,
-    "average_rss": 1.0,
-    "peak_vsz": 1,
-    "average_vsz": 1.0,
-    "peak_pmem": 1.0,
-    "average_pmem": 1.0,
-    "peak_pcpu": 1.0,
-    "average_pcpu": 1.0,
-    "num_samples": 2,
-    "num_reports": 1,
-    "start_time": 1.0,
-    "end_time": 2.0,
-    "working_directory": "/",
-}
+# Conversions SummaryFormatter.convert_field implements, plus Python's own
+SUMMARY_CONVERSIONS = frozenset("SEXNPTD") | frozenset("rsa")
 
 
-def validate_summary_format(summary_format: str) -> str:
-    """Render ``summary_format`` against placeholder values, raising if it is invalid.
+def validate_summary_format(summary_format: str, field_names: Iterable[str]) -> str:
+    """Check the structure of ``summary_format``, raising ValueError if it is invalid.
 
-    Rejects attribute and index access (``{command[0]}``, ``{peak_rss.real}``):
-    whether those render can depend on the value, not only its type, so a
-    placeholder cannot vouch for them.
-
-    Renders with colors both off and on: the custom conversions return colored
-    strings, so e.g. ``{wall_clock_time!X:.3f}`` fails only with colors.
+    Checks only what does not depend on values: syntax, that every field is
+    one of ``field_names`` (no positional, attribute, or index access), and
+    that every conversion is known. A format spec that does not suit a
+    field's value (e.g. ``{peak_rss:.2d}``) can only fail once there are
+    values, after the run.
 
     Args:
         summary_format (str): Template as given to --summary-format.
+        field_names (Iterable[str]): Names the template may use.
 
     Returns:
         str: ``summary_format`` unchanged, so this can serve as an argparse ``type``.
     """
-    for _, field_name, _, _ in string.Formatter().parse(summary_format):
-        if field_name and ("." in field_name or "[" in field_name):
+    known = set(field_names)
+    for _, field_name, format_spec, conversion in string.Formatter().parse(
+        summary_format
+    ):
+        if field_name is None:  # trailing literal text
+            continue
+        if field_name == "" or field_name.isdigit():
+            raise ValueError(f"{{{field_name}}} is positional, use a field name")
+        if "." in field_name or "[" in field_name:
             raise ValueError(
                 f"{{{field_name}}} uses attribute or index access, which is not supported"
             )
-    for enable_colors in (False, True):
-        SummaryFormatter(enable_colors=enable_colors).format(
-            summary_format, **VALIDATE_SUMMARY_PLACEHOLDERS
-        )
+        if field_name not in known:
+            raise ValueError(
+                f"unknown field {{{field_name}}}, known fields: {', '.join(sorted(known))}"
+            )
+        spec, spec_conversion = SummaryFormatter.split_spec(format_spec or "")
+        for conv in (conversion, spec_conversion):
+            if conv is not None and conv not in SUMMARY_CONVERSIONS:
+                raise ValueError(f"unknown conversion !{conv} in {{{field_name}}}")
+        # A spec can nest replacement fields, e.g. {command:>{num_samples}}
+        validate_summary_format(spec, known)
     return summary_format

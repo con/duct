@@ -3,13 +3,9 @@ import os
 from unittest import mock
 import pytest
 from con_duct._duct_main import EXECUTION_SUMMARY_FORMAT
-from con_duct._formatter import (
-    VALIDATE_SUMMARY_PLACEHOLDERS,
-    SummaryFormatter,
-    validate_summary_format,
-)
+from con_duct._formatter import SummaryFormatter, validate_summary_format
 from con_duct._models import ProcessStats, Sample
-from con_duct._tracker import Report
+from con_duct._tracker import Report, summary_field_names
 
 GREEN_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.GREEN
 RED_START = SummaryFormatter.COLOR_SEQ % SummaryFormatter.RED
@@ -517,52 +513,72 @@ def test_summary_formatter_T_duration_formats(duration: float, expected: str) ->
 
 
 def test_validate_summary_format_accepts_default() -> None:
-    assert validate_summary_format(EXECUTION_SUMMARY_FORMAT) == EXECUTION_SUMMARY_FORMAT
+    assert (
+        validate_summary_format(EXECUTION_SUMMARY_FORMAT, summary_field_names())
+        == EXECUTION_SUMMARY_FORMAT
+    )
 
 
 @pytest.mark.parametrize(
-    "summary_format", ["{command[0]}", "{peak_rss.real:>5}", "x {command[20]!S}"]
+    "summary_format",
+    [
+        "{peak_rss:.2d}",  # spec invalid for an int
+        "{wall_clock_time!X:.3f}",  # fails only with colors
+        "{exit_code:>5!E}",  # duct's spec-then-conversion order
+        "{command:>{num_samples}}",  # nested field in the spec
+        "{{literal}} {peak_rss!r}",  # escaped braces, Python conversion
+    ],
 )
-def test_validate_summary_format_rejects_attribute_and_index_access(
-    summary_format: str,
-) -> None:
-    with pytest.raises(ValueError, match="attribute or index access"):
-        validate_summary_format(summary_format)
+def test_validate_summary_format_accepts_without_values(summary_format: str) -> None:
+    """Whether a spec suits a value is only known after the run."""
+    names = summary_field_names()
+    assert validate_summary_format(summary_format, names) == summary_format
+
+
+@pytest.mark.parametrize(
+    "summary_format, match",
+    [
+        ("{nonexistent}", r"unknown field \{nonexistent\}, known fields: a, b"),
+        ("{a:>{nonexistent}}", r"unknown field \{nonexistent\}"),
+        ("{}", "positional"),
+        ("{0}", "positional"),
+        ("{a!Q}", r"unknown conversion !Q"),
+        ("{a:.3f!Q}", r"unknown conversion !Q"),
+        ("{a:.2f", "unmatched"),
+        ("a}", "Single '}'"),
+        ("{a[0]}", "attribute or index access"),
+        ("{a.real:>5}", "attribute or index access"),
+        ("x {a[20]!S}", "attribute or index access"),
+    ],
+)
+def test_validate_summary_format_rejects(summary_format: str, match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        validate_summary_format(summary_format, ["b", "a"])
 
 
 @mock.patch("con_duct._duct_main.LogPaths")
-def test_validate_summary_placeholders_match_a_real_summary(
+def test_summary_field_names_match_a_real_summary(
     mock_log_paths: mock.MagicMock,
 ) -> None:
-    """Placeholders must have the keys and types of a finished run's summary.
-
-    Otherwise validation is looser or stricter than the post-run render,
-    e.g. an int placeholder where runs produce floats would accept ``{x:d}``.
-    """
+    """The names read from a Report that never ran are those of a finished run."""
     mock_log_paths.prefix = "mock_prefix"
     report = Report("_cmd", ["arg"], mock_log_paths, "", os.getcwd())
     report.process = mock.MagicMock(returncode=0)
     report.start_time = 1727221840.0
     report.end_time = report.start_time + 2.5
-    for pcpu, rss in ((10.0, 1000), (30.0, 3000)):
-        sample = Sample()
-        sample.add_pid(
-            1,
-            ProcessStats(
-                pcpu=pcpu,
-                pmem=1.5,
-                rss=rss,
-                vsz=rss * 2,
-                timestamp="2024-06-11T10:09:37-04:00",
-                etime="00:01",
-                stat=Counter(["S"]),
-                cmd="_cmd arg",
-            ),
-        )
-        report.update_from_sample(sample)
-
-    summary = report.execution_summary
-    assert summary.keys() == VALIDATE_SUMMARY_PLACEHOLDERS.keys()
-    assert {k: type(v) for k, v in summary.items()} == {
-        k: type(v) for k, v in VALIDATE_SUMMARY_PLACEHOLDERS.items()
-    }
+    sample = Sample()
+    sample.add_pid(
+        1,
+        ProcessStats(
+            pcpu=10.0,
+            pmem=1.5,
+            rss=1000,
+            vsz=2000,
+            timestamp="2024-06-11T10:09:37-04:00",
+            etime="00:01",
+            stat=Counter(["S"]),
+            cmd="_cmd arg",
+        ),
+    )
+    report.update_from_sample(sample)
+    assert summary_field_names() == list(report.execution_summary)

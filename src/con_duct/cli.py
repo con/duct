@@ -11,6 +11,7 @@ from con_duct._duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
 from con_duct._duct_main import execute as duct_execute
 from con_duct._formatter import validate_summary_format
 from con_duct._models import Outputs, RecordTypes, SessionMode
+from con_duct._tracker import summary_field_names
 from con_duct.ls import LS_FIELD_CHOICES, ls
 from con_duct.plot import CPU_MODE_PS_PCPU, CPU_MODES, matplotlib_plot
 from con_duct.pprint_json import pprint_json
@@ -248,10 +249,6 @@ def setup_logging(args: argparse.Namespace) -> None:
         )
 
 
-# Python's {field!conv:spec} order; duct's conversions only compose as {field:spec!conv}
-CONVERSION_BEFORE_SPEC = re.compile(r"\{(\w+)!(\w):([^}]*)\}")
-
-
 def _summary_format_type(summary_format: str) -> str:
     """argparse ``type`` for --summary-format: reject a bad template before the run.
 
@@ -259,18 +256,11 @@ def _summary_format_type(summary_format: str) -> str:
     DUCT_SUMMARY_FORMAT (from the environment or a .env file) is caught too.
     """
     try:
-        return validate_summary_format(summary_format)
-    except Exception as e:
-        # Any failure to render known-good placeholder values is a bad template
-        msg = f"{summary_format!r}: {type(e).__name__}: {e}"
-        if m := CONVERSION_BEFORE_SPEC.search(summary_format):
-            field, conversion, spec = m.groups()
-            msg += (
-                "; duct applies conversions after the spec, "
-                f"try {{{field}:{spec}!{conversion}}}"
-            )
+        return validate_summary_format(summary_format, summary_field_names())
+    except ValueError as e:
         raise argparse.ArgumentTypeError(
-            f"{msg} (set via --summary-format, DUCT_SUMMARY_FORMAT, or a .env file)"
+            f"{summary_format!r}: {e} "
+            "(set via --summary-format, DUCT_SUMMARY_FORMAT, or a .env file)"
         ) from e
 
 
