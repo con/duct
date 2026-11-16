@@ -58,3 +58,9 @@ It is also possible to use pytest directly, but you will need to override the op
 `tox.ini` with `addopts`. Invocation in this way can be faster while developing::
 
     python -m pytest -o addopts="" test/test_thething.py::specific_test
+
+Some tests need the ``setsid`` command and are skipped where it is missing.
+macOS does not ship it; to run those tests there, install util-linux and put it on ``PATH``::
+
+    brew install util-linux
+    export PATH="$(brew --prefix util-linux)/bin:$PATH"

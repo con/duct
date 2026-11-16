@@ -1,7 +1,15 @@
 from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
+import re
+import shlex
+import subprocess
 from typing import Any
+
+# duct logs this right after attaching its SIGINT handler to the command
+# (_duct_main.execute).
+# Anchored on the log format so the wrapped command's echoed stderr can't match.
+DUCT_READY = re.compile(r"\] con-duct: duct \S+ is executing ")
 
 
 def run_duct_command(cli_args: list[str], **kwargs: Any) -> int:
@@ -38,6 +46,56 @@ def run_duct_command(cli_args: list[str], **kwargs: Any) -> int:
     defaults.update(kwargs)
 
     return duct_execute(command=command, command_args=command_args, **defaults)  # type: ignore[arg-type]
+
+
+def start_duct(duct_cmd: str, args: list[str]) -> subprocess.Popen[str]:
+    """Start duct as a subprocess and return once it is ready for signals.
+
+    Reads duct's stderr until the log line emitted just after the SIGINT
+    handler is attached to the command. The caller should finish with ``communicate()``,
+    which drains the rest of stderr and waits for duct to exit.
+
+    That line is logged at INFO, so duct is started with ``--log-level=INFO``
+    whatever DUCT_LOG_LEVEL or a .env file says; ``args`` must not lower it.
+
+    Args:
+        duct_cmd: How to invoke duct, e.g. "duct" or "con-duct run"
+        args: Arguments for duct, including the command to run
+
+    Returns:
+        The running duct process, with its SIGINT handler installed
+    """
+    proc = subprocess.Popen(
+        [*shlex.split(duct_cmd), "--log-level=INFO", *args],
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert proc.stderr is not None  # for mypy
+    seen = []
+    for line in proc.stderr:
+        if DUCT_READY.search(line):
+            return proc
+        seen.append(line)
+    raise RuntimeError(
+        f"duct exited with {proc.wait()} before logging that it is executing; "
+        f"its stderr:\n{''.join(seen)}"
+    )
+
+
+def rest_of_stderr(proc: subprocess.Popen[str]) -> str:
+    """What duct wrote to stderr since ``start_duct`` returned, for failure messages.
+
+    Reads to end of file, so only call it once duct has exited.
+
+    Args:
+        proc: A duct process from ``start_duct``
+
+    Returns:
+        The unread remainder of duct's stderr
+    """
+    assert proc.stderr is not None  # for mypy
+    rest: str = proc.stderr.read()
+    return rest
 
 
 class MockStream:
