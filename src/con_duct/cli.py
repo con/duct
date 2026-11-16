@@ -307,10 +307,8 @@ def _create_run_parser() -> argparse.ArgumentParser:
         "!P: Formats as a percentage. "
         "!T: Formats seconds as a duration (e.g. 1m 5.0s). "
         "!D: Formats a timestamp as a date and time. "
-        "Unknown fields and malformed templates are rejected before the command runs. "
-        "A format spec or conversion that does not suit a field's value "
-        "(e.g. {peak_rss:.2d}) can only fail after the run: duct then logs an error "
-        "instead of printing the summary, and the command's exit code is unaffected.",
+        "Unknown fields and malformed templates are rejected before the command runs; "
+        "any other error is logged after the run, without affecting the exit code.",
     )
     parser.add_argument(
         "--colors",

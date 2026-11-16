@@ -203,17 +203,15 @@ options:
                         !T: Formats seconds as a duration (e.g. 1m 5.0s). !D:
                         Formats a timestamp as a date and time. Unknown fields
                         and malformed templates are rejected before the
-                        command runs. A format spec or conversion that does
-                        not suit a field's value (e.g. {peak_rss:.2d}) can
-                        only fail after the run: duct then logs an error
-                        instead of printing the summary, and the command's
-                        exit code is unaffected. (default: Summary: Exit Code:
-                        {exit_code!E} Command: {command} Log files location:
-                        {logs_prefix} Wall Clock Time: {wall_clock_time:.3f}
-                        sec Memory Peak Usage (RSS): {peak_rss!S} Memory
-                        Average Usage (RSS): {average_rss!S} Virtual Memory
-                        Peak Usage (VSZ): {peak_vsz!S} Virtual Memory Average
-                        Usage (VSZ): {average_vsz!S} Memory Peak Percentage:
+                        command runs; any other error is logged after the run,
+                        without affecting the exit code. (default: Summary:
+                        Exit Code: {exit_code!E} Command: {command} Log files
+                        location: {logs_prefix} Wall Clock Time:
+                        {wall_clock_time:.3f} sec Memory Peak Usage (RSS):
+                        {peak_rss!S} Memory Average Usage (RSS):
+                        {average_rss!S} Virtual Memory Peak Usage (VSZ):
+                        {peak_vsz!S} Virtual Memory Average Usage (VSZ):
+                        {average_vsz!S} Memory Peak Percentage:
                         {peak_pmem:.2f!N}% Memory Average Percentage:
                         {average_pmem:.2f!N}% CPU Peak Usage:
                         {peak_pcpu:.2f!N}% Average CPU Usage:
