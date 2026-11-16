@@ -527,6 +527,7 @@ def test_validate_summary_format_accepts_default() -> None:
         "{exit_code:>5!E}",  # duct's spec-then-conversion order
         "{command:>{num_samples}}",  # nested field in the spec
         "{{literal}} {peak_rss!r}",  # escaped braces, Python conversion
+        "{exit_code!Q}",  # unknown conversion, raised when rendering
     ],
 )
 def test_validate_summary_format_accepts_without_values(summary_format: str) -> None:
@@ -540,17 +541,14 @@ def test_validate_summary_format_accepts_without_values(summary_format: str) -> 
     [
         ("{nonexistent}", r"unknown field \{nonexistent\}, known fields: a, b"),
         ("{a:>{nonexistent}}", r"unknown field \{nonexistent\}"),
-        ("{}", "positional"),
-        ("{0}", "positional"),
-        ("{a!Q}", r"unknown conversion !Q"),
-        ("{a:.3f!Q}", r"unknown conversion !Q"),
+        ("{}", r"unknown field \{\}"),  # positional
+        ("{0}", r"unknown field \{0\}"),
+        ("{a[0]}", r"unknown field \{a\[0\]\}"),  # index access
+        ("{a.real:>5}", r"unknown field \{a\.real\}"),  # attribute access
         # Syntax errors come from string.Formatter.parse, whose wording
         # differs between interpreters (CPython vs PyPy)
         ("{a:.2f", None),
         ("a}", None),
-        ("{a[0]}", "attribute or index access"),
-        ("{a.real:>5}", "attribute or index access"),
-        ("x {a[20]!S}", "attribute or index access"),
     ],
 )
 def test_validate_summary_format_rejects(

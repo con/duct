@@ -280,7 +280,6 @@ def test_broken_pipe_survives_a_stdout_without_fileno() -> None:
     [
         "{nonexistent}",  # unknown key
         "{wall_clock_time:.2f",  # unmatched brace
-        "{exit_code!Q}",  # unknown conversion
         "{0}",  # positional field
         "{}",  # auto-numbered positional field
         "{peak_rss.foo}",  # attribute access
@@ -316,9 +315,10 @@ def test_summary_format_from_env_rejected(capsys: pytest.CaptureFixture) -> None
     [
         "{exit_code!E} {peak_rss:.2f} {wall_clock_time!T}",
         "{peak_rss!S:>10}",  # Python's conversion-first order, fine for a str spec
-        # Specs that do not suit the value pass here and fail after the run
+        # Specs and conversions that do not suit the value pass here and fail after the run
         "{peak_rss:.2d}",
         "{wall_clock_time!X:.3f}",
+        "{exit_code!Q}",
     ],
 )
 def test_summary_format_valid_passes_through(summary_format: str) -> None:

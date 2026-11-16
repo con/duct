@@ -149,18 +149,6 @@ class SummaryFormatter(string.Formatter):
 
         return super().convert_field(value, conversion)
 
-    @staticmethod
-    def split_spec(format_spec: str) -> tuple[str, str | None]:
-        """Split a composite ``spec!conversion`` (e.g. ``.3f!X``) into its parts.
-
-        Returns:
-            tuple: The spec and the conversion, or None if there is none.
-        """
-        if "!" in format_spec and format_spec.index("!") > 1:
-            spec, conversion = format_spec.split("!", 1)
-            return spec, conversion
-        return format_spec, None
-
     def format_field(self, value: Any, format_spec: str) -> Any:
         # TODO: move all the "coloring" into formatting, so we could correctly indent
         # given the format and only then color it up
@@ -168,26 +156,24 @@ class SummaryFormatter(string.Formatter):
         if value is None:
             # TODO: could still use our formatter and make it red or smth like that
             return self.NONE
-        format_spec, conversion = self.split_spec(format_spec)
+        # if it is a composite :format!conversion, we need to split it
+        if "!" in format_spec and format_spec.index("!") > 1:
+            format_spec, conversion = format_spec.split("!", 1)
+        else:
+            conversion = None
         value_ = super().format_field(value, format_spec)
         if conversion:
             return self.convert_field(value_, conversion)
         return value_
 
 
-# Conversions SummaryFormatter.convert_field implements, plus Python's own
-DUCT_CONVERSIONS = frozenset("SEXNPTD")
-SUMMARY_CONVERSIONS = DUCT_CONVERSIONS | frozenset("rsa")
-
-
 def validate_summary_format(summary_format: str, field_names: Iterable[str]) -> str:
     """Check the structure of ``summary_format``, raising ValueError if it is invalid.
 
-    Checks only what does not depend on values: syntax, that every field is
-    one of ``field_names`` (no positional, attribute, or index access), and
-    that every conversion is known. A format spec that does not suit a
-    field's value (e.g. ``{peak_rss:.2d}``) can only fail once there are
-    values, after the run.
+    Checks only syntax and that every field is one of ``field_names``, which
+    also rules out positional, attribute, and index access. A format spec or
+    conversion that does not suit a field's value (e.g. ``{peak_rss:.2d}``)
+    can only fail once there are values, after the run.
 
     Args:
         summary_format (str): Template as given to --summary-format.
@@ -197,25 +183,13 @@ def validate_summary_format(summary_format: str, field_names: Iterable[str]) -> 
         str: ``summary_format`` unchanged, so this can serve as an argparse ``type``.
     """
     known = set(field_names)
-    for _, field_name, format_spec, conversion in string.Formatter().parse(
-        summary_format
-    ):
+    for _, field_name, format_spec, _ in string.Formatter().parse(summary_format):
         if field_name is None:  # trailing literal text
             continue
-        if field_name == "" or field_name.isdigit():
-            raise ValueError(f"{{{field_name}}} is positional, use a field name")
-        if "." in field_name or "[" in field_name:
-            raise ValueError(
-                f"{{{field_name}}} uses attribute or index access, which is not supported"
-            )
         if field_name not in known:
             raise ValueError(
                 f"unknown field {{{field_name}}}, known fields: {', '.join(sorted(known))}"
             )
-        spec, spec_conversion = SummaryFormatter.split_spec(format_spec or "")
-        for conv in (conversion, spec_conversion):
-            if conv is not None and conv not in SUMMARY_CONVERSIONS:
-                raise ValueError(f"unknown conversion !{conv} in {{{field_name}}}")
         # A spec can nest replacement fields, e.g. {command:>{num_samples}}
-        validate_summary_format(spec, known)
+        validate_summary_format(format_spec or "", known)
     return summary_format
