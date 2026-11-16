@@ -27,6 +27,18 @@ The project uses a number of automated checks to limit tedious work.  The
 checks will be run automatically prior to commit if `pre-commit
 <https://pre-commit.com>`_ is installed in your environment.
 
+One of them is a code duplication check (`jscpd <https://jscpd.dev>`_,
+configured in ``.jscpd.json``) with a 0% threshold: any repeated block of 5 or
+more lines fails it.
+Factor the repetition out (a helper, or ``pytest.mark.parametrize`` in tests),
+or, if it is intended, raise ``minTokens``/``minLines`` or add an ignore in
+``.jscpd.json``.
+The hook scans the whole working tree, so untracked files that git does not
+ignore count too.
+Its Linux wheels need glibc 2.34 or newer; where it cannot install, skip it
+locally with ``SKIP=jscpd git commit ...``, since pre-commit.ci still runs it
+on every pull request.
+
 
 Installation
 ------------
