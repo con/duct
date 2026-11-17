@@ -193,9 +193,13 @@ def execute(
         lgr.debug("System information collection finished")
 
     if record_types.has_system_summary():
-        with open(log_paths.info, "w") as system_logs:
-            report.run_time_seconds = f"{report.end_time - report.start_time}"
-            system_logs.write(report.dump_json())
+        report.run_time_seconds = f"{report.end_time - report.start_time}"
+        try:
+            with open(log_paths.info, "w") as system_logs:
+                system_logs.write(report.dump_json())
+        except OSError as exc:
+            lgr.warning("Failed to write %s (%s)", log_paths.info, exc)
+            report.log_write_failed = True
     safe_close_files(files_to_close)
     if process.returncode != 0 and (report.elapsed_time < fail_time or fail_time < 0):
         lgr.info(
@@ -205,4 +209,10 @@ def execute(
         remove_files(log_paths)
     else:
         lgr.info(report.execution_summary_formatted)
+    if report.log_write_failed:
+        lgr.error(
+            "duct was not able to write log files (though partial logs may exist), "
+            "but the command finished with exit code %s",
+            report.process.returncode,
+        )
     return report.process.returncode

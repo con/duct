@@ -1,8 +1,9 @@
 from __future__ import annotations
+from io import BytesIO
 from pathlib import Path
 import subprocess
 import tempfile
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import pytest
 from utils import MockStream
 from con_duct._output import TailPipe
@@ -71,3 +72,41 @@ def test_close(mock_stdout: MockStream) -> None:
         stream.close()
         assert stream.infile is not None
         assert stream.infile.closed
+
+
+def _stale_file() -> Mock:
+    stale = Mock()
+    stale.read.side_effect = PermissionError(13, "Permission denied")
+    return stale
+
+
+def test_catch_up_reopens_stale_file(tmp_path: Path) -> None:
+    path = tmp_path / "stdout"
+    path.write_bytes(b"one\n")
+    buffer = BytesIO()
+    pipe = TailPipe(str(path), buffer)
+    pipe.infile = open(path, "rb")
+    pipe._catch_up()
+    pipe.infile.close()
+    path.write_bytes(b"one\ntwo\n")
+    pipe.infile = _stale_file()
+    pipe._catch_up()
+    assert buffer.getvalue() == b"one\ntwo\n"
+    pipe.infile.close()
+
+
+def test_catch_up_gives_up_when_reopen_fails(tmp_path: Path) -> None:
+    path = tmp_path / "stdout"
+    path.write_bytes(b"one\n")
+    buffer = BytesIO()
+    pipe = TailPipe(str(path), buffer)
+    pipe.infile = _stale_file()
+    with patch(
+        "con_duct._output.open",
+        create=True,
+        side_effect=PermissionError(13, "Permission denied"),
+    ) as mock_open:
+        pipe._catch_up()
+        pipe._catch_up()
+    assert mock_open.call_count == 1
+    assert buffer.getvalue() == b""

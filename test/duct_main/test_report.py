@@ -3,11 +3,12 @@ from collections import Counter
 from copy import deepcopy
 from datetime import datetime
 import os
+from pathlib import Path
 import subprocess
 from unittest import mock
 import pytest
 from con_duct._duct_main import EXECUTION_SUMMARY_FORMAT
-from con_duct._models import Averages, ProcessStats, Sample
+from con_duct._models import Averages, LogPaths, ProcessStats, Sample
 from con_duct._tracker import Report
 
 stat0 = ProcessStats(
@@ -308,3 +309,48 @@ def test_gpu_parse_error(
     report.get_system_info()
     assert report.gpus is None
     mlgr.warning.assert_called_once()
+
+
+def _report_with_sample(tmp_path: Path) -> Report:
+    report = Report(
+        "cmd",
+        [],
+        LogPaths.create(str(tmp_path) + os.sep),
+        EXECUTION_SUMMARY_FORMAT,
+        str(tmp_path),
+    )
+    sample = Sample()
+    sample.add_pid(1, deepcopy(stat0))
+    report.update_from_sample(sample)
+    return report
+
+
+def test_write_subreport_reopens_stale_usage_file(tmp_path: Path) -> None:
+    report = _report_with_sample(tmp_path)
+    report.write_subreport()
+    assert report.usage_file is not None
+    report.usage_file.close()
+    stale = mock.Mock()
+    stale.write.side_effect = PermissionError(13, "Permission denied")
+    report.usage_file = stale
+    report.write_subreport()
+    assert not report.log_write_failed
+    assert len(Path(report.log_paths.usage).read_text().splitlines()) == 2
+    report.write_subreport()
+    assert len(Path(report.log_paths.usage).read_text().splitlines()) == 3
+
+
+def test_write_subreport_gives_up_when_reopen_fails(tmp_path: Path) -> None:
+    report = _report_with_sample(tmp_path)
+    stale = mock.Mock()
+    stale.write.side_effect = PermissionError(13, "Permission denied")
+    report.usage_file = stale
+    with mock.patch(
+        "con_duct._tracker.open",
+        create=True,
+        side_effect=PermissionError(13, "Permission denied"),
+    ) as mock_open:
+        report.write_subreport()
+        assert report.log_write_failed
+        report.write_subreport()
+    assert mock_open.call_count == 1

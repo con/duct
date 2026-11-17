@@ -13,7 +13,7 @@ import socket
 import subprocess
 import threading
 import time
-from typing import Any, Optional, TextIO
+from typing import Any, Literal, Optional, TextIO
 from con_duct._constants import ENV_PREFIXES, __schema_version__
 from con_duct._formatter import SummaryFormatter
 from con_duct._models import LogPaths, Sample, SystemInfo
@@ -61,6 +61,7 @@ class Report:
         self.run_time_seconds: str | None = None
         self.usage_file: TextIO | None = None
         self.working_directory: str = working_directory
+        self.log_write_failed = False
 
     def __del__(self) -> None:
         safe_close_files([self.usage_file])
@@ -175,10 +176,34 @@ class Report:
 
     def write_subreport(self) -> None:
         assert self.current_sample is not None
+        if self.log_write_failed:
+            return
+        line = json.dumps(self.current_sample.for_json()) + "\n"
+        try:
+            self._write_usage(line, "w")
+        except OSError as exc:
+            lgr.warning("Failed to write %s (%s), reopening", self.log_paths.usage, exc)
+            safe_close_files([self.usage_file])
+            self.usage_file = None
+            try:
+                self._write_usage(line, "a")
+            except OSError as exc2:
+                lgr.warning(
+                    "Failed to write %s after reopening it (%s), "
+                    "no more usage samples will be written",
+                    self.log_paths.usage,
+                    exc2,
+                )
+                self.log_write_failed = True
+                safe_close_files([self.usage_file])
+                self.usage_file = None
+
+    def _write_usage(self, line: str, mode: Literal["w", "a"]) -> None:
         if self.usage_file is None:
-            self.usage_file = open(self.log_paths.usage, "w")
-        self.usage_file.write(json.dumps(self.current_sample.for_json()) + "\n")
-        self.usage_file.flush()  # Force flush immediately
+            self.usage_file = open(self.log_paths.usage, mode)
+        usage_file = self.usage_file
+        usage_file.write(line)
+        usage_file.flush()  # Force flush immediately
 
     @property
     def execution_summary(self) -> dict[str, Any]:
