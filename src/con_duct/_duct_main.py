@@ -72,7 +72,7 @@ def execute(
 
     log_paths = LogPaths.create(output_prefix, pid=os.getpid())
     try:
-        log_paths.prepare_paths(clobber, capture_outputs)
+        log_paths.prepare_paths(clobber, capture_outputs, record_types)
     except FileExistsError as e:
         lgr.error("%s", e)
         return 1
