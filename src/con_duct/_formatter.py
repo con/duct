@@ -2,12 +2,8 @@
 
 from __future__ import annotations
 from datetime import datetime
-import logging
 import string
-from typing import Any
-
-lgr = logging.getLogger("con-duct")
-
+from typing import Any, Iterable
 
 # Decimal (SI) byte units shared by SummaryFormatter.naturalsize (run
 # summary) and the plot axis formatter, so "kB" means the same thing in
@@ -165,15 +161,35 @@ class SummaryFormatter(string.Formatter):
             format_spec, conversion = format_spec.split("!", 1)
         else:
             conversion = None
-        try:
-            value_ = super().format_field(value, format_spec)
-        except ValueError as exc:
-            lgr.warning(
-                "Falling back to `str` formatting for %r due to exception: %s",
-                value,
-                exc,
-            )
-            return str(value)
+        value_ = super().format_field(value, format_spec)
         if conversion:
             return self.convert_field(value_, conversion)
         return value_
+
+
+def validate_summary_format(summary_format: str, field_names: Iterable[str]) -> str:
+    """Check the structure of ``summary_format``, raising ValueError if it is invalid.
+
+    Checks only syntax and that every field is one of ``field_names``, which
+    also rules out positional, attribute, and index access. A format spec or
+    conversion that does not suit a field's value (e.g. ``{peak_rss:.2d}``)
+    can only fail once there are values, after the run.
+
+    Args:
+        summary_format (str): Template as given to --summary-format.
+        field_names (Iterable[str]): Names the template may use.
+
+    Returns:
+        str: ``summary_format`` unchanged, so this can serve as an argparse ``type``.
+    """
+    known = set(field_names)
+    for _, field_name, format_spec, _ in string.Formatter().parse(summary_format):
+        if field_name is None:  # trailing literal text
+            continue
+        if field_name not in known:
+            raise ValueError(
+                f"unknown field {{{field_name}}}, known fields: {', '.join(sorted(known))}"
+            )
+        # A spec can nest replacement fields, e.g. {command:>{num_samples}}
+        validate_summary_format(format_spec or "", known)
+    return summary_format
