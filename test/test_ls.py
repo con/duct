@@ -913,10 +913,12 @@ def test_ls_sort_by_each_computed_field(sort_field: str, tmp_path: Any) -> None:
     """Every field computed at query time must sort by its computed value."""
     # only logs_size so far; a new computed field needs its own fixture here
     assert sort_field == "logs_size"
-    # give each run a real stdout file of 2, 1 and 10 bytes; the info.json
-    # files are identical, so their sizes do not affect the order
+    # give each run a real stdout file of 10, 1 and 2000 bytes; the info.json
+    # files are identical, so their sizes do not affect the order. 2000 bytes
+    # humanizes to "2.0 kB", which a sort on the displayed value would put
+    # before "10 B"
     paths = []
-    for i, size in enumerate([2, 1, 10]):
+    for i, size in enumerate([10, 1, 2000]):
         paths.append(_write_run(tmp_path / f"run_{i}_info.json"))
         (tmp_path / f"run_{i}_stdout").write_bytes(b"x" * size)
 
