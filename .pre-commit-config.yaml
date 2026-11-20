@@ -36,3 +36,9 @@ repos:
     rev: v6.2.0
     hooks:
       - id: reuse
+  - repo: https://github.com/kucherenko/jscpd
+    rev: v5.3.3
+    hooks:
+      - id: jscpd
+        args: ["."]
+        pass_filenames: false

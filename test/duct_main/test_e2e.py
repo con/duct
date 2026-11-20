@@ -241,6 +241,18 @@ def test_logging_levels(temp_output_dir: str, duct_cmd: str) -> None:
 FAIL_TIMES = [0, -1]
 
 
+def _assert_fail_time_outcome(
+    temp_output_dir: str, fail_time: int, exit_code: int
+) -> None:
+    """Assert duct removed or kept the logs of a failed run as *fail_time* says."""
+    if fail_time < 0:
+        assert_files(temp_output_dir, LOG_FILES, exists=False)
+    else:
+        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
+            info_data = json.loads(info.read())
+        assert info_data["execution_summary"]["exit_code"] == exit_code
+
+
 @pytest.mark.parametrize("fail_time", FAIL_TIMES)
 def test_signal_int(temp_output_dir: str, duct_cmd: str, fail_time: int) -> None:
     args = ["-p", temp_output_dir, f"--fail-time={fail_time}"]
@@ -250,13 +262,7 @@ def test_signal_int(temp_output_dir: str, duct_cmd: str, fail_time: int) -> None
 
     # duct forwards SIGINT to the command and exits with the command's code
     assert proc.returncode == 128 + signal.SIGINT
-
-    if fail_time < 0:
-        assert_files(temp_output_dir, LOG_FILES, exists=False)
-    else:
-        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
-            info_data = json.loads(info.read())
-        assert info_data["execution_summary"]["exit_code"] == 128 + signal.SIGINT
+    _assert_fail_time_outcome(temp_output_dir, fail_time, 128 + signal.SIGINT)
 
 
 def _wait_for_lines(path: Path, n: int, proc: subprocess.Popen[str]) -> None:
@@ -288,10 +294,4 @@ def test_signal_kill(
     proc.communicate()
 
     assert proc.returncode == 128 + signal.SIGKILL
-
-    if fail_time < 0:
-        assert_files(temp_output_dir, LOG_FILES, exists=False)
-    else:
-        with open(os.path.join(temp_output_dir, SUFFIXES["info"])) as info:
-            info_data = json.loads(info.read())
-        assert info_data["execution_summary"]["exit_code"] == 128 + signal.SIGKILL
+    _assert_fail_time_outcome(temp_output_dir, fail_time, 128 + signal.SIGKILL)
