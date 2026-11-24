@@ -10,7 +10,7 @@ import pytest
 from utils import assert_files, run_duct_command
 from con_duct import _duct_main
 from con_duct._constants import SUFFIXES
-from con_duct._models import Outputs
+from con_duct._models import Outputs, RecordTypes
 
 
 def test_sample_less_than_report_interval(temp_output_dir: str) -> None:
@@ -309,3 +309,31 @@ def test_execute_existing_files_no_clobber(
         [SUFFIXES["stdout"], SUFFIXES["stderr"], SUFFIXES["usage"]],
         exists=False,
     )
+
+
+@pytest.mark.parametrize(
+    "record_types,present,absent",
+    [
+        (RecordTypes.SYSTEM_SUMMARY, ["info"], ["usage"]),
+        (RecordTypes.PROCESSES_SAMPLES, ["usage"], ["info"]),
+    ],
+)
+def test_record_types_create_no_empty_files(
+    temp_output_dir: str,
+    record_types: RecordTypes,
+    present: list[str],
+    absent: list[str],
+) -> None:
+    assert (
+        run_duct_command(
+            ["sleep", "0.3"],
+            sample_interval=0.05,
+            report_interval=0.1,
+            output_prefix=temp_output_dir,
+            record_types=record_types,
+        )
+        == 0
+    )
+    assert_files(temp_output_dir, [SUFFIXES[k] for k in absent], exists=False)
+    for key in present:
+        assert os.path.getsize(os.path.join(temp_output_dir, SUFFIXES[key])) > 0
