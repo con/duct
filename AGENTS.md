@@ -1,6 +1,7 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
+Follow @CONTRIBUTING.rst too, including its "AI-assisted contributions" section on attributing your work.
 
 ## Build & Test Commands
 - A virtual environment should be used (see .local.CLAUDE.md or ~/.claude/CLAUDE.md if they exist for venv locations)
