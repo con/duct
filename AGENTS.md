@@ -22,7 +22,7 @@ Follow @CONTRIBUTING.rst too, including its "AI-assisted contributions" section 
 - Each con-duct command has a separate file (ls.py, plot.py, pprint_json.py)
 
 
-- All tests are under `tests/` folder
+- All tests are under `test/` folder
 - `pytest` package is used for testing
 - Project by default uses only standard Python libraries
   - if additional library is needed, should go under "all" of `options.extras_require` within `setup.cfg`
