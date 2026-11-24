@@ -10,7 +10,7 @@ from con_duct import __version__
 from con_duct._duct_main import DUCT_OUTPUT_PREFIX, EXECUTION_SUMMARY_FORMAT
 from con_duct._duct_main import execute as duct_execute
 from con_duct._models import Outputs, RecordTypes, SessionMode
-from con_duct.ls import LS_FIELD_CHOICES, ls
+from con_duct.ls import COMPUTED_FIELDS, LS_FIELD_CHOICES, ls
 from con_duct.plot import CPU_MODE_PS_PCPU, CPU_MODES, matplotlib_plot
 from con_duct.pprint_json import pprint_json
 
@@ -434,13 +434,17 @@ def _create_ls_parser() -> argparse.ArgumentParser:
         nargs="+",
         metavar="FIELD",
         help=f"List of fields to show. Prefix is always included implicitly as the first field. "
-        f"Available choices: {', '.join(sorted(LS_FIELD_CHOICES))}.",
+        f"Available choices: "
+        f"{', '.join(sorted(set(LS_FIELD_CHOICES) - set(COMPUTED_FIELDS)))}. "
+        f"Computed from the log files on disk when requested, not stored in info.json: "
+        f"{', '.join(COMPUTED_FIELDS)}.",
         choices=LS_FIELD_CHOICES,
         default=[
             "command",
             "exit_code",
             "wall_clock_time",
             "peak_rss",
+            "logs_size",
         ],
     )
     parser.add_argument(
