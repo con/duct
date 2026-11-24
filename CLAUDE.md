@@ -32,6 +32,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Types: Use strict typing with annotations; `from __future__ import annotations`
 - Naming: Classes (PascalCase), functions/variables (snake_case), constants (UPPER_SNAKE_CASE)
 - Error handling: Use explicit try/except with informative messages; log exceptions
+- Fail fast on bad user input: validate before the command runs and exit non-zero, rather than silently falling back
+- After the command has run, a duct failure must not cost the user the run: prefer loud fallbacks (log the error, keep the logs, preserve the command's exit code) over raising, since the user should not have to rerun a potentially expensive execution
 - prefer `Pathlib` over `os.path`
 - Documentation: Use indented docstrings with complete parameter descriptions
 

@@ -231,6 +231,16 @@ class Report:
         return formatter.format(self.summary_format, **self.execution_summary)
 
 
+def summary_field_names() -> list[str]:
+    """Names of the fields a --summary-format template can use.
+
+    These are the ``Report.execution_summary`` keys, read from a Report that
+    never ran, so a new summary field needs no edit here.
+    """
+    report = Report("", [], None, "", "")  # type: ignore[arg-type]
+    return list(report.execution_summary)
+
+
 def monitor_process(
     report: Report,
     process: subprocess.Popen,
