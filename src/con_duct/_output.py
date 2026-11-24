@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from collections.abc import Iterable
+import logging
 import os
 import subprocess
 import sys
@@ -10,6 +11,8 @@ import time
 from typing import IO, Any, TextIO
 from con_duct._models import LogPaths, Outputs
 from con_duct._signals import start_thread
+
+lgr = logging.getLogger("con-duct")
 
 
 class TailPipe:
@@ -23,6 +26,8 @@ class TailPipe:
         self.stop_event: threading.Event | None = None
         self.infile: IO[bytes] | None = None
         self.thread: threading.Thread | None = None
+        self._pos = 0
+        self._read_failed = False
 
     def start(self) -> None:
         self.stop_event = threading.Event()
@@ -34,9 +39,33 @@ class TailPipe:
         assert self.infile is not None
         return self.infile.fileno()
 
-    def _catch_up(self) -> None:
+    def _read(self) -> bytes:
         assert self.infile is not None
-        data = self.infile.read()
+        try:
+            data = self.infile.read()
+        except OSError as exc:
+            lgr.warning("Failed to read %s (%s), reopening", self.file_path, exc)
+            safe_close_files([self.infile])
+            self.infile = open(self.file_path, "rb")
+            self.infile.seek(self._pos)
+            data = self.infile.read()
+        self._pos += len(data)
+        return data
+
+    def _catch_up(self) -> None:
+        if self._read_failed:
+            return
+        try:
+            data = self._read()
+        except OSError as exc:
+            lgr.warning(
+                "Failed to read %s after reopening it (%s), "
+                "the command output is no longer echoed",
+                self.file_path,
+                exc,
+            )
+            self._read_failed = True
+            return
         if data:
             self.buffer.write(data)
             self.buffer.flush()
@@ -108,4 +137,7 @@ def remove_files(log_paths: LogPaths, assert_empty: bool = False) -> None:
         if os.path.exists(file_path):
             if assert_empty:
                 assert os.stat(file_path).st_size == 0
-            os.remove(file_path)
+            try:
+                os.remove(file_path)
+            except OSError as exc:
+                lgr.warning("Failed to remove %s (%s)", file_path, exc)

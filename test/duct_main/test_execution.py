@@ -1,4 +1,5 @@
 from __future__ import annotations
+import builtins
 import json
 import logging
 import os
@@ -6,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 from time import time
+from unittest import mock
 import pytest
 from utils import assert_files, run_duct_command
 from con_duct import _duct_main
@@ -309,3 +311,32 @@ def test_execute_existing_files_no_clobber(
         [SUFFIXES["stdout"], SUFFIXES["stderr"], SUFFIXES["usage"]],
         exists=False,
     )
+
+
+def test_unwritable_log_files_keep_command_exit_code(
+    caplog: pytest.LogCaptureFixture, temp_output_dir: str
+) -> None:
+    real_open = builtins.open
+
+    def deny_logs(file: str, *args: object, **kwargs: object) -> object:
+        if str(file).endswith((SUFFIXES["usage"], SUFFIXES["info"])):
+            raise PermissionError(13, "Permission denied")
+        return real_open(file, *args, **kwargs)  # type: ignore[call-overload]
+
+    caplog.set_level("INFO")
+    with (
+        mock.patch("con_duct._tracker.open", deny_logs, create=True),
+        mock.patch("con_duct._duct_main.open", deny_logs, create=True),
+    ):
+        exit_code = run_duct_command(
+            ["sh", "-c", "sleep 0.5; exit 3"],
+            sample_interval=0.05,
+            report_interval=0.1,
+            output_prefix=temp_output_dir,
+            fail_time=0,
+        )
+    assert exit_code == 3
+    assert (
+        "duct was not able to write log files (though partial logs may exist), "
+        "but the command finished with exit code 3"
+    ) in caplog.records[-1].message
