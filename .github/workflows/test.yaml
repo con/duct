@@ -99,4 +99,86 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           name: ${{ matrix.python-version }}
 
+  # Run the commands which read duct logs against the real-world logs collected
+  # in https://github.com/con/duct-gallery, so that a change which breaks
+  # reading of the logs produced by released versions of duct gets caught.
+  gallery:
+    permissions:
+      contents: read
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # versioningit needs the history, as in the test job
+          fetch-depth: 0
+
+      - name: Check out con/duct-gallery repository
+        uses: actions/checkout@v4
+        with:
+          repository: con/duct-gallery
+          path: duct-gallery
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install con-duct with all extras
+        run: python -m pip install --upgrade ".[all]"
+
+      - name: Run con-duct ls against gallery logs
+        run: |
+          shopt -s nullglob
+          info_files=(duct-gallery/logs/*/*_info.json)
+          echo "Found ${#info_files[@]} info files"
+          [ "${#info_files[@]}" -gt 0 ]
+          for format in summaries yaml; do
+            con-duct ls --format "$format" "${info_files[@]}" > /dev/null
+          done
+          con-duct ls "${info_files[@]}"
+          # ls only warns about the logs it fails to load, and exits with 0
+          rows=$(con-duct ls --format json "${info_files[@]}" \
+            | python -c 'import json, sys; print(len(json.load(sys.stdin)))')
+          echo "ls listed $rows of ${#info_files[@]} runs"
+          [ "$rows" -eq "${#info_files[@]}" ]
+
+      - name: Run con-duct pp against gallery logs
+        run: |
+          for info_file in duct-gallery/logs/*/*_info.json; do
+            con-duct pp --humanize "$info_file" > /dev/null
+          done
+
+      # The gallery keeps logs under names which differ from the ones recorded
+      # in output_paths of info.json, so point plot at the usage files.
+      - name: Run con-duct plot against gallery logs
+        run: |
+          shopt -s nullglob
+          usage_files=(duct-gallery/logs/*/*_usage.json duct-gallery/logs/*/*_usage.jsonl)
+          echo "Found ${#usage_files[@]} usage files"
+          [ "${#usage_files[@]}" -gt 0 ]
+          mkdir -p gallery-plots
+          for usage_file in "${usage_files[@]}"; do
+            name=$(basename "$(dirname "$usage_file")")
+            for cpu in ps-pcpu ps-cpu-timepoint; do
+              con-duct plot "$usage_file" --cpu "$cpu" \
+                --output "gallery-plots/${name}_${cpu}.png"
+            done
+          done
+
+      - name: Upload plots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gallery-plots-${{ matrix.os }}
+          path: gallery-plots/*.png
+          if-no-files-found: warn
+
 # vim:set et sts=2:

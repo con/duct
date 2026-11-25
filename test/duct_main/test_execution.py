@@ -324,9 +324,17 @@ def test_record_types_create_no_empty_files(
     present: list[str],
     absent: list[str],
 ) -> None:
+    if "usage" in present:
+        # However slow the machine is, stay alive until duct has sampled us
+        command = [
+            str(TEST_SCRIPT_DIR / "until_sampled.sh"),
+            os.path.join(temp_output_dir, SUFFIXES["usage"]),
+        ]
+    else:
+        command = ["sleep", "0.3"]
     assert (
         run_duct_command(
-            ["sleep", "0.3"],
+            command,
             sample_interval=0.05,
             report_interval=0.1,
             output_prefix=temp_output_dir,
