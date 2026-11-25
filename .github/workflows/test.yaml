@@ -140,10 +140,15 @@ jobs:
           info_files=(duct-gallery/logs/*/*_info.json)
           echo "Found ${#info_files[@]} info files"
           [ "${#info_files[@]}" -gt 0 ]
-          for format in summaries json yaml; do
+          for format in summaries yaml; do
             con-duct ls --format "$format" "${info_files[@]}" > /dev/null
           done
           con-duct ls "${info_files[@]}"
+          # ls only warns about the logs it fails to load, and exits with 0
+          rows=$(con-duct ls --format json "${info_files[@]}" \
+            | python -c 'import json, sys; print(len(json.load(sys.stdin)))')
+          echo "ls listed $rows of ${#info_files[@]} runs"
+          [ "$rows" -eq "${#info_files[@]}" ]
 
       - name: Run con-duct pp against gallery logs
         run: |
