@@ -295,3 +295,39 @@ $ duct --log-level DEBUG echo "hello world"
 By default, [git-annex](https://git-annex.branchable.com/) treats all dotfiles, and files under directories starting with a `.` as "small" regardless of `annex.largefiles` setting [[ref: an issue describing the logic](https://git-annex.branchable.com/bugs/add__58___inconsistently_treats_files_in_dotdirs_as_dotfiles/?updated#comment-efc1f2aa8f46e88a8be9837a56cfa6f7)].
 It is necessary to set `annex.dotfiles` variable to `true` to make git-annex treat them as regular files and thus subject to `annex.largefiles` setting [[ref: git-annex config](https://git-annex.branchable.com/git-annex-config/)].
 Could be done the repository (not just specific clone, but any instance since records in `git-annex` branch) wide using `git annex config --set annex.dotfiles true`.
+
+### My command behaves differently under duct (e.g. `goaccess` fails, progress bars look off)
+
+By default, duct starts the wrapped command in a new session (`start_new_session=True`; `--mode new-session`), so the child has no controlling terminal, and duct attaches pipes to its stdout/stderr instead of a PTY.
+Programs that inspect `isatty()` to decide how to behave will therefore take their non-interactive path under duct, and the result may be surprising.
+If you run duct with `--mode current-session`, this session detachment does not happen.
+Two examples:
+
+- Under duct, [`goaccess`](https://goaccess.io) may require an explicit `-` argument to force stdin mode; otherwise it can exit with `No input data was provided` in this non-TTY/piped setup [[ref: con/duct#261](https://github.com/con/duct/issues/261)].
+  Pass `-` (e.g. `... | goaccess - --log-format=AWSS3 -o report.html`) to force stdin mode.
+- Progress-bar libraries such as [`tqdm`](https://tqdm.github.io) may render differently when stdout/stderr is a pipe rather than a TTY [[ref: con/duct#426](https://github.com/con/duct/issues/426)].
+
+To check whether a given problem is a TTY issue and not a duct bug, reproduce it outside duct with `setsid`, which similarly detaches the controlling terminal:
+
+```bash
+setsid bash -c "your command here" > out.log 2>&1
+```
+
+If the symptom reproduces under `setsid`, develop and test the non-interactive flag set there; the command will then behave the same way under duct.
+
+### My command's output only appears when it finishes
+
+duct captures the command's output through pipes, so the command does not see a terminal (see the FAQ above).
+Many programs then buffer their stdout and write it out in large blocks or only at exit, just as they do under `cmd | tee log`; stderr usually stays live, so the two streams also lose their interleaving on the terminal.
+The captured `_stdout` log is complete either way.
+duct cannot change this without altering the command's environment, but the command can be told to flush as it goes [[ref: con/duct#218](https://github.com/con/duct/issues/218)]:
+
+| Program | Fix |
+|---|---|
+| Python | `duct python -u script.py`, or `PYTHONUNBUFFERED=1 duct python script.py` |
+| C programs using stdio (`grep`, `sed`, `awk`, most coreutils), including pipelines inside `bash -c` | `duct stdbuf -oL <cmd>` (on macOS, `gstdbuf` from Homebrew coreutils) |
+| Perl | add `$\| = 1;` near the top of the script (turns on autoflush for STDOUT); for a script you can't edit, use the next row |
+| Anything else | `duct unbuffer <cmd>` (from `expect`) or `duct script -qefc "<cmd>" /dev/null` |
+
+`stdbuf` only affects programs that use C stdio; it has no effect on Python or Perl, which buffer on their own, nor on statically linked or setuid binaries, or programs that set their own buffering.
+`unbuffer` and `script` run the command on a pseudo-terminal, so it behaves as if interactive: colors, progress bars, and other escape codes will then end up in the captured logs.

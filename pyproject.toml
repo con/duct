@@ -33,6 +33,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
   "Environment :: Console",
@@ -77,9 +78,6 @@ filterwarnings = [
     # matplotlib 3.5 uses deprecated pyparsing API (enablePackrat -> enable_packrat)
     "ignore:'enablePackrat' deprecated:DeprecationWarning:matplotlib._mathtext",
 ]
-markers = [
-    "flaky: mark a test as being unreliable",
-]
 norecursedirs = ["test/data"]
 
 [tool.setuptools.packages.find]
@@ -117,6 +115,7 @@ src_paths = ["src"]
 [tool.coverage.run]
 branch = true
 parallel = true
+patch = ["subprocess", "execv"]
 
 [tool.coverage.paths]
 source = [

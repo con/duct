@@ -1,0 +1,16 @@
+version = 1
+
+# Catch-all first; a later annotation wins for files it also matches, so the
+# src/ block below overrides this one with the dual copyright.
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2024-2026 Center for Open Neuroscience"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "src/con_duct/**"
+SPDX-FileCopyrightText = [
+    "2019-2021 brainlife",
+    "2024-2026 Center for Open Neuroscience",
+]
+SPDX-License-Identifier = "MIT"

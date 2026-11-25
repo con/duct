@@ -63,6 +63,20 @@ class SystemInfo:
     hostname: str | None
     uid: int
     user: str | None
+    os_name: str
+    os_release: str
+    os_version: str
+    arch: str
+    processor: str
+    distro_id: str
+    distro_id_like: str
+    distro_name: str
+    distro_version: str
+    distro_version_id: str
+    distro_codename: str
+    distro_variant_id: str
+    distro_pretty_name: str
+    distro_build_id: str
 
 
 @dataclass
@@ -154,7 +168,12 @@ class LogPaths:
             prefix=formatted_prefix,
         )
 
-    def prepare_paths(self, clobber: bool, capture_outputs: Outputs) -> None:
+    def prepare_paths(
+        self,
+        clobber: bool,
+        capture_outputs: Outputs,
+        record_types: RecordTypes = RecordTypes.ALL,
+    ) -> None:
         conflicts = [path for _name, path in self if os.path.exists(path)]
         if conflicts and not clobber:
             raise FileExistsError(
@@ -174,6 +193,10 @@ class LogPaths:
             if name == SUFFIXES["stdout"] and not capture_outputs.has_stdout():
                 continue
             elif name == SUFFIXES["stderr"] and not capture_outputs.has_stderr():
+                continue
+            elif name == "usage" and not record_types.has_processes_samples():
+                continue
+            elif name == "info" and not record_types.has_system_summary():
                 continue
             # TODO: AVOID PRECREATION -- would interfere e.g. with git-annex
             # assistant monitoring new files to be created and committing

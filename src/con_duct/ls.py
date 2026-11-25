@@ -4,7 +4,7 @@ import glob
 import json
 import logging
 import re
-from types import ModuleType
+from types import CodeType, ModuleType
 from typing import Any, Dict, List, Optional
 from con_duct._constants import __schema_version__
 from con_duct._duct_main import DUCT_OUTPUT_PREFIX
@@ -42,8 +42,18 @@ VALUE_TRANSFORMATION_MAP: Dict[str, str] = {
 }
 
 NON_TRANSFORMED_FIELDS: List[str] = [
+    "arch",
     "command",
     "cpu_total",
+    "distro_build_id",
+    "distro_codename",
+    "distro_id",
+    "distro_id_like",
+    "distro_name",
+    "distro_pretty_name",
+    "distro_variant_id",
+    "distro_version",
+    "distro_version_id",
     "duct_version",
     "gpu",
     "hostname",
@@ -52,7 +62,11 @@ NON_TRANSFORMED_FIELDS: List[str] = [
     "message",
     "num_samples",
     "num_reports",
+    "os_name",
+    "os_release",
+    "os_version",
     "prefix",
+    "processor",
     "schema_version",
     "stderr",
     "stdout",
@@ -68,9 +82,38 @@ LS_FIELD_CHOICES: List[str] = (
 MINIMUM_SCHEMA_VERSION: str = "0.2.0"
 
 
+def compile_eval_filter(eval_filter: Optional[str]) -> Optional[CodeType]:
+    """Compile an --eval-filter expression up-front.
+
+    Compiling once (rather than re-parsing per file) lets us fail fast with a
+    clear error before any files are opened, and misclassified errors like a
+    stray U+00A0 (non-breaking space) in the expression no longer surface as
+    per-file "Failed to load file" warnings.
+    """
+    if eval_filter is None:
+        return None
+    try:
+        return compile(eval_filter, "<eval-filter>", "eval")
+    except SyntaxError as exc:
+        raise ValueError(
+            f"Invalid --eval-filter expression {eval_filter!r}: {exc}. "
+            "Check for hidden non-printable characters (e.g. U+00A0 "
+            "non-breaking space produced by macOS Option+Space or copy-paste "
+            "from a browser/document)."
+        ) from exc
+
+
 def load_duct_runs(
-    info_files: List[str], eval_filter: Optional[str] = None
+    info_files: List[str],
+    eval_filter: Optional[CodeType] = None,
 ) -> List[Dict[str, Any]]:
+    """Load the given info.json files, keeping those matching `eval_filter`.
+
+    Args:
+        info_files: Paths to `info.json` files to load.
+        eval_filter: Filter expression already compiled by
+            `compile_eval_filter()`; `None` keeps every run.
+    """
     loaded: List[Dict[str, Any]] = []
     for info_file in info_files:
         with open(info_file) as file:
@@ -118,6 +161,25 @@ def ensure_compliant_schema(info_dict: dict) -> None:
     # message field added in 0.2.2
     if parse_version(info_dict["schema_version"]) < parse_version("0.2.2"):
         info_dict["message"] = ""
+    # OS and distro provenance fields added to system block in 0.2.3
+    if parse_version(info_dict["schema_version"]) < parse_version("0.2.3"):
+        for field in (
+            "os_name",
+            "os_release",
+            "os_version",
+            "arch",
+            "processor",
+            "distro_id",
+            "distro_id_like",
+            "distro_name",
+            "distro_version",
+            "distro_version_id",
+            "distro_codename",
+            "distro_variant_id",
+            "distro_pretty_name",
+            "distro_build_id",
+        ):
+            info_dict["system"][field] = ""
 
 
 def process_run_data(
@@ -147,6 +209,68 @@ def _flatten_dict(d: Dict[str, Any]) -> Dict[str, Any]:
         else:
             items.append((k, v))
     return dict(items)
+
+
+# Digit runs longer than this are compared as text: they are not meaningful
+# numbers, and int() refuses to parse more than sys.get_int_max_str_digits().
+_MAX_SORT_DIGITS = 18
+_RANK_MISSING = 3  # valueless always sorts last (before numbers, text, other)
+
+
+def _natural_chunks(text: str) -> tuple[tuple[int, int, str], ...]:
+    """Split text into chunks which sort naturally: 0.9.0 < 0.10.0, run2 < run10.
+
+    Digit runs are compared as numbers and everything else as text.  Every
+    chunk has the same (kind, number, text) shape so that chunks never
+    cross-compare (which would raise TypeError).
+    """
+    # re.split with a capturing group alternates text, digits, text, ...
+    return tuple(
+        (0, int(part), "") if i % 2 and len(part) <= _MAX_SORT_DIGITS else (1, 0, part)
+        for i, part in enumerate(re.split(r"(\d+)", text))
+        if part
+    )
+
+
+def _sort_key(value: Any) -> tuple[int, Any]:
+    """Total-ordering key for a raw field value.
+
+    A field can hold a number in one run, a string in another, a list (e.g.
+    `gpu`) in a third and be missing from a fourth, so values are ranked by
+    type and only compared within a rank.  None, "" (what
+    `ensure_compliant_schema()` backfills) and NaN all count as no value.
+    """
+    if value is None or value == "" or value != value:
+        return (_RANK_MISSING, ())
+    if isinstance(value, (bool, int, float)):
+        return (0, value)
+    if isinstance(value, str):
+        return (1, _natural_chunks(value))
+    return (2, _natural_chunks(json.dumps(value, sort_keys=True, default=str)))
+
+
+def _sort_run_data(
+    run_data_list: List[Dict[str, Any]], sort_by: List[str]
+) -> List[Dict[str, Any]]:
+    """Sort raw run records by `sort_by` fields; later fields break ties.
+
+    Runs on the raw records (before `--fields` restriction and formatting)
+    so any field can be a key and numbers sort numerically.  `prefix`, the
+    only unique field, breaks any remaining tie for a reproducible order.
+    """
+    decorated = [(_flatten_dict(run), run) for run in run_data_list]
+    for field in sort_by:
+        if decorated and all(
+            _sort_key(flat.get(field))[0] == _RANK_MISSING for flat, _ in decorated
+        ):
+            lgr.warning(
+                "No run has a value for --sort-by field %r, it does not affect "
+                "the ordering.",
+                field,
+            )
+    fields = [*sort_by, "prefix"]
+    decorated.sort(key=lambda pair: tuple(_sort_key(pair[0].get(f)) for f in fields))
+    return [run for _, run in decorated]
 
 
 def _restrict_row(field_list: List[str], row: Dict[str, Any]) -> OrderedDict[str, Any]:
@@ -219,6 +343,15 @@ def pyout_ls(run_data_list: List[OrderedDict[str, Any]], enable_colors: bool) ->
 
 
 def ls(args: argparse.Namespace) -> int:
+    # Validate the filter expression up front so a typo (or a hidden
+    # non-printable character like U+00A0) errors out cleanly, before we
+    # glob or open any files.
+    try:
+        compiled_filter = compile_eval_filter(args.eval_filter)
+    except ValueError as exc:
+        lgr.error("%s", exc)
+        return 2  # usage error
+
     if not args.paths:
         pattern = f"{DUCT_OUTPUT_PREFIX[:DUCT_OUTPUT_PREFIX.index('{')]}*"
         args.paths = [p for p in glob.glob(pattern)]
@@ -230,7 +363,11 @@ def ls(args: argparse.Namespace) -> int:
         enable_colors=False if args.format == "pyout" else args.colors
     )
     info_files = [path for path in args.paths if is_info_file(path)]
-    run_data_raw = load_duct_runs(info_files, args.eval_filter)
+    run_data_raw = load_duct_runs(info_files, compiled_filter)
+
+    if args.sort_by:
+        run_data_raw = _sort_run_data(run_data_raw, args.sort_by)
+
     output_rows = process_run_data(run_data_raw, args.fields, formatter)
 
     if args.reverse:

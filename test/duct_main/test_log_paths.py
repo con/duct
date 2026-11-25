@@ -2,10 +2,11 @@ from __future__ import annotations
 from dataclasses import asdict
 import logging
 import os
+from pathlib import Path
 import re
 from unittest.mock import MagicMock, call, patch
 import pytest
-from con_duct._models import LogPaths, Outputs
+from con_duct._models import LogPaths, Outputs, RecordTypes
 
 
 def test_log_paths_datetime_prefix() -> None:
@@ -182,3 +183,21 @@ def test_prepare_paths_not_available_no_clobber(
         log_paths.prepare_paths(clobber=False, capture_outputs=Outputs.ALL)
     mock_mkdir.assert_not_called()
     mock_open.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "record_types,expected",
+    [
+        (RecordTypes.ALL, {"info.json", "usage.jsonl"}),
+        (RecordTypes.SYSTEM_SUMMARY, {"info.json"}),
+        (RecordTypes.PROCESSES_SAMPLES, {"usage.jsonl"}),
+    ],
+)
+def test_prepare_paths_skips_disabled_record_types(
+    tmp_path: Path, record_types: RecordTypes, expected: set[str]
+) -> None:
+    log_paths = LogPaths.create(str(tmp_path) + os.sep)
+    log_paths.prepare_paths(
+        clobber=False, capture_outputs=Outputs.NONE, record_types=record_types
+    )
+    assert {p.name for p in tmp_path.iterdir()} == expected
