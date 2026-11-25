@@ -76,3 +76,17 @@ macOS does not ship it; to run those tests there, install util-linux and put it 
 
     brew install util-linux
     export PATH="$(brew --prefix util-linux)/bin:$PATH"
+
+
+AI-assisted contributions
+-------------------------
+
+AI coding tools are welcome here; we just ask that you say when you used one.
+
+- Add a ``Co-Authored-By`` trailer to each commit an AI tool wrote or substantially shaped, naming the tool and model, e.g.::
+
+      Co-Authored-By: Claude Code 2.1.331 / Claude Opus 5.5 <noreply@anthropic.com>
+
+- Say in the pull request description which tool you used and for what (e.g. "drafted with Codex, tests written by hand").
+
+You remain responsible for every line: review and run what the tool produced before opening the pull request.
